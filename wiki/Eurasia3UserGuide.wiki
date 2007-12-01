@@ -1,6 +1,4 @@
 #labels Featured,Phase-Implementation,Phase-Support
-http://eurasia.googlecode.com/files/Eurasia3-logo.png
-
 # Eurasia3 用戶指引
 
 _本文档尚在编写阶段, 关于 Eurasia3 技术的任何问题可以向 [http://groups.google.com/group/eurasia-users Eurasia 邮件列表]提出, 感谢您的支持_
