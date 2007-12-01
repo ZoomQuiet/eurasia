@@ -23,12 +23,35 @@ cd Eurasia-3.x.x
 from Eurasia.web import config, mainloop
 
 def controller(conn):
-   conn.write('hello world!')
-   conn.shutdown()
+	conn.write('hello world!')
+	conn.shutdown()
 
 config(
-   controller=controller,
-   port = 8080 )
+	controller=controller,
+	port = 8080 )
+
+mainloop()
+}}}
+
+=我们照例提供 Response 接口=
+{{{
+from Eurasia.web import config, mainloop
+from Eurasia.web import Response
+
+def controller(conn):
+	resp = Response(conn)
+
+	resp['Content-Type'] = 'text/html; charset=utf-8' # 写 Header
+
+	print >> resp, 'hello world!'
+
+	resp.write('你好世界') # 这样也行
+
+	resp.close()
+
+config(
+	controller=controller,
+	port = 8080 )
 
 mainloop()
 }}}
