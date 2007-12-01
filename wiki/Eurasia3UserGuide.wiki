@@ -1,5 +1,5 @@
 #labels Featured,Phase-Implementation,Phase-Support
-#Eurasia 3 用户手册.
+#Eurasia 用户手册.
 
 =欢迎进入 Eurasia3 魔幻世界=
 
