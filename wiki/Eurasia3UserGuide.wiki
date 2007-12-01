@@ -1,10 +1,21 @@
 #labels Featured,Phase-Implementation,Phase-Support
 =欢迎进入 Eurasia3 魔幻世界=
 
-_本文档尚在编写阶段, 关于 Eurasia3 技术的任何问题可以向 [http://groups.google.com/group/eurasia-users Eurasia 邮件列表]提出, 感谢您的支持_
+_本文档尚在编写阶段, 关于 Eurasia3 技术的任何问题可以向 [http://groups.google.com/group/eurasia-users Eurasia 邮件列表]提出, 感谢您的支持 :) _
+
+=安装=
+
+您需要:
+ *Unix 或兼容系统, 你不会还在用 Redmond OS 吧 :)
+ *Stackless Python 2.5 或更高版本
+
+很废柴, 其实这里不必贴过程出来的 ……
+ #解压缩 `tar xzf Eurasia-3.x.x.tar.gz`
+ # 然后 `cd Eurasia-3.x.x`
+ #以适当权限执行命令 `/PATH/TO/STACKLESS/bin/python2.5 setup.py install`
 
 =Hello world!=
-现在, 是时候编写一个我们自己的 Web 服务器了。
+现在, 是时候编写我们第一个 Web 服务器了。
 
 {{{
 from Eurasia.web import config, mainloop
