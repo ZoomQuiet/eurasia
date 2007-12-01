@@ -6,7 +6,7 @@ _本文档尚在编写阶段, 关于 Eurasia3 技术的任何问题可以向 [ht
 =安装=
 
 您需要:
- * Unix 或兼容系统, 你不会还在用 Redmond OS 吧 :)
+ * Unix 或兼容系统 _您不会还在用 Redmond OS 吧 :) _
  * Stackless Python 2.5 或更高版本
 
 很废柴, 其实这里不必贴过程出来的 ……
