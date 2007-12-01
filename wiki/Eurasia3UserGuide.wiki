@@ -1,6 +1,21 @@
 #labels Featured,Phase-Implementation,Phase-Support
-#Eurasia 用户手册.
-
 =欢迎进入 Eurasia3 魔幻世界=
 
 _本文档尚在编写阶段, 关于 Eurasia3 技术的任何问题可以向 [http://groups.google.com/group/eurasia-users Eurasia 邮件列表]提出, 感谢您的支持_
+
+=Hello world!=
+现在, 是时候编写一个我们自己的 Web 服务器了。
+
+{{{
+from Eurasia.web import config, mainloop
+
+def controller(conn):
+   conn.write('hello world!')
+   conn.shutdown()
+
+config(
+   controller=controller,
+   port = 8080 )
+
+mainloop()
+}}}
