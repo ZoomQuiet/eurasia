@@ -58,4 +58,30 @@ config(
 mainloop()
 }}}
 
-= ... =
+=你在找表单变量吗?=
+
+Form 来啦!
+
+{{{
+from Eurasia.web import config, mainloop
+from Eurasia.web import Response, Form
+
+def controller(conn):
+	form = Form(conn)
+
+	resp = Response(conn)
+
+	resp['Content-Type'] = 'text/html; charset=utf-8' # 写 Header
+
+	print >> resp, '你的表单提交了这些变量:', form
+
+	resp.close()
+
+config(
+	controller=controller,
+	port = 8080 )
+
+mainloop()
+}}}
+
+= 未完待续 ^____^ =
