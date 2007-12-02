@@ -31,6 +31,7 @@ cd Eurasia-3.x.x
 现在, 是时候编写我们第一个 Web 服务器了。
 
 {{{
+# hello.py
 from Eurasia.web import config, mainloop
 
 def controller(conn):
@@ -42,6 +43,12 @@ config(
 	port = 8080 )
 
 mainloop()
+}}}
+
+启动服务器:
+
+{{{
+/PATH/TO/STACKLESS/bin/python2.5 hello.py
 }}}
 
 您可以尝试访问 'http://localhost:8080/' 这个地址。
