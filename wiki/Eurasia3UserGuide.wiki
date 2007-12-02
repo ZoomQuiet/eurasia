@@ -60,7 +60,8 @@ mainloop()
 
 =你在找表单变量吗?=
 
-Form 来啦!
+Form 来啦! 当 URL 是 `"http://localhost:8080/?a=1&b=2"` 时, Form 能得到这些提交的表单变量。
+Form 是这样的一个字典: `{'a': 1, 'b': 2}`
 
 {{{
 from Eurasia.web import config, mainloop
