@@ -85,7 +85,9 @@ from Eurasia.web import config, mainloop
 from Eurasia.web import Response, Form
 
 def controller(conn):
-	form = Form(conn)
+	form = Form(conn,
+		max_size=10000) # 限制 Form (POST 模式) 上传内容的大小
+		                # 默认 1048576 字节
 
 	resp = Response(conn)
 
@@ -185,5 +187,21 @@ mainloop()
 </form>
 </html>
 }}}
+
+=Form 是基于 Request 实现的=
+
+Form 调用相当于 Request.to_form 调用
+
+{{{
+form = Request(conn, max_size=10000)
+form2 = form.to_form() # 将 form 转换成 Form 对象
+                       # to_form() 调用返回 form 本身
+
+form.read() # 报文已经读完, 故只能得到空字符串 ''
+}}}
+
+Form 调用会自动读取全部 POST 报文, 所以当调用 Form 接口或者 to_form() 以后,
+
+你无法再使用 Request 对象读取报文。
 
 = 未完待续 …… =
