@@ -55,6 +55,16 @@ mainloop()
 
 想知道 Eurasia3 的性能吗 :) 为了避免广告嫌疑, 这里就不公开了。
 
+=conn 对象提供的一些重要信息=
+
+"conn.path" 提供了请求的 url, 是一个从根 ("/") 开始的字符串。Django 爱好者可以使用正则表达式来处理这个 url, 显然 Eurasia3 提供的 url 处理方式要更公开以及灵活。 _当然你要为此付出一些代价, Eurasia3 的 url 分发是相当"原始"的_
+
+"conn.method" 提供了请求的方法, 通常是 "get" 或者 "post"。
+
+"conn.address" 提供了请求者的 IP 以及端口信息。
+
+"conn['header-name']" 提供了对 HTTP 头的访问, 注意, header-name 应该是小写的。
+
 =我们照例提供 Response 接口=
 
 当然了, 您会发现, conn 参数能做到 Response 接口所有的事情
@@ -212,5 +222,15 @@ form.read() # 报文已经读完, 故只能得到空字符串 ''
 Form 调用会自动读取全部 POST 报文, 所以当调用 Form 接口或者 to_form() 以后,
 
 你无法再使用 Request 对象读取报文。
+
+=恐怖的 IO 错误!=
+
+当我们使用 Eurasia3 时, 如果我们未将 POST 报文读取完成便开始向浏览器进行回复,
+
+我们将得到一个 IOError, 并杀死这个 Socket。
+
+所以在遇到 POST 报文时, 在进行 Response 之前, 我们需要先使用 Request.read() 读完整个 POST 报文。
+
+当然最简单地, 调用 Form 接口, Form() 调用会自动读取整个 POST 请求。
 
 = 未完待续 …… =
