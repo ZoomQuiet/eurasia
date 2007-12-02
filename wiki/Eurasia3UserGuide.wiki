@@ -5,7 +5,7 @@ http://eurasia.googlecode.com/files/cctv.jpg
 
 _本文档尚在编写阶段, 关于 Eurasia3 技术的任何问题可以向 [http://groups.google.com/group/eurasia-users Eurasia 邮件列表]提出, 感谢您的支持 :) _
 
-[http://eurasia.svn.sourceforge.net/viewvc/eurasia/demo/bin/server.py?view=markup Eurasia3 Demo] 是一份可读性更强, 全面展示 Eurasia3 功能的文档, 在本文档尚未完成之前, 请阅读 [http://eurasia.svn.sourceforge.net/viewvc/eurasia/demo/bin/server.py?view=markup Eurasia3 Demo] 以获取 Eurasia3 更为高级的功能。
+[http://eurasia.svn.sourceforge.net/viewvc/eurasia/demo/bin/server.py?view=markup Eurasia3 Demo] 是一份全面展示 Eurasia3 功能, 且颇为可读的文档, 在本文档尚未完成之前, 请阅读 [http://eurasia.svn.sourceforge.net/viewvc/eurasia/demo/bin/server.py?view=markup Eurasia3 Demo] 以获取 Eurasia3 更为高级的功能。
 
 =在阅读本文档之前=
 
