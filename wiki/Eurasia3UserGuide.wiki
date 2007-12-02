@@ -78,6 +78,7 @@ _您也可以尝试使用诸如 ab 这一类测试工具来体会一下 Eurasia3
 ||conn['header-name']||提供了对 HTTP 头 (Header) 的访问, 注意, "header-name" 应该是小写的||
 ||conn.uid||传说中的 Session Id, 具体用法后面会讲到||
 
+
 ===我们照例提供 Response 接口===
 
 当然了, 下面您会发现, conn 参数能做到 Response 接口所有的事情
