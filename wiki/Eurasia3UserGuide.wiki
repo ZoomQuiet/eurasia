@@ -5,6 +5,12 @@ http://eurasia.googlecode.com/files/cctv.jpg
 
 _本文档尚在编写阶段, 关于 Eurasia3 技术的任何问题可以向 [http://groups.google.com/group/eurasia-users Eurasia 邮件列表]提出, 感谢您的支持 :) _
 
+=在阅读本文档之前=
+
+本文档不是 HTTP 协议的小灶, HTTP 协议的相关知识对 Eurasia3 来说不是必须的,
+
+但对您使用 Eurasia3 来说会很有帮助。
+
 =安装=
 
 您需要:
@@ -36,6 +42,11 @@ mainloop()
 }}}
 
 =我们照例提供 Response 接口=
+
+当然了, 您会发现, conn 参数能做到 Response 接口所有的事情
+
+──── 只是 Response 更酷而已。
+
 {{{
 from Eurasia.web import config, mainloop
 from Eurasia.web import Response
@@ -62,7 +73,7 @@ mainloop()
 
 Form 来啦! 当 URL 是 `"http://localhost:8080/?a=1&b=2"` 时, Form 能得到这些提交的表单变量。
 
-Form 是这样的一个字典: `{'a': 1, 'b': 2}`
+Form 是这样的一个字典: `{'a': 1, 'b': 2}`。然后, POST 方法也是支持的。
 
 {{{
 from Eurasia.web import config, mainloop
@@ -86,4 +97,28 @@ config(
 mainloop()
 }}}
 
-= 未完待续 ^____^ =
+=我要读取请求 (request) 报文的 Header=
+
+{{{
+from Eurasia.web import config, mainloop
+from Eurasia.web import Response
+
+def controller(conn):
+	form = Form(conn)
+
+	resp = Response(conn)
+
+	resp['Content-Type'] = 'text/html; charset=utf-8' # 写 Header
+
+	print >> resp, '你的表单提交了这些变量:', form
+
+	resp.close()
+
+config(
+	controller=controller,
+	port = 8080 )
+
+mainloop()
+}}}
+
+= 未完待续 …… =
