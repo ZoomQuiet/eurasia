@@ -73,7 +73,7 @@ _您也可以尝试使用诸如 ab 这一类测试工具来体会一下 Eurasia3
 ===参数 "conn" 提供的一些重要信息===
 
 ||conn.path||提供了请求的 url, 是一个从根 ("/") 开始的字符串 _Django 爱好者可以更自由地操作这个参数_||
-||conn.metho||提供了请求的方法, 通常是 "get" 或者 "post"||
+||conn.metho||提供了请求的方法, 通常是 "get" 或者 "post" (小写)||
 ||conn.address||提供了请求者的 IP 以及端口信息||
 ||conn['header-name']||提供了对 HTTP 头 (Header) 的访问, 注意, "header-name" 应该是小写的||
 ||conn.uid||传说中的 Session Id, 具体用法后面会讲到||
