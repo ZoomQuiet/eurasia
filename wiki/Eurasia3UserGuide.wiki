@@ -25,6 +25,7 @@ cd Eurasia-3.x.x
 }}}
 
 =Hello world!=
+
 现在, 是时候编写我们第一个 Web 服务器了。
 
 {{{
@@ -40,6 +41,10 @@ config(
 
 mainloop()
 }}}
+
+您可以尝试访问 'http://localhost:8080/' 这个地址。
+
+想知道 Eurasia3 的性能吗 :) 为了避免广告嫌疑, 这里就不公开了。
 
 =我们照例提供 Response 接口=
 
@@ -113,6 +118,52 @@ def controller(conn):
 	resp['Content-Type'] = 'text/html; charset=utf-8' # 写 Header
 
 	print >> resp, '报文长度是: ', conn['content-length'] # 读 Header
+
+	resp.close()
+
+config(
+	controller=controller,
+	port = 8080 )
+
+mainloop()
+}}}
+
+=我们还有 Request 接口=
+
+Request 恰和 Response 相反, 一个只读文件, 一个只写文件。
+
+Request 可以读取 POST 报文的 Body 部分 (注意, 不是 GET 报文, 否则您将得到一个 MethodError 异常)。
+
+_遗憾的是 Eurasia3 自作聪明地读取了报文的头部 (Header), Reqeust 读取的内容不包含报文头部, 但是您可以从 conn 对象中的到报文头部_
+
+{{{
+from Eurasia.web import config, mainloop
+from Eurasia.web import Request, Response, MethodError, OverLimit
+
+def controller(conn):
+	try:
+		req  = Request(conn,
+
+			max_size=10000 ) # 超出 10000 字节, 读取时将抛出 OverLimit 异常
+			                 #   服务器将自动关闭
+
+		        	         # 默认 1048576 字节
+		s = ''
+	except MethodError:
+		s = '[仅支持 POST 报文]'
+
+	if not s:
+		try:
+			s += req.read(100)
+			s += req.readline(100)
+			s += req.readline()
+			s += req.read() # 读取所有内容
+		except OverLimit:
+			s = '[超出报文长度限制]'
+
+	resp = Response(conn)
+
+	resp['Content-Type'] = 'text/html; charset=utf-8'
 
 	resp.close()
 
