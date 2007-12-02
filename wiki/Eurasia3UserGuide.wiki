@@ -99,18 +99,20 @@ mainloop()
 
 =我要读取请求 (request) 报文的 Header=
 
+很简单, `conn["header-name"]` 这样就可以了, 请小写 header 名称
+
+比如 conn['content-length']:
+
 {{{
 from Eurasia.web import config, mainloop
 from Eurasia.web import Response
 
 def controller(conn):
-	form = Form(conn)
-
 	resp = Response(conn)
 
 	resp['Content-Type'] = 'text/html; charset=utf-8' # 写 Header
 
-	print >> resp, '你的表单提交了这些变量:', form
+	print >> resp, '报文长度是: ', conn['content-length'] # 读 Header
 
 	resp.close()
 
