@@ -72,7 +72,7 @@ _您也可以尝试使用诸如 ab 这一类测试工具来体会一下 Eurasia3
 
 ===参数 "conn" 提供的一些重要信息===
 
-||conn.path||提供了请求的 url, 是一个从根 ("/") 开始的字符串 _Django 爱好者可以更自由地操作这个参数_||
+||conn.path||提供了请求的 url, 是一个从根 ("/") 开始的字符串||
 ||conn.metho||提供了请求的方法, 通常是 "get" 或者 "post" (小写)||
 ||conn.address||提供了请求者的 IP 以及端口信息||
 ||conn['header-name']||提供了对 HTTP 头 (Header) 的访问, 注意, "header-name" 应该是小写的||
@@ -91,7 +91,7 @@ from Eurasia.web import Response
 def controller(conn):
 	resp = Response(conn)
 
-	resp['Content-Type'] = 'text/html; charset=utf-8' # 写 Header
+	resp['Content-Type'] = 'text/html; charset=utf-8' # 我可以写 Header 了!
 
 	print >> resp, 'hello world!'
 	#resp.write('hello world!') # 这样也行
@@ -107,7 +107,9 @@ mainloop()
 
 ===你在找表单变量吗?===
 
-Form 来啦! 当 URL 是 `"http://localhost:8080/?a=1&b=2"` 时, Form 能得到这些提交的表单变量。
+Form 来啦!
+
+当 URL 是 `"http://localhost:8080/?a=1&b=2"` 时, Form 能得到这些提交的表单变量。
 
 Form 是这样的一个字典: `{'a': 1, 'b': 2}`。然后, POST 方法也是支持的。
 
@@ -117,11 +119,11 @@ from Eurasia.web import Response, Form
 
 def controller(conn):
 	form = Form(conn,
+
 		max_size=10000) # 限制 Form (POST 模式) 上传内容的大小
 		                # 默认 1048576 字节
 
 	resp = Response(conn)
-
 	resp['Content-Type'] = 'text/html; charset=utf-8' # 写 Header
 
 	print >> resp, '你的表单提交了这些变量:', form
@@ -137,37 +139,15 @@ mainloop()
 
 ===报文头 (HTTP Header) 在哪里?===
 
-很简单, `conn["header-name"]` 这样就可以了, 请小写 header 名称
+很简单, 取 `conn["header-name"]` 就可以了, 请小写 header 名称
 
-比如 conn['content-length']:
-
-{{{
-from Eurasia.web import config, mainloop
-from Eurasia.web import Response
-
-def controller(conn):
-	resp = Response(conn)
-
-	resp['Content-Type'] = 'text/html; charset=utf-8' # 写 Header
-
-	print >> resp, '报文长度是: ', conn['content-length'] # 读 Header
-
-	resp.close()
-
-config(
-	controller=controller,
-	port = 8080 )
-
-mainloop()
-}}}
+比如 conn['content-length']
 
 ===我们还有 Request 接口===
 
-Request 恰和 Response 相反, 一个只读文件, 一个只写文件。
+Request 恰和 Response 相反, Request 可以读取 POST 报文的 Body 部分。
 
-Request 可以读取 POST 报文的 Body 部分 (注意, 不是 GET 报文, 否则您将得到一个 MethodError 异常)。
-
-_遗憾的是 Eurasia3 自作聪明地读取了报文的头部 (Header), Reqeust 读取的内容不包含报文头部, 但是您可以从 conn 对象中的到报文头部_
+但是请注意, 不是 GET 报文 (GET 报文没有 Body), 否则您将得到一个 MethodError 异常。
 
 {{{
 from Eurasia.web import config, mainloop
@@ -211,6 +191,7 @@ mainloop()
 
 {{{
 <html>
+<!-- 我是测试页面 -->
 <form method="post" action="http://localhost:8080/">
 <input type="text" name="a" value="...">
 <input type="text" name="b" value="...">
