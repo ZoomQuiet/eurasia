@@ -174,4 +174,16 @@ config(
 mainloop()
 }}}
 
+启动服务器以后, 您可以通过这个页面来测试这个程序:
+
+{{{
+<html>
+<form method="post" action="http://localhost:8080/">
+<input type="text" name="a" value="...">
+<input type="text" name="b" value="...">
+<input type="submit">
+</form>
+</html>
+}}}
+
 = 未完待续 …… =
