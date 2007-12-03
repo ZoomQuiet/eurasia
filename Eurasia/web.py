@@ -270,35 +270,38 @@ class Request:
 		self.left = left - size
 		return ''.join(buff)
 
-def Form(req, max_size=1048576):
-	fi = Request(req, max_size)
-	p = req.path.find('?')
-	if p == -1:
-		content = ''
-	else:
-		content = req.path[p+1:]
+class Form(dict):
+	uid = property(lambda self: self.req.uid)
 
-	if req.method == 'post':
-		if content:
-			content = '%s&%s' %(fi.read(), content)
+	def __init__(req, max_size=1048576):
+		self.req = fi = Request(req, max_size)
+		self.pid = req.pid
+
+		p = req.path.find('?')
+		if p == -1:
+			content = ''
 		else:
-			content = fi.read()
+			content = req.path[p+1:]
 
-	d = {}
-	for ll in content.split('&'):
-		try:
-			k, v = ll.split('=', 1); v = unquote_plus(v)
+		if req.method == 'post':
+			if content:
+				content = '%s&%s' %(fi.read(), content)
+			else:
+				content = fi.read()
+
+		d = {}
+		for ll in content.split('&'):
 			try:
-				if isinstance(d[k], list):
-					d[k].append(v)
-				else:
-					d[k] = [d[k], v]
-			except KeyError:
-				d[k] = v
-		except ValueError:
-			continue
-
-	return d
+				k, v = ll.split('=', 1); v = unquote_plus(v)
+				try:
+					if isinstance(d[k], list):
+						d[k].append(v)
+					else:
+						d[k] = [d[k], v]
+				except KeyError:
+					d[k] = v
+			except ValueError:
+				continue
 
 def SimpleUpload(req, max_size=1048576):
 	fi = Request(req, max_size)
