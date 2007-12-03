@@ -1,8 +1,6 @@
 #labels Featured,Phase-Implementation,Phase-Support
 =Eurasia3 用户指引=
 
-2007 年 12 月 2 日, 沈崴
-
 http://eurasia.googlecode.com/files/cctv.jpg
 
 _(当然了, 也是女人的最爱)_
@@ -15,13 +13,15 @@ _本文档尚在编写阶段, 关于 Eurasia3 技术的任何问题可以向 [ht
 
 在本文档尚未完成之前, 阅读 [http://eurasia.svn.sourceforge.net/viewvc/eurasia/demo/bin/server.py?view=markup Eurasia3 Demo] 可以获取 Eurasia3 更多的高级功能。
 
+_──── 2007 年 12 月 2 日, 沈崴于太湖南岸_
+
 ===在阅读本文档之前===
 
 本文档不是 HTTP 协议的小灶, HTTP 协议的相关知识对 Eurasia3 来说不是必须的,
 
 但对您了解、使用 Eurasia3 来说会很有帮助。
 
-==吊人胃口的入门级功能==
+==勾人胃口的入门级功能==
 
 Eurasia3 当然也照例实现了一些常规 Web 框架的功能, 不错, 重复制造了轮子。
 
@@ -29,7 +29,7 @@ Eurasia3 当然也照例实现了一些常规 Web 框架的功能, 不错, 重�
 
 ──── 尽管 Eurasia3 似乎要做得更好些。
 
-===安装===
+===在所有事情开始之前, 您需要 ──── 安装===
 
 您需要:
  * Unix 或兼容系统
@@ -53,9 +53,10 @@ from Eurasia.web import config, mainloop
 
 def controller(client):
 	client.write('hello world!')
+	# print >> client, 'hello world!' # 这样也行
 
 	client.shutdown()
-	# client.closed = True # 效果一样
+	# client.closed = True # 效果差不多
 
 config(
 	controller=controller,
@@ -72,8 +73,6 @@ mainloop()
 
 现在, 您可以尝试访问 'http://localhost:8080/' 这个地址了。
 
-_您也可以尝试使用诸如 ab 这一类测试工具来体会一下 Eurasia3 的强大_
-
 ===报文头 (HTTP Header) 在哪里?===
 
 参数 "client" 提供的一些重要信息:
@@ -83,12 +82,24 @@ _您也可以尝试使用诸如 ab 这一类测试工具来体会一下 Eurasia3
 ||client.address||提供了请求者的 IP 以及端口信息||
 ||client['header-name']||提供了对 HTTP 头 (Header) 的访问, 注意, "header-name" 应该是小写的||
 ||client.uid||传说中的 Session Id, 具体用法后面会讲到||
+||client.closed||设为 True, 则 Eurasia3 会自动关闭和浏览器的连接||
 
 下面就让我们来回答这个问题, 报文头在哪里?
 
 很简单, 取 `client["header-name"]` 就可以了, 请小写 header 名称
 
 比如 client['content-length']
+
+让我们回顾一下第一个 "hello world" 程序, client 还提供了以下两个方法:
+
+||client.write||向浏览器写数据||
+||client.shutdown||和 client.closed = True 不同, shutdown 会*立即*关闭到浏览器的连接||
+
+事实上, 对于基于 GET 方法的简单 HTTP 请求, client 已经可以应付了。
+
+*注意* , 以 client 来处理请求远没有您想像中那么小儿科,
+
+他能将动态页面的响应能力提高到接近或者超过 Apache (静态页面响应速度) 的程度, 显然这是比较恐怖的。
 
 ===我们照例提供 Response 接口===
 
@@ -127,18 +138,31 @@ Form 是这样的一个字典: `{'a': 1, 'b': 2}`。然后, POST 方法也是支
 
 {{{
 from Eurasia.web import config, mainloop
-from Eurasia.web import Response, Form
+from Eurasia.web import Response, Form, OverLimit
 
 def controller(client):
-	form = Form(client,
-
-		max_size=10000) # 限制 Form (POST 模式) 上传内容的大小
-		                # 默认 1048576 字节
-
 	resp = Response(client)
-	resp['Content-Type'] = 'text/html; charset=utf-8' # 写 Header
+	resp['Content-Type'] = 'text/html; charset=utf-8'
 
-	print >> resp, '你的表单提交了这些变量:', form
+	try:
+		form = Form(client,
+
+			max_size=10000) # 限制 Form (POST 模式) 上传内容的大小
+			                # 默认 1048576 字节
+
+		        	        # 当 form 超过限制, 会得到 OverLimit 异常
+			                # client 会自动 shutdown
+	except OverLimit:
+		# client 已经 shutdown, 我除了写日志无事可干
+
+		# 通常情况下, 我在 HTML 页面里已经限制了可提交内容的大小,
+		# 这应该是一次 Crack 行为
+		pass
+
+
+	print >> resp, '你的表单提交了这些变量:',
+	for key, value in form.items():
+		print >> resp, key, '->', value
 
 	resp.close()
 
@@ -160,30 +184,31 @@ from Eurasia.web import config, mainloop
 from Eurasia.web import Request, Response, MethodError, OverLimit
 
 def controller(client):
+	resp = Response(client)
+	resp['Content-Type'] = 'text/html; charset=utf-8'
 	try:
 		req  = Request(client,
 
 			max_size=10000 ) # 超出 10000 字节, 读取时将抛出 OverLimit 异常
-			                 #   服务器将自动关闭
+			                 # (而 Form 的 OverLimit 是发生在初始化时)
+			                 # 服务器将自动关闭
 
 		        	         # 默认 1048576 字节
-		s = ''
 	except MethodError:
-		s = '[仅支持 POST 报文]'
+		print >> resp, '[Request 接口只支持 POST 方法]'
+		resp.close()
+		return
 
-	if not s:
-		try:
-			s += req.read(100)
-			s += req.readline(100)
-			s += req.readline()
-			s += req.read() # 读取所有内容
-		except OverLimit:
-			s = '[超出报文长度限制]'
+	try:
+		s  = req.read(100)     # 我可以这么读
+		s += req.readline(100) # 也可以这么读
+		s += req.readline()    # 还可以这么读
+		s += req.read()        # shut up, 读取所有内容 now!
+	except OverLimit:
+		# client 已经挂掉, 我无事可干
+		return
 
-	resp = Response(client)
-
-	resp['Content-Type'] = 'text/html; charset=utf-8'
-
+	print >> resp, s
 	resp.close()
 
 config(
@@ -193,11 +218,11 @@ config(
 mainloop()
 }}}
 
-启动服务器以后, 您可以通过这个页面来测试这个程序:
+下面是天杀的测试页面, 贴到本地文件里, 用浏览器打开吧 (也别忘了启动上面的服务器程序)。
 
 {{{
 <html>
-<!-- 我是测试页面 -->
+<!-- 我是测试页面, 我会发出 POST 数据 -->
 <form method="post" action="http://localhost:8080/">
 <input type="text" name="a" value="...">
 <input type="text" name="b" value="...">
@@ -211,25 +236,34 @@ mainloop()
 Form 调用相当于 Request.to_form 调用
 
 {{{
-form = Request(client, max_size=10000)
-form2 = form.to_form() # 将 form 转换成 Form 对象
-                       # to_form() 调用返回 form 本身
+req = Request(client, max_size=10000)
+form = req.to_form()
 
-form.read() # 报文已经读完, 故只能得到空字符串 ''
+req.read() # 报文已经读完, 故只能得到空字符串 ''
 }}}
 
-Form 调用会自动读取全部 POST 报文, 所以当调用 Form 接口或者 to_form() 以后,
+Form 调用会读取全部 POST 报文, 所以当调用 Form 接口或者 Request.to_form() 以后,
 
-你无法再使用 Request 对象读取报文。
+你无法再使用 Request 对象读取报文 (Request.read() 只能得到空)。
 
 ===恐怖的 IO 错误!===
 
 当我们使用 Eurasia3 时, 如果我们未将 POST 报文读取完成便开始向浏览器进行回复,
 
-我们将得到一个 IOError, 并杀死这个 Socket。
+我们将得到一个 IOError, 并杀死这个 Socket (Client)。
 
 所以在遇到 POST 报文时, 在进行 Response 之前, 我们需要先使用 Request.read() 读完整个 POST 报文。
 
 当然最简单地, 调用 Form 接口, Form() 调用会自动读取整个 POST 请求。
+
+当然使用上面的 Response 对象, Response.write() 并不会立即产生 IO,
+
+只有在执行 Response.close() 时才会有实际的发送操作,
+
+因此对 Response 来说, 你可以边读边写。
+
+而 Client.write() 会立即产生 IO, 因此 Client.write()
+
+必须在 Request 完成所有 POST 报文的读操作之后调用。
 
 = 未完待续 …… =
