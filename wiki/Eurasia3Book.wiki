@@ -362,7 +362,11 @@ class HelloWorld:
 cherrypy.quickstart(HelloWorld())
 }}}
 
-We assumed that you already have installed CherryPy. Copy this file and save it locally as hello.py, then start the application at the command prompt:
+We assumed that you already have installed CherryPy.
+
+Copy this file and save it locally as hello.py,
+
+then start the application at the command prompt:
 
 {{{
 python hello.py
@@ -370,7 +374,7 @@ python hello.py
 
 CherryPy 是一个可尊敬的框架, 早期特别是 Eurasia2 受 CherryPy 影响非常大,
 
-所以这个例子只是用来说明让 Eurasia3 像 CherryPy 那样工作是非常容易的, 并没有鄙视它的意思
+所以这个例子只是用来说明让 Eurasia3 像 CherryPy 那样工作是非常容易的, 并没有轻视它的意思
 
 ──── 其实真正的 CherryPy 还是颇为复杂的。
 
