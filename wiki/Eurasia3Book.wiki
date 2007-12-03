@@ -78,7 +78,7 @@ mainloop()
 参数 "client" 提供的一些重要信息:
 
 ||client.path||提供了请求的 url, 是一个从根 ("/") 开始的字符串||
-||client.metho||提供了请求的方法, 通常是 "get" 或者 "post" (小写)||
+||client.method||提供了请求的方法, 通常是 "get" 或者 "post" (小写)||
 ||client.address||提供了请求者的 IP 以及端口信息||
 ||client['header-name']||提供了对 HTTP 头 (Header) 的访问, 注意, "header-name" 应该是小写的||
 ||client.uid||传说中的 Session Id, 具体用法后面会讲到||
