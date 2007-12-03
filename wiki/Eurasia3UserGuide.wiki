@@ -73,7 +73,7 @@ mainloop()
 
 现在, 您可以尝试访问 'http://localhost:8080/' 这个地址了。
 
-===报文头 (HTTP Header) 在哪里?===
+===client 参数===
 
 参数 "client" 提供的一些重要信息:
 
@@ -82,13 +82,12 @@ mainloop()
 ||client.address||提供了请求者的 IP 以及端口信息||
 ||client['header-name']||提供了对 HTTP 头 (Header) 的访问, 注意, "header-name" 应该是小写的||
 ||client.uid||传说中的 Session Id, 具体用法后面会讲到||
+||client.pid||传说中的 Socket fileno||
 ||client.closed||设为 True, 则 Eurasia3 会自动关闭和浏览器的连接||
 
-下面就让我们来回答这个问题, 报文头在哪里?
+好的, 您现在知道如何取 POST 报文长度了吗?
 
-很简单, 取 `client["header-name"]` 就可以了, 请小写 header 名称
-
-比如 client['content-length']
+很简单, 使用 `client['content-length']` 就可以了, *注意* 请小写 "header-name"!
 
 让我们回顾一下第一个 "hello world" 程序, client 还提供了以下两个方法:
 
@@ -236,6 +235,20 @@ mainloop()
 可想而知, 在遇到 POST 请求时 Form 调用的是 Request.read(), 读完整个 POST 报文。
 
 因此, 在*绝大多数情况下请勿*混用 Form 和 Request。
+
+===Response 和 Request 的比较研究===
+
+||接口名称||Client||Response||Request||
+||uid 属性||读取 Session Id||写 Session Id||读取 Session Id||
+||pid 属性||读取 Socket fileno|| ||读取 Socket Fileno||
+||read(size=None)|| || ||读取 POST 报文体||
+||readline(size=None)|| || ||行读取 POST 报文体||
+||write(s)||直写, 立即发生 IO 行为||写缓冲区|| || ||
+||close()|| ||向浏览器发送写缓冲区中的内容, 并关闭连接|| ||
+||__getitem__|| || ||取 HTTP Header||
+||__setitem__|| ||向缓冲区写 HTTP Header|| ||
+
+Response 与 Request 基本上是一一对应的, 互为逆操作。
 
 ===恐怖的 IO 错误!===
 
