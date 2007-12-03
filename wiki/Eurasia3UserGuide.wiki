@@ -243,8 +243,8 @@ mainloop()
 ||pid 属性||读取 Socket fileno|| ||读取 Socket Fileno||
 ||read(size=None)|| || ||读取 POST 报文体||
 ||readline(size=None)|| || ||行读取 POST 报文体||
-||write(s)||直写, 立即发生 IO 行为||写缓冲区|| || ||
-||close()|| ||向浏览器发送写缓冲区中的内容, 并关闭连接|| ||
+||write(s)||直写, 立即发生 IO 行为||写缓冲区|| ||
+||close()|| ||写出缓冲区, 并关闭连接|| ||
 ||`__getitem__`|| || ||取 HTTP Header||
 ||`__setitem__`|| ||向缓冲区写 HTTP Header|| ||
 
