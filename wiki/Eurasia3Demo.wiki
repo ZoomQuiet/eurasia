@@ -3,155 +3,222 @@
 #!/usr/bin/env python2.5
 # -*- coding: utf-8 -*-
 
-import os, sys
-from os import fork
-from time import sleep
-from sys import stderr, stdout
-from socket import error as SocketError
+import schema # 载入配置文件定义
+from Eurasia import pyetc as etc
+from Eurasia.web import config, mainloop, sleep, \
+	Request, Form, Response, Pushlet, SimpleUpload, \
+	UidGenerator, UidError
+
 from traceback import print_exc
 
-import schema # 载入配置信息
+# 简单页面演示:
+def SimplePageDemo(client):
+	response = Response(client)
+	response['Content-Type'] = 'text/html; charset=utf-8'
+	print >> response, page
+	response.close()
 
-from Eurasia import pyetc as etc
-from Eurasia.daemon import Daemon, ServerProxy, Fault, \
-	error as DaemonError
+page = '''<html>
+<a href="/pushlet">"Pushlet 输出流" 演示</a><br/>
+<a href="/remotecall">"远程 JavaScript调用" 演示</a><br/>
+<a href="/simpleuploadpage">"文件上传" 演示</a><br/>
+<a href="/session?a=1&b=2">"Session/状态机" 演示</a>
+</html>'''
 
-## #
+##
 
-def usage():
-	print '使用方法: %s start|stop|status' %sys.argv[0]
+# 流式输出演示:
 
-def start():
-	# 读取配置文件
-	# demo.conf
-	etc.load(schema.ETC('demo.conf'), env=schema.env)
-	conf = schema.config.daemon
+def PushletDemo(client):
+	response = Response(client)
+	response['Content-Type'] = 'text/html; charset=utf-8'
 
+	response.begin()
+	print >> response, '<html>'
+
+	for i in xrange(100):
+		print >> response, '收到第 %d 条回复<br/>' % i
+		sleep(2) # 间隔 2 秒发送一次
+
+	print >> response, '</html>'
+	response.end()
+
+##
+
+# 远程 JavaScript 方法调用
+
+def RemoteCallPage(client):
+	# 疾速动态页面演示,
+	# 通常我们只在性能要求比较变态的情况下使用 ...
+
+	client.write((
+	'<html>'
+	'<head>'
+	'<script language="JavaScript">'
+	'function my_alert(stuff) { alert(stuff); };'
+	'</script>'
+	'</head>'
+	'<body>'
+	'JavaScript Pushlet RPC!'
+	'<iframe src="/remotecallstream" style="display: none;"></iframe>'
+	'</body>'
+	'</html>' ))
+	client.shutdown()
+
+def RemoteCallDemo(client):
+	client = Pushlet(client)
+
+	client.begin()
+
+	for i in xrange(100):
+		client.my_alert('alert %d!' %i)
+		sleep(5)  # 间隔 5 秒发送一次
+
+	client.end()
+
+##
+
+# 文件上传:
+
+def UploadPage(client):
+	client.write((
+	'<html>'
+	'<form action="/simpleupload" method="post"'
+		' enctype="multipart/form-data">'
+	'<input type="hidden" name="a" value="表单变量A" />'
+	'<input type="file" name="z-file" />'
+
+		# ...
+
+		# OK, 这是一个问题,
+		# 表单变量名 "a" 必须小于文件控件的名称 "z-file":
+
+		# 	>>> 'z-file' > a
+		# 	>>> True
+
+		# 因为对 SimpleUpload 组件来说, 文件组件的名字并不重要,
+		# 所以请尽量起成 "zzzzzzzz" 之类的名字, 以保证他的值是最大的。
+
+		# 另外, SimpleUpload 组件只上传支持一个文件,
+		# ──── Eurasia3 的作者认为多线程上传是一个好主意。
+
+	'<input type="submit" />'
+	'</form>'
+	'</html>' ))
+	client.shutdown()
+
+def UploadDemo(client):
+	fd = SimpleUpload(client)
+
+	a = fd['a'] # 没错, 就是那个:
+	            # <input type="hidden" name="a" value="..."/>
+
+	filename = fd.filename
+	size     = fd.size
+
+	s1 = fd.read(10)
+	s2 = fd.readline(10)
+	s3 = fd.read()[-20:]  # 读完了
+
+	resp = Response(client) # Socket 如果没有读取完毕, 引起 IO 错误 
+	resp['Content-Type'] = 'text/plain; charset=utf-8'
+
+	print >> resp, '文件内容:'
+	print >> resp, s1 + s2, '...',
+
+	resp.write(s3) # 还可以这么写
+
+	print >> resp, ''
+	print >> resp, '那个 a:', a
+	print >> resp, '文件名:', filename
+	print >> resp, '文件大小:', size
+
+	resp.close()
+
+##
+
+# Session 演示:
+# Eurasia 使用状态机代替 Session 的作用
+
+ug = uid_generator = UidGenerator() # Uid 生成器, 以及逻辑线程调度器
+                                    # 下面是详细用法
+
+def LogicThread(form):
+	yield '这是你第一次访问, 表单变量: \n   ' + repr(form)
+	form = yield '这是你第二次访问, 表单变量: \n   ' + repr(form)
+	form = yield '这是你第三次访问, 表单变量: \n   ' + repr(form)
+	form = yield '逻辑线程退出! 表单变量: \n   ' + repr(form)
+
+def SessionDemo(client):
+	# 使用 Form 对象读取 HTTP 请求
+	form = Form(client,
+
+		max_size=9999999) # 用户 Form 请求大小限制, 默认 1048576
+		                  # 用户超限提交内容, 将引起 OverLimit 异常,
+		                  # 同时 Socket 将会自动关闭
+
+	# Form 会自动从连接中读取所有内容,
+	# 这时进行 Response 写操作不会发生写异常 ...
+
+	response = Response(client)
+
+	# 使用 Response 对象发送 HTTP 回复报文
 	try:
-		# 创建 Daemon 对象
-		daemon = Daemon(
-			address = conf.address, # 进程控制器地址/pid 文件位置
-			program = conf.program, # 后台进程程序位置
-			verbose = conf.verbose  # 调试
-			)
+		try:
+			page = ug[form.uid].send(form)
+		except StopIteration:
+			uid = response.uid = ug << LogicThread(form)
+			page = ug[uid].next()
+		except UidError:
+			uid = response.uid = ug << LogicThread(form)
+			page = ug[uid].next()
 
-		print '进程管理器已经启动'
-
-		pid = fork()
-
-		if pid != 0:
-			# 启动后台进程
-			# 	daemon(arg1, arg2, ...)
-			# 	参数 arg1, arg2 ... 将被用于启动后台进程:
-			# 		program.py arg1 arg2 ...
-			daemon()
-
-		else:
-			check(conf)
-
-	except DaemonError, msg:
-		print '进程管理器未启动, 原因是: ', msg
-
+		print >> response, page
 	except:
-		print_exc(file=stderr)
+		response['Content-Type'] = 'text/plain' # 设置  Response Header
+		print_exc(file=response)
 
-def check(conf):
-	sleep(0.5)
-	print
-	stdout.write('正在检查进程状态 ')
-	stdout.flush()
+	# 完成 HTTP 回复报文, 并发送
+	response.close()
 
-	for i in xrange(3):
-		stdout.write('.')
-		stdout.flush()
-		sleep(0.6)
+##
 
-	try:
-		daemon = ServerProxy(conf.address)
-		status = daemon.status()
+# 请求分发器
+def controller(client):
+	# 哦, 千万别忘了 controller 是一个 tasklet!
+	# 您应该知道这意为着什么 ……
 
-		if status == 'running':
-			print ' 进程 "%s" 已经启动' %conf.program
+	# …… OK, Eurasia3 是单线程的服务器,
+	# 您可以 schedule(), 但永远不要阻塞调用任何东西。
+	# 而且请把 IO 扔给其他进程!
 
-		elif status == 'stopped':
-			stdout.write( ('进程 "%s " 启动失败, 正在停止进程管理器 ... '
-				) %conf.program )
+	if client.path[:8] == '/session':   # URL=/session*
+		SessionDemo(client)
+	elif client.path[:8] == '/pushlet': # URL=/pushlet*
+		PushletDemo(client)
+	elif client.path[:17] == '/remotecallstream': # ..*
+		RemoteCallDemo(client)
+	elif client.path[:11] == '/remotecall':   # URL=..*
+		RemoteCallPage(client)
+	elif client.path[:17] == '/simpleuploadpage': # ..*
+		UploadPage(client)
+	elif client.path[:13] == '/simpleupload': # URL=..*
+		UploadDemo(client)
+	else:
+		SimplePageDemo(client) # 默认页面
 
-			stop()
+# 配置服务器
+etc.load(schema.ETC('demo.conf'), # 配置文件
+	env=schema.env )          # 作为配置文件的 Python 脚本的可见环境
 
-		else:
-			print '进程状态未知'
+conf = schema.config.server
 
-	except SocketError:
-		print '进程管理器已经退出, 无法查询进程状态'
+config(
+	controller = controller, # 应用分发器
+	port = conf.port,        # 设置端口
+	verbose = conf.verbose   # 调试开关
+)
 
-	except:
-		print_exc(file=stderr)
-
-	stdout.write('(按任意键继续)')
-
-def stop():
-	etc.load(schema.ETC('demo.conf'), env=schema.env)
-	conf = schema.config.daemon
-
-	# 取得进程控制器
-	try:
-		daemon = ServerProxy(conf.address)
-		daemon.stop()
-
-		print '进程已经退出'
-
-	except SocketError:
-		print '进程管理器未启动'
-
-	except Fault:
-		print '进程管理器已被强制关闭'
-
-	except:
-		print_exc(file=stderr)
-
-def status():
-	etc.load(schema.ETC('demo.conf'), env=schema.env)
-	conf = schema.config.daemon
-
-	try:
-		daemon = ServerProxy(conf.address)
-		status = daemon.status()
-
-		if status == 'running':
-			print '进程 "%s" 正在运行' %conf.program
-
-		elif status == 'stopped':
-			stdout.write( ('进程管理器正在运行, 但是进程 "%s" 已经停止, '
-				'正在停止进程管理器 ... '
-				) %conf.program )
-
-			stop()
-
-		else:
-			print '进程管理器正在运行, 进程状态未知'
-
-	except SocketError:
-		print '进程管理器未启动'
-
-	except:
-		print_exc(file=stderr)
-
-## #
-
-# 解析参数
-
-if len(sys.argv) != 2:
-	usage()
-
-elif sys.argv[1] == 'start':
-	start()
-
-elif sys.argv[1] == 'stop':
-	stop()
-
-elif sys.argv[1] == 'status':
-	status()
-
-else: usage()
+if __name__ == '__main__':
+	mainloop()
 }}}
