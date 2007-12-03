@@ -333,6 +333,7 @@ def controller(client):
 				print >> resp, node(**Form(client))
 
 	except:
+		resp['Content-Type'] = 'text/plain'
 		print_exc(file=resp)
 
 	resp.close()
