@@ -276,7 +276,7 @@ http://bbs.chinaunix.net/customavatars/604098.jpg http://bbs.chinaunix.net/custo
 http://bbs.chinaunix.net/customavatars/604098.jpg http://bbs.chinaunix.net/customavatars/604098.jpg http://bbs.chinaunix.net/customavatars/604098.jpg http://bbs.chinaunix.net/customavatars/604098.jpg
 
 
-==像 Cherrypy 和 Django 一样工作==
+==像 Cherrypy 和 Django 那样工作==
 
 绝大多数黑客在第一时间内都会发现 Eurasia3 其实是一个比 Django 更为底层的框架。
 
