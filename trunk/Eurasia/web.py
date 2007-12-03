@@ -120,12 +120,14 @@ class UidGenerator:
 		self.cursor.execute('DELETE FROM session WHERE timeout<?', (now, ))
 		self.next_garbage_clean = now + self.garbage_timeout
 
-class Request(dict):
+class Request:
 	uid = property(lambda self: self.req.uid)
 
 	def __init__(self, req, max_size=1048576):
 		self.req = req
 		self.pid = req.pid
+		self.__getitem__ = req.headers.getheader
+
 		if req.method == 'get':
 			return
 
@@ -268,36 +270,35 @@ class Request(dict):
 		self.left = left - size
 		return ''.join(buff)
 
-	def to_form(self):
-		req = self.req
-		p = req.path.find('?')
-		if p == -1:
-			self.path = req.path
-			content = self.query_string = ''
+def Form(req, max_size=1048576):
+	fi = Request(req, max_size)
+	p = req.path.find('?')
+	if p == -1:
+		content = ''
+	else:
+		content = req.path[p+1:]
+
+	if req.method == 'post':
+		if content:
+			content = '%s&%s' %(fi.read(), content)
 		else:
-			self.path = req.path[:p]
-			content = self.query_string = req.path[p+1:]
+			content = fi.read()
 
-		if req.method == 'post':
-			if content:
-				content = '%s&%s' %(self.read(), content)
-			else:
-				content = self.read()
-
-		for ll in content.split('&'):
+	d = {}
+	for ll in content.split('&'):
+		try:
+			k, v = ll.split('=', 1); v = unquote_plus(v)
 			try:
-				k, v = ll.split('=', 1); v = unquote_plus(v)
-				try:
-					if isinstance(self[k], list):
-						self[k].append(v)
-					else:
-						self[k] = [self[k], v]
-				except KeyError:
-					self[k] = v
-			except ValueError:
-				continue
+				if isinstance(d[k], list):
+					d[k].append(v)
+				else:
+					d[k] = [d[k], v]
+			except KeyError:
+				d[k] = v
+		except ValueError:
+			continue
 
-		return self
+	return d
 
 def SimpleUpload(req, max_size=1048576):
 	fi = Request(req, max_size)
@@ -962,9 +963,6 @@ T_REMOTECALL = Template(
 	'<script language="JavaScript">\r\n'
 	'parent.${function}(${arguments});\r\n'
 	'</script>\r\n' ).safe_substitute
-
-Form = lambda req, max_size=1048576: Request(
-	req, max_size).to_form()
 
 pollster = Poll(); tasklet(poll)()
 controller = server_socket = serverpid = None
