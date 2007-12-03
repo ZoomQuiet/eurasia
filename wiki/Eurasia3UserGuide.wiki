@@ -1,4 +1,4 @@
-#labels Featured,Phase-Implementation,Phase-Support
+#labels Featured,Phase-Deploy,Phase-Support
 =Eurasia3 用户指引=
 
 http://eurasia.googlecode.com/files/cctv.jpg
@@ -291,5 +291,13 @@ Response 与 Request 基本上是一一对应的, 互为逆操作。
 该穿上 Cherrypy 还是 Django 的马甲工作
 
 ──── 或者更酷。
+
+===我是 Cherrypy 了啦!===
+
+...
+
+===我是 Django===
+
+...
 
 = 未完待续 …… =
