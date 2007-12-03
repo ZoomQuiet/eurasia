@@ -238,15 +238,15 @@ mainloop()
 
 ===Response 和 Request 的比较研究===
 
-||接口名称||Client||Response||Request||
-||uid 属性||读取 Session Id||写 Session Id||读取 Session Id||
-||pid 属性||读取 Socket fileno|| ||读取 Socket Fileno||
-||read(size=None)|| || ||读取 POST 报文体||
-||readline(size=None)|| || ||行读取 POST 报文体||
-||write(s)||直写, 立即发生 IO 行为||写缓冲区|| ||
-||close()|| ||写出缓冲区, 并关闭连接|| ||
-||`__getitem__`|| || ||取 HTTP Header||
-||`__setitem__`|| ||向缓冲区写 HTTP Header|| ||
+||接口名称||Client||Response||Request||Form||
+||uid 属性||读取 Session Id||写 Session Id||读取 Session Id||读取 Session Id||
+||pid 属性||读取 Socket fileno|| ||读取 Socket Fileno||读取 Socket Fileno||
+||read(size=None)|| || ||读取 POST 报文体|| ||
+||readline(size=None)|| || ||行读取 POST 报文体|| ||
+||write(s)||直写, 立即发生 IO 行为||写缓冲区|| || ||
+||close()|| ||写出缓冲区, 并关闭连接|| || ||
+||`__getitem__`|| || ||取 HTTP Header||读取表单||
+||`__setitem__`|| ||向缓冲区写 HTTP Header|| || ||
 
 Response 与 Request 基本上是一一对应的, 互为逆操作。
 
@@ -270,8 +270,14 @@ Response 与 Request 基本上是一一对应的, 互为逆操作。
 
 必须在 Request 完成所有 POST 报文的读操作之后调用。
 
-http://bbs.chinaunix.net/customavatars/604098.jpg http://bbs.chinaunix.net/customavatars/604098.jpg http://bbs.chinaunix.net/customavatars/604098.jpg
+http://bbs.chinaunix.net/customavatars/604098.jpg http://bbs.chinaunix.net/customavatars/604098.jpg http://bbs.chinaunix.net/customavatars/604098.jpg http://bbs.chinaunix.net/customavatars/604098.jpg
+
+http://bbs.chinaunix.net/customavatars/604098.jpg http://bbs.chinaunix.net/customavatars/604098.jpg http://bbs.chinaunix.net/customavatars/604098.jpg http://bbs.chinaunix.net/customavatars/604098.jpg
 
 ==像 CherryPy 和 Django 一样工作==
+
+绝大多数黑客在第一时间内都会发现 Eurasia3 其实是一个比 Django 更为底层的框架。
+
+当然, 更底层并不意味着更难用 ──── 高级而难用的框架我们已经见得太多了。
 
 = 未完待续 …… =
