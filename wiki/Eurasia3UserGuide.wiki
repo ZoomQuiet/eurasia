@@ -92,8 +92,8 @@ mainloop()
 
 让我们回顾一下第一个 "hello world" 程序, client 还提供了以下两个方法:
 
-||client.write||向浏览器写数据||
-||client.shutdown||和 client.closed = True 不同, shutdown 会*立即*关闭到浏览器的连接||
+||client.write(str)||向浏览器写数据||
+||client.shutdown()||和 client.closed = True 不同, shutdown 会*立即*关闭到浏览器的连接||
 
 事实上, 对于基于 GET 方法的简单 HTTP 请求, client 已经可以应付了。
 
