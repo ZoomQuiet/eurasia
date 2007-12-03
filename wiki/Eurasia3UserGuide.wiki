@@ -231,20 +231,11 @@ mainloop()
 </html>
 }}}
 
-===Form 是基于 Request 实现的===
+最后, Form 是基于 Request 实现的。
 
-Form 调用相当于 Request.to_form 调用
+可想而知, 在遇到 POST 请求时 Form 调用的是 Request.read(), 读完整个 POST 报文。
 
-{{{
-req = Request(client, max_size=10000)
-form = req.to_form()
-
-req.read() # 报文已经读完, 故只能得到空字符串 ''
-}}}
-
-Form 调用会读取全部 POST 报文, 所以当调用 Form 接口或者 Request.to_form() 以后,
-
-你无法再使用 Request 对象读取报文 (Request.read() 只能得到空)。
+因此, 在*绝大多数情况下请勿*混用 Form 和 Request。
 
 ===恐怖的 IO 错误!===
 
