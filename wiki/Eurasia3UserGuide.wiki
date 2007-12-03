@@ -1,4 +1,4 @@
-#labels Featured,Phase-Deploy,Phase-Support
+#labels Deprecated
 =Eurasia3 用户指引=
 
 http://eurasia.googlecode.com/files/cctv.jpg
