@@ -1,6 +1,8 @@
 #labels Featured,Phase-Implementation,Phase-Support
 =Eurasia3 用户指引=
 
+2007 年 12 月 2 日, 沈崴
+
 http://eurasia.googlecode.com/files/cctv.jpg
 
 _(当然了, 也是女人的最爱)_
@@ -49,11 +51,11 @@ cd Eurasia-3.x.x
 # 我是 hello.py
 from Eurasia.web import config, mainloop
 
-def controller(conn):
-	conn.write('hello world!')
+def controller(client):
+	client.write('hello world!')
 
-	conn.shutdown()
-	# conn.closed = True # 效果一样
+	client.shutdown()
+	# client.closed = True # 效果一样
 
 config(
 	controller=controller,
@@ -72,18 +74,25 @@ mainloop()
 
 _您也可以尝试使用诸如 ab 这一类测试工具来体会一下 Eurasia3 的强大_
 
-===参数 "conn" 提供的一些重要信息===
+===报文头 (HTTP Header) 在哪里?===
 
-||conn.path||提供了请求的 url, 是一个从根 ("/") 开始的字符串||
-||conn.metho||提供了请求的方法, 通常是 "get" 或者 "post" (小写)||
-||conn.address||提供了请求者的 IP 以及端口信息||
-||conn['header-name']||提供了对 HTTP 头 (Header) 的访问, 注意, "header-name" 应该是小写的||
-||conn.uid||传说中的 Session Id, 具体用法后面会讲到||
+参数 "client" 提供的一些重要信息:
 
+||client.path||提供了请求的 url, 是一个从根 ("/") 开始的字符串||
+||client.metho||提供了请求的方法, 通常是 "get" 或者 "post" (小写)||
+||client.address||提供了请求者的 IP 以及端口信息||
+||client['header-name']||提供了对 HTTP 头 (Header) 的访问, 注意, "header-name" 应该是小写的||
+||client.uid||传说中的 Session Id, 具体用法后面会讲到||
+
+下面就让我们来回答这个问题, 报文头在哪里?
+
+很简单, 取 `client["header-name"]` 就可以了, 请小写 header 名称
+
+比如 client['content-length']
 
 ===我们照例提供 Response 接口===
 
-当然了, 下面您会发现, conn 参数能做到 Response 接口所有的事情
+当然了, 下面您会发现, client 参数能做到 Response 接口所有的事情
 
 ──── 只是 Response 更酷而已。
 
@@ -91,8 +100,8 @@ _您也可以尝试使用诸如 ab 这一类测试工具来体会一下 Eurasia3
 from Eurasia.web import config, mainloop
 from Eurasia.web import Response
 
-def controller(conn):
-	resp = Response(conn)
+def controller(client):
+	resp = Response(client)
 
 	resp['Content-Type'] = 'text/html; charset=utf-8' # 我可以写 Header 了!
 
@@ -120,13 +129,13 @@ Form 是这样的一个字典: `{'a': 1, 'b': 2}`。然后, POST 方法也是支
 from Eurasia.web import config, mainloop
 from Eurasia.web import Response, Form
 
-def controller(conn):
-	form = Form(conn,
+def controller(client):
+	form = Form(client,
 
 		max_size=10000) # 限制 Form (POST 模式) 上传内容的大小
 		                # 默认 1048576 字节
 
-	resp = Response(conn)
+	resp = Response(client)
 	resp['Content-Type'] = 'text/html; charset=utf-8' # 写 Header
 
 	print >> resp, '你的表单提交了这些变量:', form
@@ -140,12 +149,6 @@ config(
 mainloop()
 }}}
 
-===报文头 (HTTP Header) 在哪里?===
-
-很简单, 取 `conn["header-name"]` 就可以了, 请小写 header 名称
-
-比如 conn['content-length']
-
 ===我们还有 Request 接口===
 
 Request 恰和 Response 相反, Request 可以读取 POST 报文的 Body 部分。
@@ -156,9 +159,9 @@ Request 恰和 Response 相反, Request 可以读取 POST 报文的 Body 部分�
 from Eurasia.web import config, mainloop
 from Eurasia.web import Request, Response, MethodError, OverLimit
 
-def controller(conn):
+def controller(client):
 	try:
-		req  = Request(conn,
+		req  = Request(client,
 
 			max_size=10000 ) # 超出 10000 字节, 读取时将抛出 OverLimit 异常
 			                 #   服务器将自动关闭
@@ -177,7 +180,7 @@ def controller(conn):
 		except OverLimit:
 			s = '[超出报文长度限制]'
 
-	resp = Response(conn)
+	resp = Response(client)
 
 	resp['Content-Type'] = 'text/html; charset=utf-8'
 
@@ -208,7 +211,7 @@ mainloop()
 Form 调用相当于 Request.to_form 调用
 
 {{{
-form = Request(conn, max_size=10000)
+form = Request(client, max_size=10000)
 form2 = form.to_form() # 将 form 转换成 Form 对象
                        # to_form() 调用返回 form 本身
 
