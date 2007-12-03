@@ -271,11 +271,10 @@ Response 与 Request 基本上是一一对应的, 互为逆操作。
 必须在 Request 完成所有 POST 报文的读操作之后调用。
 
 
-
-
 http://bbs.chinaunix.net/customavatars/604098.jpg http://bbs.chinaunix.net/customavatars/604098.jpg http://bbs.chinaunix.net/customavatars/604098.jpg http://bbs.chinaunix.net/customavatars/604098.jpg
 
 http://bbs.chinaunix.net/customavatars/604098.jpg http://bbs.chinaunix.net/customavatars/604098.jpg http://bbs.chinaunix.net/customavatars/604098.jpg http://bbs.chinaunix.net/customavatars/604098.jpg
+
 
 ==像 CherryPy 和 Django 一样工作==
 
