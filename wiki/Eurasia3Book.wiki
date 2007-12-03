@@ -300,9 +300,69 @@ Response 与 Request 基本上是一一对应的, 互为逆操作。
 
 ===我是 Cherrypy 了啦!===
 
-...
+{{{
+# cherrypy.py
 
-===我是 Django===
+from Eurasia.web import config, mainloop, \
+	Form, Response
+from traceback import print_exc
+
+def expose(func):
+	func.exposed = True
+
+def controller(client):
+	resp = Response(client)
+
+	p = client.path.find('?')
+	path = p == -1 and client.path or client.path[:p]
+	node = root
+	for i in path.split('/')[1:]:
+		if not i: continue
+
+		try:
+			node = getattr(node, i)
+		except AttributeError:
+			break
+
+	try:
+		try:
+			if node.index.exposed:
+				print >> resp, node.index(**Form(client))
+		except AttributeError:
+			if node.exposed:
+				print >> resp, node(**Form(client))
+
+	except:
+		print_exc(file=resp)
+
+	resp.close()
+
+def quickstart(inst):
+	globall root; root = inst
+	config(controller = controller,
+		port = 8080 )
+
+	mainloop()
+
+root = None
+}}}
+
+这样一个简单的 CherryPy 就完成了,
+
+下面我们试一下 [http://www.cherrypy.org CherryPy.org 首页] 上的范例程序:
+
+{{{
+import cherrypy
+
+class HelloWorld:
+    def index(self):
+        return "Hello world!"
+    index.exposed = True
+
+cherrypy.quickstart(HelloWorld())
+}}}
+
+===其实我是 Django===
 
 ...
 
