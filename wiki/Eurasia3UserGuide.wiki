@@ -300,4 +300,4 @@ Response 与 Request 基本上是一一对应的, 互为逆操作。
 
 ...
 
-= 未完待续 …… =
+新版文档已经转移到 http://code.google.com/p/eurasia/wiki/Eurasia3Book
