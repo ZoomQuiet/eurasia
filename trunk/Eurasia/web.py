@@ -273,7 +273,7 @@ class Request:
 class Form(dict):
 	uid = property(lambda self: self.req.uid)
 
-	def __init__(req, max_size=1048576):
+	def __init__(self, req, max_size=1048576):
 		self.req = fi = Request(req, max_size)
 		self.pid = req.pid
 
@@ -289,17 +289,16 @@ class Form(dict):
 			else:
 				content = fi.read()
 
-		d = {}
 		for ll in content.split('&'):
 			try:
 				k, v = ll.split('=', 1); v = unquote_plus(v)
 				try:
-					if isinstance(d[k], list):
-						d[k].append(v)
+					if isinstance(self[k], list):
+						self[k].append(v)
 					else:
-						d[k] = [d[k], v]
+						self[k] = [self[k], v]
 				except KeyError:
-					d[k] = v
+					self[k] = v
 			except ValueError:
 				continue
 
