@@ -9,9 +9,9 @@ _(当然了, 也是女人的最爱)_
 
 _本文档尚在编写阶段, 关于 Eurasia3 技术的任何问题可以向 [http://groups.google.com/group/eurasia-users Eurasia 邮件列表]提出, 感谢您的支持 :) _
 
-[http://eurasia.svn.sourceforge.net/viewvc/eurasia/demo/bin/server.py?view=markup Eurasia3 Demo] 是一份全面展示 Eurasia3 功能, 且颇为可读的范例文档。
+[http://code.google.com/p/eurasia/wiki/Eurasia3Demo Eurasia3 Demo] 是一份全面展示 Eurasia3 功能, 且颇为可读的范例文档。
 
-在本文档尚未完成之前, 阅读 [http://eurasia.svn.sourceforge.net/viewvc/eurasia/demo/bin/server.py?view=markup Eurasia3 Demo] 可以获取 Eurasia3 更多的高级功能。
+在本文档尚未完成之前, 阅读 [http://code.google.com/p/eurasia/wiki/Eurasia3Demo Eurasia3 Demo] 可以获取 Eurasia3 更多的高级功能。
 
 _──── 2007 年 12 月 2 日, 沈崴于太湖南岸_
 
