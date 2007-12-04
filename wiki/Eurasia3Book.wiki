@@ -356,9 +356,9 @@ root = None
 import cherrypy
 
 class HelloWorld:
-    def index(self):
-        return "Hello world!"
-    index.exposed = True
+	def index(self):
+		return "Hello world!"
+	index.exposed = True
 
 cherrypy.quickstart(HelloWorld())
 }}}
@@ -385,10 +385,31 @@ _通常使用 Eurasia3 模仿的框架比起原框架会拥有[http://groups.goo
 
 ===其实我是 Django===
 
-Django 很酷, 我是指他基于正则表达式的 URL 分发方式。很符合黑客的口味。
+{{{
+from re import compile
 
-_同时我也一直比较疑惑, 难道 Django 的 URL 分析不是一次扫描完成的吗?_
+def hello(client, *args, **kw):
+	print >> client, 'hello:', args
+	client.close()
+def world(client, *args, **kw):
+	print >> client, 'world:', args
+	client.close()
 
-_(见 django.core.urlresolvers 第 228 行) 这实在是不可思议 ──── 好了先别管这个。_
+urlpatterns = (
+	(r'^/hello/(*)', hello),
+	(r'^/world/(*)', world)  )
+
+def controller(client):
+	path = client.path
+	for pattern, func in urlpatterns:
+		match = pattern.search(path)
+		if match:
+			func(client, *(match.groups()),
+				**(match.groupdict()) )
+			return
+
+	print >> client, '404'
+	client.close()
+}}}
 
 = 未完待续 …… =
