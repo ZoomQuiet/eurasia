@@ -472,7 +472,7 @@ Stackless! 确实会令许多人迷惑, 作为入门我确实很推荐 Stackless
 
 ===controller 是一个 tasklet===
 
-是啊, 我承认在前面把 controller 说得和一个函数一样, 但 controller 确确实实是一个 *tasklet*。
+是啊, 我承认在前面把 controller 说得和一个函数一样, 但 controller 确确实实是一个 *tasklet* 。
 
 ──── 换句话说, controller 是一个 "线程", 一个 ──── 协作线程。
 
