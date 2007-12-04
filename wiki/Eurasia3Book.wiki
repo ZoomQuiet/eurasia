@@ -390,10 +390,10 @@ from re import compile
 from Eurasia.web import config, mainloop
 
 def hello(client, *args, **kw):
-	print >> client, 'hello:', args
+	print >> client, 'hello:', args, kw
 	client.shutdown()
 def world(client, *args, **kw):
-	print >> client, 'world:', args
+	print >> client, 'world:', args, kw
 	client.shutdown()
 
 urlpatterns = (
@@ -419,5 +419,35 @@ config(
 
 mainloop()
 }}}
+
+===好了, 休息一下===
+
+到此, Eurasia3 作为传统框架的内容已经全部结束,
+
+下面就让我们开始深入 Eurasia3 的精髓 ...
+
+.
+
+.
+
+.
+
+==Eurasia3 是基于 Stackless 的框架==
+
+前面那些冗长而无聊的内容或许会让我们忽视了这一点 ──── 噢, 这令人震惊的事实。
+
+Stackless! 确实会令许多人迷惑, 作为入门我确实很推荐 Stackless 官网上的这份 [http://members.verizon.net/olsongt/stackless/why_stackless.html 文档]。
+
+这里是 Lych 杰出的 [http://l.99081.com/lych/stackless.html 翻译版本] _Hi, Lych 您老选的空间也够稳定的哈 :)_ (还有 [http://gashero.yeax.com/?p=30 这个地址]), 感谢 Lych 和 Gashero!
+
+当然啦, 使用 Eurasia3 其实并不需要太高深的 Stackless 知识,
+
+即使你不知道 Stackless, 你也能把 Eurasia3 用得很好, 就像前两节一样。
+
+===Eurasia3 是单线程的===
+
+对 Stackless 用户来说, 这没有什么大不了的 ──── 单线程嘛, 和 1M 个线程没什么区别, 是吧?
+
+...
 
 = 未完待续 …… =
