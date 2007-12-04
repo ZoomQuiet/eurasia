@@ -381,10 +381,14 @@ CherryPy 是一个可尊敬的框架, 早期特别是 Eurasia2 受 CherryPy 影�
 
 而 Eurasia3 出现以后, 编写一个自己的框架, 已经变得非常容易。
 
-_通常使用 Eurasia3 模仿的框架会拥有[http://groups.google.com/group/eurasia-users/browse_thread/thread/310b19fb3497ee67 更高的页面效率和并发承受力]_
+_通常使用 Eurasia3 模仿的框架比起原框架会拥有[http://groups.google.com/group/eurasia-users/browse_thread/thread/310b19fb3497ee67 更高的页面效率和并发承受力]_
 
 ===其实我是 Django===
 
-...
+Django 很酷, 我是指他基于正则表达式的 URL 分发方式。很符合黑客的口味。
+
+_同时我也一直比较疑惑, 难道 Django 的 URL 分析不是一次扫描完成的吗?_
+
+_(见 django.core.urlresolvers 第 228 行) 这实在是不可思议 ──── 好了先别管这个。_
 
 = 未完待续 …… =
