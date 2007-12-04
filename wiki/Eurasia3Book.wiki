@@ -397,8 +397,8 @@ def world(client, *args, **kw):
 	client.close()
 
 urlpatterns = (
-	(r'^/hello/(*)', hello),
-	(r'^/world/(*)', world)  )
+	(r'^/hello/[^/]+/(?P<foo>*.)', hello),
+	(r'^/world/[^/]+/(?P<bar>*.)', world)  )
 
 def controller(client):
 	path = client.path
