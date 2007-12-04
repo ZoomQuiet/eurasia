@@ -387,6 +387,7 @@ _通常使用 Eurasia3 模仿的框架比起原框架会拥有[http://groups.goo
 
 {{{
 from re import compile
+from Eurasia.web import config, mainloop
 
 def hello(client, *args, **kw):
 	print >> client, 'hello:', args
@@ -410,6 +411,13 @@ def controller(client):
 
 	print >> client, '404'
 	client.close()
+
+
+config(
+	controller=controller,
+	port = 8080 )
+
+mainloop()
 }}}
 
 = 未完待续 …… =
