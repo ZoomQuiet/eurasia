@@ -485,6 +485,8 @@ Stackless! 确实会令许多人迷惑, 作为入门我确实很推荐 Stackless
   # 任何全局变量都可以作为协程间安全的通信方式
   # stackless.channel() 这个工具很好, 很强大
 
+仿佛是这个样子:
+
 {{{
 import stackless
 
@@ -532,6 +534,16 @@ def controller(client):
 }}}
 
 轻松点, 不要太紧张。
+
+{{{
+def controller(client):
+	...
+
+	sleep(1)
+	client.write(s)
+
+	...
+}}}
 
 下面是 Eurasia3 中和 IO 相关的接口 (常规接口) 自动调用 schedule 交出 CPU 的情况:
 
