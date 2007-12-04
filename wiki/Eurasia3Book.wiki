@@ -525,12 +525,15 @@ def controller(client):
 下面是很快会涉及到的流式 IO 接口的情况:
 
 ||*IO 操作名称*||*使用 schedule?*||
-||_(流)_ Response.begin()||yes||
-||_(流)_ Response.write(s)||yes||
-||_(流)_ Response.end()||no||
+||_流式_ Response.begin()||yes||
+||_流式_ Response.write(s)||yes||
+||_流式_ Response.end()||no||
 ||Pushlet.begin()||yes||
 ||Pushlet.RemoteCall(...)||yes||
 ||Pushlet.end()||no||
+||SimpleUpload(client, max_size)||yes||
+||SimpleUpload.read(size)||yes||
+||SimpleUpload.readline(size)||yes||
 
 对 controller 线程而言, 调用 Eurasia3 的 sleep 和 IO 接口,
 
