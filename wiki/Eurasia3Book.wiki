@@ -438,7 +438,7 @@ mainloop()
 
 Stackless! 确实会令许多人迷惑, 作为入门我确实很推荐 Stackless 官网上的这份 [http://members.verizon.net/olsongt/stackless/why_stackless.html 文档]。
 
-这里是 Lych 杰出的 [http://l.99081.com/lych/stackless.html 翻译版本] _(Hi, Lych 您老选的空间也够稳定的哈 :)_ 另外你还可以访问 [http://gashero.yeax.com/?p=30 这个地址], 感谢 Lych 和 Gashero!
+这里是 [http://lych.yo2.cn Lych (边緣獨行者)] 杰出的 [http://l.99081.com/lych/stackless.html 翻译版本], 另外你还可以试一下 [http://gashero.yeax.com/?p=30 这个地址 (校对者 Gashero 的 Blog "惊帆之静默")], 感谢 [http://lych.yo2.cn Lych] 和 [http://gashero.yeax.com Gashero]!
 
 当然啦, 使用 Eurasia3 其实并不需要太高深的 Stackless 知识
 
