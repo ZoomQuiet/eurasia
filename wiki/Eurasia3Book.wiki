@@ -494,14 +494,22 @@ channels = {}
 ──── 所以请放心使用, 您不必像下面的程序那样过度小心:
 
 {{{
+from Eurasia.web import sleep, schedule
+
 def controller(client):
 	...
 
+	for i in xrange(100):
+		sleep(0.01)
+		schedule()    # XXX
+
 	client.write(s)
-	schedule()      # [X]
+	schedule()            # XXX
 
 	...
 }}}
+
+轻松点, 不要太紧张。
 
 下面是 Eurasia3 中和 IO 相关的接口 (常规接口) 自动调用 schedule 交出 CPU 的情况:
 
@@ -521,11 +529,11 @@ def controller(client):
 ||_(流)_ Response.write(s)||yes||
 ||_(流)_ Response.end()||no||
 ||Pushlet.begin()||yes||
-||Pushlet.RemoteCall(*args)||yes||
+||Pushlet.RemoteCall(...)||yes||
 ||Pushlet.end()||no||
 
-对 controller 线程而言, 调用 Eurasia3 sleep 和 IO 接口,
+对 controller 线程而言, 调用 Eurasia3 的 sleep 和 IO 接口,
 
-都会假装阻塞在那里, 但事实上都是安全的。
+线程都会假装阻塞在那里, 但事实上都是安全的。
 
 = 未完待续 …… =
