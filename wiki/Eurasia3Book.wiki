@@ -450,7 +450,7 @@ Stackless! 确实会令许多人迷惑, 作为入门我确实很推荐 Stackless
 
 ===controller 是一个 tasklet===
 
-是啊, 我承认在前面把 controller 说得和一个函数一样, 但 controller 确确实实是一个 tasklet。
+是啊, 我承认在前面把 controller 说得和一个函数一样, 但 controller 确确实实是一个 *tasklet*。
 
 ──── 换句话说, controller 是一个 "线程", 一个 ──── 协作线程。
 
@@ -522,7 +522,7 @@ def controller(client):
 ||Request.readline(size)||yes||
 ||Form(client, max_size)||yes||
 
-下面是下面会涉及到的流式 IO 接口的情况:
+下面是很快会涉及到的流式 IO 接口的情况:
 
 ||*IO 操作名称*||*使用 schedule?*||
 ||_(流)_ Response.begin()||yes||
@@ -535,5 +535,15 @@ def controller(client):
 对 controller 线程而言, 调用 Eurasia3 的 sleep 和 IO 接口,
 
 线程都会假装阻塞在那里, 但事实上都是安全的。
+
+===好了, 休息一下===
+
+下面是 Eurasia3 的核心, HTTP 长连接!
+
+.
+
+.
+
+.
 
 = 未完待续 …… =
