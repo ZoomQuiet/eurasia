@@ -84,6 +84,7 @@ mainloop()
 ||client.uid||传说中的 Session Id, 具体用法后面会讲到||
 ||client.pid||传说中的 Socket fileno||
 ||client.closed||设为 True, 则 Eurasia3 会自动关闭和浏览器的连接||
+||client.wfile||当前准备发送的数据 _于 Eurasia3 系统调度时自动发送_, 不常用||
 
 好的, 您现在知道如何取 POST 报文长度了吗?
 
@@ -412,7 +413,6 @@ def controller(client):
 	print >> client, '404'
 	client.shutdown()
 
-
 config(
 	controller=controller,
 	port = 8080 )
@@ -438,16 +438,94 @@ mainloop()
 
 Stackless! 确实会令许多人迷惑, 作为入门我确实很推荐 Stackless 官网上的这份 [http://members.verizon.net/olsongt/stackless/why_stackless.html 文档]。
 
-这里是 Lych 杰出的 [http://l.99081.com/lych/stackless.html 翻译版本] _Hi, Lych 您老选的空间也够稳定的哈 :)_ (还有 [http://gashero.yeax.com/?p=30 这个地址]), 感谢 Lych 和 Gashero!
+这里是 Lych 杰出的 [http://l.99081.com/lych/stackless.html 翻译版本] _(Hi, Lych 您老选的空间也够稳定的哈 :)_ 另外你还可以访问 [http://gashero.yeax.com/?p=30 这个地址], 感谢 Lych 和 Gashero!
 
-当然啦, 使用 Eurasia3 其实并不需要太高深的 Stackless 知识,
+当然啦, 使用 Eurasia3 其实并不需要太高深的 Stackless 知识
 
-即使你不知道 Stackless, 你也能把 Eurasia3 用得很好, 就像前两节一样。
+──── 即使你不知道 Stackless, 你也能把 Eurasia3 用得很好, 就像前两节一样。
 
 ===Eurasia3 是单线程的===
 
 对 Stackless 用户来说, 这没有什么大不了的 ──── 单线程嘛, 和 1M 个线程没什么区别, 是吧?
 
-...
+===controller 是一个 tasklet===
+
+是啊, 我承认在前面把 controller 说得和一个函数一样, 但 controller 确确实实是一个 tasklet。
+
+──── 换句话说, controller 是一个 "线程", 一个 ──── 协作线程。
+
+明白这一点之后, 我们对 controller 应该有些新的想法, 比如说:
+  # 当遇到耗时操作, 我们应该使用 stackless.schedule() 以交出 CPU, 防止影响其他请求
+  # 绝大多数情况下, 耗时操作很少出现 (初学者尤应注意)
+  # 我不能真的把自己给阻塞了
+  # IO 应该交给另一个进程来做
+  # 协作线程之间没有临界资源
+  # 任何全局变量都可以作为协程间安全的通信方式
+  # stackless.channel() 这个工具很好, 很强大
+
+{{{
+import stackless
+
+def controller(client):
+	# 当有耗时操作时
+
+	执行耗时操作的第一个步骤
+	stackless.schedule()
+	执行耗时操作的第二个步骤
+
+	# 当需要和其他线程通信时
+	#
+	# 等待信息
+	channels[client.pid] = stackless.channel()
+	channels[client.pid].receive()
+
+	# 发送信息
+	channels[某个浏览器线程.pid].send('消息')
+
+channels = {}	
+}}}
+
+===Eurasia3 是基于 Stackless 的框架===
+
+这里的意思是, Eurasia3 永远不会害你:
+  * Eurasia.web.sleep(sec) 不会真正阻塞掉整个服务器 (他不是 time.sleep)
+  * Eurasia3 中所有的 IO 操作都 "不是" IO 操作 ──── 他们会不停交出 CPU
+
+──── 所以请放心使用, 您不必像下面的程序那样过度小心:
+
+{{{
+def controller(client):
+	...
+
+	client.write(s)
+	schedule()      # [X]
+
+	...
+}}}
+
+下面是 Eurasia3 中和 IO 相关的接口 (常规接口) 自动调用 schedule 交出 CPU 的情况:
+
+||*IO 操作名称*||*使用 schedule?*||
+||Client.write(s)||yes||
+||Client.shutdown()||no||
+||Response.write(s)||no||
+||Response.close()||yes||
+||Request.read(size)||yes||
+||Request.readline(size)||yes||
+||Form(client, max_size)||yes||
+
+下面是下面会涉及到的流式 IO 接口的情况:
+
+||*IO 操作名称*||*使用 schedule?*||
+||_(流)_ Response.begin()||yes||
+||_(流)_ Response.write(s)||yes||
+||_(流)_ Response.end()||no||
+||Pushlet.begin()||yes||
+||Pushlet.RemoteCall(*args)||yes||
+||Pushlet.end()||no||
+
+对 controller 线程而言, 调用 Eurasia3 sleep 和 IO 接口,
+
+都会假装阻塞在那里, 但事实上都是安全的。
 
 = 未完待续 …… =
