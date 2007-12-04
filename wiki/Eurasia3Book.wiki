@@ -497,16 +497,25 @@ def controller(client):
 	stackless.schedule()
 	执行耗时操作的第二个步骤
 
+	# 协作线程的专利: 广播
+	global broadcast
+
+	print >> client, '当前广播:', broadcast
+
+	broadcast.append(`client.pid` + '向您广播')
+	stackless.schedule() # 让其他人有机会收听
+
 	# 当需要和其他线程通信时
 	#
 	# 等待信息
 	channels[client.pid] = stackless.channel()
-	channels[client.pid].receive()
+	print >> client, '收到消息', channels[client.pid].receive()
 
 	# 发送信息
-	channels[某个浏览器线程.pid].send('消息')
+	channels[某个浏览器线程.pid].send(`client.pid` + '向您发送消息')
 
-channels = {}	
+broadcast = []
+channels  = {}
 }}}
 
 ===Eurasia3 是基于 Stackless 的框架===
