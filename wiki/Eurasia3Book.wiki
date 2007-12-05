@@ -750,4 +750,8 @@ AJAX 的阴险之处在于它既是虚无缥缈的又是包罗万象的,当 XML 
 
 http://eurasia.googlecode.com/files/ajax.png
 
+这是个阴谋, 我可没觉得 classic synchronous model 会比 AJAX 弱,
+
+而且 AJAX 也不是什么 asynchronous ──── 好吧 classic model 兄弟, Eurasia3 为你们复仇来了!
+
 = 未完待续 …… =
