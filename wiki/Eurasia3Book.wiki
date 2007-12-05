@@ -738,14 +738,16 @@ if __name__ == '__main__':
 
 AJAX 的阴险之处在于它既是虚无缥缈的又是包罗万象的,当 XML 岌岌可危时他包含 JSON,
 
-现在它也包括 Pushlet ──── 当 AJAX 遇到挑战时。
+──── 现在它也包括 Pushlet, 当 AJAX 遇到挑战时。
 
-你能从字面意思上知道 RIA 和 Pushlet 是什么意思, 而看到 AJAX 和 Comet 你会立即傻掉。
+你能从字面意思上知道 RIA 和 Pushlet 是什么意思, 而看到 AJAX 和 Comet 你会立即傻掉 ...
 
 好吧, 我的意思是 "长连接 vs 短连接"。
 
-在概念党的轮番轰炸下, 您应该已经对传统 AJAX 模式有了形象的了解 _还有那个傻兮兮的对照图_,
+在概念党的轮番轰炸下, 您应该已经对传统 AJAX 模式有了形象的了解
 
-...
+当然了, 还有那个傻兮兮的参照物 _classic web application model_ , 不错, 就是下面那张图
+
+http://eurasia.googlecode.com/files/ajax.png
 
 = 未完待续 …… =
