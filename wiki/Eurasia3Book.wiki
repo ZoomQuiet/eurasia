@@ -754,4 +754,8 @@ http://www.adaptivepath.com/images/publications/essays/ajax-fig1.png
 
 更何况 AJAX 也不是真正的 asynchronous ──── 好吧 "classic model" 兄弟, Eurasia3 为你们复仇来了!
 
+请看传统模式 _AJAX_ 和 Eurasia3 工作模式的区别 _感谢 CCTV, 感谢 tuxpaint_ 。
+
+http://eurasia.googlecode.com/files/eurasia3vsajax.png
+
 = 未完待续 …… =
