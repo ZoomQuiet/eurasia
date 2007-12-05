@@ -746,12 +746,12 @@ AJAX 的阴险之处在于它既是虚无缥缈的又是包罗万象的,当 XML 
 
 在概念党的轮番轰炸下, 您应该已经对传统 AJAX 模式有了形象的了解
 
-当然了, 还有那个傻兮兮的参照物 _classic web application model_ , 不错, 就是下面那张图
+_当然了, 还有那个傻兮兮的参照物 "classic web application model" , 不错, 就是下面那张图_
 
 http://eurasia.googlecode.com/files/ajax.png
 
-这是个阴谋, 我可没觉得 classic synchronous model 会比 AJAX 弱,
+这是个阴谋, classic web application model 只是简单, 并不弱哦,
 
-而且 AJAX 也不是什么 asynchronous ──── 好吧 classic model 兄弟, Eurasia3 为你们复仇来了!
+更何况 AJAX 也不是真正的 asynchronous ──── 好吧 "classic model" 兄弟, Eurasia3 为你们复仇来了!
 
 = 未完待续 …… =
