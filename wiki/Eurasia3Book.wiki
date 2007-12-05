@@ -131,6 +131,8 @@ config(
 mainloop()
 }}}
 
+Response 最大的贡献是: 它帮您写 Header。
+
 ===你在找表单变量吗?===
 
 Form 来啦!
@@ -394,16 +396,16 @@ _通常使用 Eurasia3 模仿的框架比起原框架会拥有[http://groups.goo
 from re import compile
 from Eurasia.web import config, mainloop
 
-def hello(client, *args, **kw):
-	print >> client, 'hello:', args, kw
-	client.shutdown()
-def world(client, *args, **kw):
-	print >> client, 'world:', args, kw
-	client.shutdown()
+def hello(resp, *args, **kw):
+	print >> resp, 'hello:', args, kw
+	resp.close()
+def world(resp, *args, **kw):
+	print >> resp, 'world:', args, kw
+	resp.close()
 
 urlpatterns = (
-	(compile(r'^/hello/[^/]+/(?P<foo>.*)'), hello),
-	(compile(r'^/world/[^/]+/(?P<bar>.*)'), world)  )
+	(r'^/hello/[^/]+/(?P<foo>.*)', hello),
+	(r'^/world/[^/]+/(?P<bar>.*)', world)  )
 
 def controller(client):
 	path = client.path
@@ -416,6 +418,9 @@ def controller(client):
 
 	print >> client, '404'
 	client.shutdown()
+
+urlpatterns = tuple(
+	[(compile(pattern), func) for pattern, func in urlpatterns])
 
 config(
 	controller = controller, port = 8080,
