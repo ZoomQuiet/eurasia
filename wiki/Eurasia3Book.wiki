@@ -512,7 +512,12 @@ def controller(client):
 
 	print >> client, '当前广播:', broadcast
 
-	broadcast.append(`client.pid` + '向您广播')
+	broadcast.append(`client.pid` + '向您广播1')
+	# 协作线程的一个好处是: 所有操作都是原子操作
+	# 你不必担心另一个线程在这里插入一条操作,
+	# 而对 broadcast 变量加锁。
+	broadcast.append(`client.pid` + '向您广播2')
+	broadcast.append(`client.pid` + '向您广播3')
 	stackless.schedule() # 让其他人有机会收听
 
 	# 当需要和其他线程通信时
@@ -725,6 +730,28 @@ config(
 
 if __name__ == '__main__':
 	mainloop()
+}}}
+
+===Pushlet vs AJAX===
+
+首先, 我必须告诉大家, AJAX 是不可战胜的, 因为它从来就没有出现过。
+
+AJAX 的阴险之处在于它既是虚无缥缈的又是包罗万象的,当 XML 岌岌可危时他包含 JSON,
+
+现在它也包括 Pushlet ──── 当 AJAX 遇到挑战时。
+
+你能从字面意思上知道 RIA 和 Pushlet 是什么意思, 而看到 AJAX 和 Comet 你会立即傻掉。
+
+好吧, 我的意思是 "长连接 vs 短连接"。
+
+在概念党的轮番轰炸下, 您应该已经对传统 AJAX 模式有了形象的了解 _还有那个傻兮兮的对照图_,
+
+AJAX 模型是这样的:
+
+{{{
+	
+	
+	
 }}}
 
 = 未完待续 …… =
