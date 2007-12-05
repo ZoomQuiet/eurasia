@@ -624,6 +624,29 @@ def controller(client):
 .
 
 ==走近 Pushlet==
-花了很多时间来热身,
+
+花了很多时间来热身, 现在走入正题, Pushlet。
+
+可以这样说, 如果没有用到 Pushlet 功能, 就不能算是在使用 Eurasia3。
+
+===这里我向大家介绍一位新朋友 Response===
+
+{{{
+from Eurasia.web import config, mainloop
+from Eurasia.web import sleep, Response
+
+def controller(client):
+	resp = Response(client)
+
+	# 首先请注意, Header 必须在 Response.begin() 前设置 !
+	resp['Content-Type'] = 'text/html; charset=utf-8'
+	resp.begin()
+
+	for i in xrange(100):
+		print >> resp, '这是第', `i`, 次返回
+		sleep(3) # 每三秒向浏览器输出一次
+
+	resp.end() # 结束输出流, 关闭客户端连接
+}}}
 
 = 未完待续 …… =
