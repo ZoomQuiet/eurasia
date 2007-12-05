@@ -50,13 +50,14 @@ cd Eurasia-3.x.x
 {{{
 from Eurasia.web import config, mainloop
 
-def controller(client):
-	print >> client, (
-	'HTTP/1.1 200 OK\r\n'
-	'Content-Type: text/plain\r\n'
-	'\r\n'
-	'hello world!' )
+hello = '''\
+HTTP/1.1 200 OK
+Content-Type: text/plain
 
+hello world!'''
+
+def controller(client):
+	print >> client, hello
 	client.shutdown()
 
 config(
@@ -623,5 +624,6 @@ def controller(client):
 .
 
 ==走近 Pushlet==
+花了很多时间来热身,
 
 = 未完待续 …… =
