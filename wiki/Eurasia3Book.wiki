@@ -758,4 +758,6 @@ http://www.adaptivepath.com/images/publications/essays/ajax-fig1.png
 
 http://eurasia.googlecode.com/files/eurasia3vsajax.jpg
 
+...
+
 = 未完待续 …… =
