@@ -52,11 +52,10 @@ from Eurasia.web import config, mainloop
 
 def controller(client):
 	print >> client, (
-
 	'HTTP/1.1 200 OK\r\n'
-	'Content-Type: text/html\r\n'
+	'Content-Type: text/plain\r\n'
 	'\r\n'
-	'<h1>hello world!</h1>' )
+	'hello world!' )
 
 	client.shutdown()
 
