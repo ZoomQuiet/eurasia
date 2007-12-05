@@ -59,8 +59,8 @@ def controller(client):
 	# client.closed = True # 效果差不多
 
 config(
-	controller=controller,
-	port = 8080 )
+	controller = controller, port = 8080,
+	verbose = True )
 
 mainloop()
 }}}
@@ -122,8 +122,8 @@ def controller(client):
 	resp.close()
 
 config(
-	controller=controller,
-	port = 8080 )
+	controller = controller, port = 8080,
+	verbose = True )
 
 mainloop()
 }}}
@@ -167,8 +167,8 @@ def controller(client):
 	resp.close()
 
 config(
-	controller=controller,
-	port = 8080 )
+	controller = controller, port = 8080,
+	verbose = True )
 
 mainloop()
 }}}
@@ -212,8 +212,8 @@ def controller(client):
 	resp.close()
 
 config(
-	controller=controller,
-	port = 8080 )
+	controller = controller, port = 8080,
+	verbose = True )
 
 mainloop()
 }}}
@@ -341,8 +341,9 @@ def controller(client):
 
 def quickstart(inst):
 	globall root; root = inst
-	config(controller = controller,
-		port = 8080 )
+	config(
+		controller = controller, port = 8080,
+		verbose = True )
 
 	mainloop()
 
@@ -414,8 +415,8 @@ def controller(client):
 	client.shutdown()
 
 config(
-	controller=controller,
-	port = 8080 )
+	controller = controller, port = 8080,
+	verbose = True )
 
 mainloop()
 }}}
