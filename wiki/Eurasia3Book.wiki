@@ -678,6 +678,53 @@ _Hello, 小朋友, 我要调用你页面上的 JavaScript。 _
 不过非常遗憾, Eurasia3 就是被设计成用来做这些事情的。
 
 {{{
+from Eurasia.web import config, mainloop
+from Eurasia.web import sleep, Pushlet, Response
+
+page = '''\
+<html>
+<head>
+<titile>hello pushlet</title>
+<script language="JavaScript">
+function my_alert(pid, i) // 待会我会远程调用这个函数
+{
+	alert('' + pid + ': ' + i);
+};
+</script>
+</head>
+<body>
+<!-- 发起 Pushlet 连接 -->
+<iframe src="pushlet"
+	style="display: none;"
+	></iframe>
+</body>
+</html>'''
+
+def pushlet(client):
+	browser = Pushlet(client)
+	browser.begin()
+
+	for i in xrange(10):
+		browser.my_alert(client.pid, i) # 调用浏览器函数
+		sleep(3) # 等待 3 秒钟
+
+	browser.end()
+
+def controller(client):
+	if client.path[:8] == '/pushlet':
+		pushlet(client)
+
+	resp = Response(client)
+	resp.write(page)
+	resp.close()
+
+config(
+	controller = controller,
+	port       = 8080,
+	verbose    = True )
+
+if __name__ == '__main__':
+	mainloop()
 }}}
 
 = 未完待续 …… =
