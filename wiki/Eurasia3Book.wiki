@@ -756,6 +756,6 @@ http://www.adaptivepath.com/images/publications/essays/ajax-fig1.png
 
 请看传统模式 _AJAX_ 和 Eurasia3 工作模式的区别 _感谢 CCTV, 感谢 tuxpaint_ 。
 
-http://eurasia.googlecode.com/files/eurasia3vsajax.png
+http://eurasia.googlecode.com/files/eurasia3vsajax.jpg
 
 = 未完待续 …… =
