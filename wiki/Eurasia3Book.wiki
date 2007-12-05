@@ -748,7 +748,9 @@ AJAX 的阴险之处在于它既是虚无缥缈的又是包罗万象的,当 XML 
 
 _当然了, 还有那个傻兮兮的参照物 "classic web application model" , 不错, 就是下面那张图_
 
-http://eurasia.googlecode.com/files/ajax.png
+http://www.adaptivepath.com/images/publications/essays/ajax-fig1.png
+
+http://www.adaptivepath.com/images/publications/essays/ajax-fig2_small.png
 
 这是个阴谋, classic web application model 只是简单, 并不弱哦,
 
