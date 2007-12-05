@@ -750,9 +750,7 @@ _当然了, 还有那个傻兮兮的参照物 "classic web application model" , 
 
 http://www.adaptivepath.com/images/publications/essays/ajax-fig1.png
 
-http://www.adaptivepath.com/images/publications/essays/ajax-fig2_small.png
-
-这是个阴谋, classic web application model 只是简单, 并不弱哦,
+这是个阴谋, classic web application model 只是简单, 可并不弱哦,
 
 更何况 AJAX 也不是真正的 asynchronous ──── 好吧 "classic model" 兄弟, Eurasia3 为你们复仇来了!
 
