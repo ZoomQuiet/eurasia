@@ -629,7 +629,7 @@ def controller(client):
 
 可以这样说, 如果没有用到 Pushlet 功能, 就不能算是在使用 Eurasia3。
 
-===这里我向大家介绍一位新朋友 Response===
+===这里我向大家介绍一位 "新" 朋友 Response===
 
 {{{
 from Eurasia.web import config, mainloop
@@ -640,13 +640,40 @@ def controller(client):
 
 	# 首先请注意, Header 必须在 Response.begin() 前设置 !
 	resp['Content-Type'] = 'text/html; charset=utf-8'
-	resp.begin()
+	resp.begin() # 开启 Response 流模式
 
 	for i in xrange(100):
 		print >> resp, '这是第', `i`, 次返回
 		sleep(3) # 每三秒向浏览器输出一次
 
 	resp.end() # 结束输出流, 关闭客户端连接
+
+config(
+	controller = controller, port = 8080,
+	verbose = True )
+
+mainloop()
+}}}
+
+Response.begin() 开启 Response 的流模式。
+
+Response 流模式区别于前面默认的缓冲模式, 你输出的所有内容将立即输出到客户端浏览器,
+
+这个时候 Response.write 的效果和 Client.write 完全一样。
+
+恭喜您完成了自己的第一个 Pushlet 程序!
+
+===调用远程浏览器上的 JavaScript===
+
+OK, 我承认这个概念有些变态, 对于常规的 HTTP 服务器而言,
+
+页面返回后浏览器就断开连接, 蒸发了。你很难再找到那个浏览器, 那个 IP 和端口, 去对他说:
+
+Hi, 我要调用你页面上的 JavaScript。
+
+不过非常遗憾, Eurasia3 就是被设计成用来做这些事情的。
+
+{{{
 }}}
 
 = 未完待续 …… =
