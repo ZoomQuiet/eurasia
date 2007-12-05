@@ -48,21 +48,25 @@ cd Eurasia-3.x.x
 现在, 是时候编写我们第一个 Web 服务器了。
 
 {{{
-# 我是 hello.py
 from Eurasia.web import config, mainloop
 
 def controller(client):
-	client.write('hello world!')
-	# print >> client, 'hello world!' # 这样也行
+	print >> client, (
+
+	'HTTP/1.1 200 OK\r\n'
+	'Content-Type: text/html\r\n'
+	'\r\n'
+	'<h1>hello world!</h1>' )
 
 	client.shutdown()
-	# client.closed = True # 效果差不多
 
 config(
-	controller = controller, port = 8080,
-	verbose = True )
+	controller = controller,
+	port       = 8080,
+	verbose    = True )
 
-mainloop()
+if __name__ == '__main__':
+	mainloop()
 }}}
 
 启动服务器:
