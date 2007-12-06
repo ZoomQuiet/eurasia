@@ -16,8 +16,34 @@ from errno import EALREADY, EINPROGRESS, EWOULDBLOCK, ECONNRESET, \
      ENOTCONN, ESHUTDOWN, EINTR, EISCONN, errorcode
 from socket import socket as Socket, error as SocketError, AF_INET, SOCK_STREAM, \
 	SOL_SOCKET, SO_REUSEADDR, SO_REUSEADDR
-from select import poll as Poll, error as SelectError, \
-	POLLIN, POLLPRI, POLLOUT, POLLERR, POLLHUP, POLLNVAL
+
+try:
+	from select import poll as Poll, error as SelectError, \
+		POLLIN, POLLPRI, POLLOUT, POLLERR, POLLHUP, POLLNVAL
+except ImportError:
+	from select import error as SelectError, select
+	POLLIN, POLLPRI, POLLOUT, POLLERR, POLLHUP, POLLNVAL = 1, 2, 4, 8, 16, 32
+	W32R, W32W, W32E = {}, {}, {}
+
+	def w32unregister(pid):
+		if W32R.has_key(pid): del W32R[pid]
+		if W32W.has_key(pid): del W32W[pid]
+		if W32E.has_key(pid): del W32E[pid]
+	def w32register(pid, flag):
+		w32unregister(pid)
+
+		if flag & R: W32R[pid] = None
+		if flag & W: W32W[pid] = None
+		if flag & E: W32E[pid] = None
+	def w32poll(timeout):
+		r, w, e = select(W32R.keys(), W32W.keys(), W32E.keys(), 0.0001)
+		return [(i, R) for i in r] + [(i, W) for i in w] + [(i, E) for i in e]
+
+	def Poll():
+		return type('Poll', (), {
+			'register'  : staticmethod(w32register),
+			'unregister': staticmethod(w32unregister),
+			'poll'      : staticmethod(w32poll) })()
 
 class UidError(Exception ): pass
 class OverLimit(IOError  ): pass
