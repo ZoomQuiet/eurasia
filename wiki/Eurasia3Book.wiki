@@ -750,13 +750,13 @@ _当然了, 还有那个傻兮兮的参照物 "classic web application model" , 
 
 http://www.adaptivepath.com/images/publications/essays/ajax-fig1.png
 
-这是个阴谋, classic web application model 只是简单, 可并不弱哦,
+这是个阴谋, classic web application model 只是简单, 可并不弱哦。好吧, Eurasia3 给你复仇。
 
-更何况 AJAX 也不是真正的 asynchronous ──── 好吧 "classic model" 兄弟, Eurasia3 为你们复仇来了!
+下面请看传统模式 _AJAX_ 和 Eurasia3 工作模式的区别 _──── 感谢 CCTV, 感谢 [http://www.tuxpaint.cn/ tuxpaint]_ 。
 
-下面请看传统模式 _AJAX_ 和 Eurasia3 工作模式的区别 _──── 感谢 CCTV, 感谢 tuxpaint_ 。
+http://eurasia.googlecode.com/files/eurasia3vsajax.jpg http://www.tuxpaint.org/tuxpaint/gfx/corner-penguin.png
 
-http://eurasia.googlecode.com/files/eurasia3vsajax.jpg
+===这叫什么? 这叫全双工通信===
 
 ...
 
