@@ -754,7 +754,7 @@ http://www.adaptivepath.com/images/publications/essays/ajax-fig1.png
 
 下面请看传统模式 _AJAX_ 和 Eurasia3 工作模式的区别 _──── 感谢 CCTV, 感谢 [http://www.tuxpaint.cn/ tuxpaint]_ 。
 
-http://eurasia.googlecode.com/files/eurasia3vsajax.jpg http://www.tuxpaint.org/tuxpaint/gfx/corner-penguin.png
+http://eurasia.googlecode.com/files/eurasia3vsajax.jpg [http://www.tuxpaint.org/ http://www.tuxpaint.org/tuxpaint/gfx/corner-penguin.png]
 
 ===这叫什么? 这叫全双工通信===
 
