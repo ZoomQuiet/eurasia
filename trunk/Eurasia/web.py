@@ -14,8 +14,8 @@ from sqlite3 import IntegrityError
 from cStringIO import StringIO
 from errno import EALREADY, EINPROGRESS, EWOULDBLOCK, ECONNRESET, \
      ENOTCONN, ESHUTDOWN, EINTR, EISCONN, errorcode
-from socket import socket as Socket, error as SocketError, AF_INET, SOCK_STREAM, \
-	SOL_SOCKET, SO_REUSEADDR, SO_REUSEADDR
+from socket import fromfd, socket as Socket, error as SocketError, \
+	AF_INET, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR, SO_REUSEADDR
 
 from select import poll as Poll, error as SelectError, \
 	POLLIN, POLLPRI, POLLOUT, POLLERR, POLLHUP, POLLNVAL
@@ -791,7 +791,7 @@ class Server:
 		try:
 			server_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR,
 				server_socket.getsockopt(SOL_SOCKET, SO_REUSEADDR) | 1)
-		except error:
+		except SocketError:
 			pass
 
 		serverpid = server_socket.fileno()
@@ -853,15 +853,17 @@ def config(**args):
 		sys.stdout = sys.__stdout__ = stdout = args.get('stdout', nul)
 		sys.stderr = sys.__stderr__ = stderr = args.get('stderr', nul)
 
-	global controller
+	global controller, address
 	controller = args['controller']
-	server_socket.bind( args.get('address', (
+	address =  args.get('address', (
 		args.get('host', '0.0.0.0'),
-		args.get('port', 8080     )  ) ) )
-
-	server_socket.listen(4194304)
+		args.get('port', 8080     )  ) )
 
 def mainloop():
+	socket_map[serverpid] = Server()
+	server_socket.bind(address)
+	server_socket.listen(4194304)
+
 	while True:
 		try:
 			stackless.run()
@@ -967,9 +969,8 @@ T_REMOTECALL = Template(
 	'parent.${function}(${arguments});\r\n'
 	'</script>\r\n' ).safe_substitute
 
-pollster = Poll(); tasklet(poll)()
-controller = server_socket = serverpid = None
-socket_map = {serverpid: Server()}
+socket_map = {}; pollster = Poll(); tasklet(poll)()
+controller = server_socket = serverpid = address = None
 
 hypnus_cursor = sqlite3.connect(':memory:').cursor()
 hypnus_cursor.execute( (
