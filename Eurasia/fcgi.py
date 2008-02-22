@@ -19,7 +19,7 @@ class Client(dict):
 
 	@property
 	def uid(self):
-		try: return R_UID(self.headers['cookie']).groups()[0]
+		try: return R_UID(self['http_cookie']).groups()[0]
 		except: return None
 
 	def write(self, s):
@@ -150,12 +150,16 @@ class Client(dict):
 					pass
 
 		elif self.msgtype == 4:
-			headers = {}; pos = 0
+			pos = 0
 			if record_length:
 				while pos < record_length:
 					pos, (name, value) = decode_pair(record, pos)
 					self[name.lower()] = value
 			else:
+				self.path = self['request_uri']
+				self.query_string = self['query_string']
+				self.method = self['request_method'].lower()
+
 				try:
 					tasklet(controller)(self)
 				except:
@@ -179,7 +183,7 @@ class Client(dict):
 			if p:
 				r += '\x00' * p
 
-			self.wfile += r
+			self.wbuff += r
 
 		elif self.msgtype == 1:
 			role, self.flags = unpack('!HB5x', record)
@@ -189,14 +193,16 @@ class Client(dict):
 
 			self.role = role
 
-		elif self.msgtype == 2: # abort request
-			pass
+		elif self.msgtype == 2:
+			self.shutdown()
 
 		elif self.request_id == 0:
 			l = FCGI_UNKNOWNTYPEBODY_LEN; p = -l & 7
-			self.wfile += pack('!BBHHBx', self.version, 11, 0, l, p) + '!B7x'
+			r = pack('!BBHHBx', self.version, 11, 0, l, p) + '!B7x'
 			if p:
-				self.wfile += '\x00' * p
+				r += '\x00' * p
+
+			self.wbuff += r
 		else:
 			self.shutdown()
 			raise NotImplemented('fastcgi unknow record')
@@ -297,12 +303,10 @@ def config(**args):
 		sys.stdout = sys.__stdout__ = stdout = args.get('stdout', nul)
 		sys.stderr = sys.__stderr__ = stderr = args.get('stderr', nul)
 
-	global controller
+	global controller, socket_map
 	controller = args['controller']
 
 def mainloop():
-	socket_map[serverpid] = Server()
-
 	while True:
 		try:
 			stackless.run()
@@ -346,3 +350,7 @@ web.T_PUSHLET_BEGIN = Template(
 	'<script language="JavaScript">\r\n'
 	'if(document.all) parent.escape("FUCK IE");\r\n'
 	'</script>\r\n' ).safe_substitute
+
+pollster.unregister(serverpid)
+del socket_map[serverpid]
+socket_map[serverpid] = Server()

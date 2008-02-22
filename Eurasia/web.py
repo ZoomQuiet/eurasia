@@ -1,8 +1,6 @@
 import stackless
 import os, re, sys
-import sha, sqlite3
 from cgi import parse_header
-from random import random
 from sys import stderr, stdout
 from stackless import tasklet, schedule, channel
 from time import gmtime, strftime, time
@@ -10,7 +8,6 @@ from traceback import print_exc
 from urllib import unquote_plus
 from mimetools import Message
 from string import Template
-from sqlite3 import IntegrityError
 from cStringIO import StringIO
 from errno import EALREADY, EINPROGRESS, EWOULDBLOCK, ECONNRESET, \
      ENOTCONN, ESHUTDOWN, EINTR, EISCONN, errorcode
@@ -20,106 +17,16 @@ from socket import fromfd, socket as Socket, error as SocketError, \
 from select import poll as Poll, error as SelectError, \
 	POLLIN, POLLPRI, POLLOUT, POLLERR, POLLHUP, POLLNVAL
 
-class UidError(Exception ): pass
+try:
+	x = getattr(__import__('Eurasia.x-sqlite3'), 'x-sqlite3')
+	sleep, UidError, UidGenerator = (
+		x.sleep, x.UidError, x.UidGenerator)
+except ImportError:
+	pass
+
 class OverLimit(IOError  ): pass
 class Disconnect(IOError ): pass
 class MethodError(IOError): pass
-
-class UidGenerator:
-	def __init__(self):
-		cursor = sqlite3.connect(':memory:').cursor()
-		cursor.execute( (
-			'CREATE TABLE IF NOT EXISTS session '
-			'(id TEXT PRIMARY KEY, timeout INTEGER NOT NULL)' ) )
-		cursor.execute('CREATE INDEX idx_timeout on session(timeout)')
-
-		self.items = {}
-		self.has_key = self.items.has_key
-		self.cursor = cursor
-		self.timeout = 1800
-		self.garbage_timeout = 900
-		self.next_garbage_clean = int(time()) + self.garbage_timeout
-
-	def __setitem__(self, uid, item):
-		try:
-			self.cursor.execute(
-				'INSERT INTO session VALUES (?, ?)',
-				(uid, int(time()) + self.timeout) )
-
-		except IntegrityError:
-			try:
-				self.cursor.execute(
-					'SELECT id FROM session WHERE id=? AND timeout>?',
-					(uid, now) ).fetchone()[0]
-				self.cursor.execute(
-					'UPDATE session SET timeout=? WHERE id=?',
-					(now + self.timeout, uid) )
-			except TypeError:
-				raise UidError
-
-		self.items[uid] = item
-
-	def __getitem__(self, uid):
-		now = int(time())
-		if self.next_garbage_clean < now:
-			self.garbage_clean()
-		try:
-			self.cursor.execute(
-				'SELECT id FROM session WHERE id=? AND timeout>?',
-				(uid, now) ).fetchone()[0]
-			self.cursor.execute(
-				'UPDATE session SET timeout=? WHERE id=?',
-				(now + self.timeout, uid) )
-		except TypeError:
-			raise UidError
-
-		return self.items[uid]
-
-	def __delitem__(self, uid):
-		try:
-			self.items[uid].exit()
-		except AttributeError:
-			pass
-		except TypeError:
-			pass
-		del self.items[uid]
-
-		self.cursor.execute('DELETE FROM session WHERE id=', (uid, ))
-
-	def __call__(self):
-		timeout = int(time()) + self.timeout
-		while True:
-			try:
-				uid = sha.new('%s' % random()).hexdigest()
-				self.cursor.execute(
-					'INSERT INTO session VALUES (?, ?)',
-					(uid, timeout) )
-				return uid
-
-			except IntegrityError:
-				continue
-
-	def __lshift__(self, item):
-		uid = self()
-		self.items[uid] = item
-		return uid
-
-	def garbage_clean(self):
-		now = int(time())
-		for uid in [i[0] for i in self.cursor.execute(
-			'SELECT id FROM session WHERE timeout<?',
-			(now, ) ).fetchall() ]:
-
-			try:
-				self.items[uid].exit()
-			except AttributeError:
-				pass
-			except TypeError:
-				pass
-			del self.items[uid]
-
-		self.cursor.execute('DELETE FROM session WHERE timeout<?', (now, ))
-		self.next_garbage_clean = now + self.garbage_timeout
 
 class Request:
 	uid = property(lambda self: self.req.uid)
@@ -647,6 +554,13 @@ class Client:
 			self.shutdown()
 			return
 
+		p = self.path.find('?')
+		if p == -1:
+			self.query_string = ''
+		else:
+			self.path[:p]
+			self.query_string = self.path[p+1:]
+
 		self.method = method.lower()
 
 		self.headers, self.rfile = Message(rfile, 0), ''
@@ -853,17 +767,16 @@ def config(**args):
 		sys.stdout = sys.__stdout__ = stdout = args.get('stdout', nul)
 		sys.stderr = sys.__stderr__ = stderr = args.get('stderr', nul)
 
-	global controller, address
+	global controller
 	controller = args['controller']
-	address =  args.get('address', (
-		args.get('host', '0.0.0.0'),
-		args.get('port', 8080     )  ) )
 
-def mainloop():
-	socket_map[serverpid] = Server()
-	server_socket.bind(address)
+	server_socket.bind(args.get('address', (
+		args.get('host', '0.0.0.0'),
+		args.get('port', 8080) ) ) )
+
 	server_socket.listen(4194304)
 
+def mainloop():
 	while True:
 		try:
 			stackless.run()
@@ -900,40 +813,6 @@ def _json_float(o):
 	if o < 0: return '-Infinity'
 	return 'Infinity'
 
-def sleep(sec):
-	c = channel()
-	while True:
-		uid = sha.new('%s' % random()).hexdigest()
-
-		try:
-			hypnus_cursor.execute(
-				'INSERT INTO hypnus VALUES (?, ?)',
-				(uid, time() + sec) )
-			break
-		except IntegrityError:
-			continue
-
-	hypnus_channels[uid] = c
-	c.receive()
-
-def hypnus_tasklets():
-	while True:
-		now = time()
-		l = hypnus_cursor.execute(
-			'SELECT id FROM hypnus WHERE timeout<?',
-			(now, ) ).fetchall()
-		for i in l:
-			uid = i[0]
-			c = hypnus_channels[uid]
-			del hypnus_channels[uid]
-
-			c.send(None)
-		if l:
-			hypnus_cursor.execute(
-				'DELETE FROM hypnus WHERE timeout<?',
-				(now, ))
-		schedule()
-
 R = POLLIN | POLLPRI; W = POLLOUT
 E = POLLERR | POLLHUP | POLLNVAL
 RE = R | E; WE = W | E
@@ -969,13 +848,6 @@ T_REMOTECALL = Template(
 	'parent.${function}(${arguments});\r\n'
 	'</script>\r\n' ).safe_substitute
 
-socket_map = {}; pollster = Poll(); tasklet(poll)()
-controller = server_socket = serverpid = address = None
-
-hypnus_cursor = sqlite3.connect(':memory:').cursor()
-hypnus_cursor.execute( (
-	'CREATE TABLE IF NOT EXISTS hypnus '
-	'(id TEXT PRIMARY KEY, timeout FLOAT NOT NULL)' ) )
-hypnus_cursor.execute('CREATE INDEX idx_timeout on hypnus(timeout)')
-hypnus_channels = {}
-tasklet(hypnus_tasklets)()
+pollster = Poll(); tasklet(poll)()
+controller = server_socket = serverpid = None
+socket_map = { serverpid: Server() }
