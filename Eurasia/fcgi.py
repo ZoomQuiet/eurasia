@@ -1,6 +1,8 @@
+from socket import fromfd
+from struct import pack, unpack, calcsize
+
 import web
 from web import *
-from struct import pack, unpack, calcsize
 
 class Client(dict):
 	disconnected = property(lambda self: not socket_map.has_key(self.pid))
@@ -10,12 +12,12 @@ class Client(dict):
 		self.address = addr
 		self.pid = sock.fileno()
 
-		socket_map[self.pid] = self
-		pollster.register(self.pid, RE)
-
-		self._closed = False; self.request_closed = False
+		self.closed = False; self.request_closed = False
 		self.rbuff = self.rfile = self.wfile = self.wbuff= ''
 		self.message_length = None
+
+		socket_map[self.pid] = self
+		pollster.register(self.pid, RE)
 
 	@property
 	def uid(self):
@@ -73,7 +75,7 @@ class Client(dict):
 				self.wbuff = self.wbuff[num_sent:]
 
 			if not self.wbuff:
-				if self._closed:
+				if self.closed:
 					self.shutdown()
 				else:
 					try:
@@ -82,27 +84,13 @@ class Client(dict):
 						pass
 			return
 
-		if self._closed:
+		if self.closed:
 			self.shutdown()
 		else:
 			try:
 				pollster.unregister(self.pid)
 			except KeyError:
 				pass
-
-	def close(self, closed=True):
-		self._closed = closed
-		if closed and not self.request_closed:
-			p = -FCGI_ENDREQUESTBODY_LEN & 7
-			r = pack('!BBHHBx', self.version, 3, self.request_id,
-				FCGI_ENDREQUESTBODY_LEN, p) + pack('!LB3x', 0L, 0)
-			if p:
-				r += '\x00' * p
-			self.wbuff += r
-			self.request_closed = True
-			pollster.register(self.pid, WE)
-
-	closed = property(lambda self: self._closed, close)
 
 	def handle_error(self):
 		print >> stderr, 'error: fatal error, client down'
@@ -223,6 +211,14 @@ class Client(dict):
 			if p:
 				r += '\x00' * p
 
+			self.wbuff += r
+
+		if self.closed:
+			p = -FCGI_ENDREQUESTBODY_LEN & 7
+			r = pack('!BBHHBx', self.version, 3, self.request_id,
+				FCGI_ENDREQUESTBODY_LEN, p) + pack('!LB3x', 0L, 0)
+			if p:
+				r += '\x00' * p
 			self.wbuff += r
 
 class Server:

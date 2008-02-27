@@ -11,7 +11,7 @@ from string import Template
 from cStringIO import StringIO
 from errno import EALREADY, EINPROGRESS, EWOULDBLOCK, ECONNRESET, \
      ENOTCONN, ESHUTDOWN, EINTR, EISCONN, errorcode
-from socket import fromfd, socket as Socket, error as SocketError, \
+from socket import socket as Socket, error as SocketError, \
 	AF_INET, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR, SO_REUSEADDR
 
 from select import poll as Poll, error as SelectError, \
@@ -34,7 +34,8 @@ class Request:
 	def __init__(self, req, max_size=1048576):
 		self.req = req
 		self.pid = req.pid
-		self.__getitem__ = req.headers.getheader
+		self.keys = req.headers.keys
+		self.__getitem__ = req.__getitem__
 
 		if req.method == 'get':
 			return
@@ -46,10 +47,6 @@ class Request:
 				raise OverLimit
 		except:
 			length = max_size
-
-		if length == 0:
-			self.content_length = 0
-			return
 
 		self.content_length = length
 
@@ -185,12 +182,7 @@ class Form(dict):
 		self.req = fi = Request(req, max_size)
 		self.pid = req.pid
 
-		p = req.path.find('?')
-		if p == -1:
-			content = ''
-		else:
-			content = req.path[p+1:]
-
+		content = req.query_string
 		if req.method == 'post':
 			if content:
 				content = '%s&%s' %(fi.read(), content)
@@ -518,7 +510,7 @@ class Client:
 		self.closed = False
 		self.rbuff = self.rfile = self.wfile = ''
 
-		self.handle_read = self._handle_read_header
+		self.handle_read = self.handle_read_header
 
 	@property
 	def uid(self):
@@ -558,8 +550,8 @@ class Client:
 		if p == -1:
 			self.query_string = ''
 		else:
-			self.path[:p]
 			self.query_string = self.path[p+1:]
+			self.path = self.path[:p]
 
 		self.method = method.lower()
 
@@ -571,7 +563,7 @@ class Client:
 		except:
 			print_exc(file=stderr)
 
-	def _handle_read_header(self):
+	def handle_read_header(self):
 		try:
 			data = self.socket.recv(8192)
 			if not data:
@@ -598,7 +590,7 @@ class Client:
 				self.rbuff = self.rbuff[index + 4:]
 				self.mk_header()
 
-				self.handle_read = self._handle_read_content
+				self.handle_read = self.handle_read_content
 				self.rfile, self.rbuff = self.rbuff, ''
 				return
 			else:
@@ -619,7 +611,7 @@ class Client:
 					self.shutdown()
 					return
 
-	def _handle_read_content(self):
+	def handle_read_content(self):
 		try:
 			data = self.socket.recv(8192)
 			if not data:
@@ -815,7 +807,7 @@ def _json_float(o):
 
 R = POLLIN | POLLPRI; W = POLLOUT
 E = POLLERR | POLLHUP | POLLNVAL
-RE = R | E; WE = W | E
+RE = R | E; WE = W | E; RWE = R | W | E
 
 R_UPLOAD = re.compile(r'([^\\/]+)$').search
 R_UID = re.compile('(?:[^;]+;)* *uid=([^;\r\n]+)').search

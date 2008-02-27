@@ -1,7 +1,10 @@
 #!/usr/bin/env python2.5
 # -*- coding: utf-8 -*-
-import psyco
-psyco.full()
+try:
+	import psyco
+	psyco.full()
+except ImportError:
+	pass
 
 import schema # 载入配置文件定义
 from Eurasia import pyetc as etc
