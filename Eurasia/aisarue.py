@@ -145,8 +145,9 @@ class Aisarue:
 			req.rfile = ''
 			buff.append(data)
 
-			if req.closed: break
 			if not socket_map.has_key(pid):
+				if req.closed:
+					break
 				raise Disconnect
 
 			pollster.register(pid, RE)
@@ -207,8 +208,9 @@ class Aisarue:
 			req.rfile = ''
 			buff.append(data)
 
-			if req.closed: break
 			if not socket_map.has_key(pid):
+				if req.closed:
+					break
 				raise Disconnect
 
 			pollster.register(pid, RE)
