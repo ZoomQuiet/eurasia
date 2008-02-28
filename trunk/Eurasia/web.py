@@ -84,6 +84,9 @@ class Request:
 			req.rfile = ''
 			buff.append(data)
 
+			if not socket_map.has_key(pid):
+				raise Disconnect
+
 			pollster.register(pid, RE)
 			schedule()
 
