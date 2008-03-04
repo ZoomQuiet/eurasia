@@ -4,30 +4,28 @@
 import schema # 载入配置文件定义
 from Eurasia import pyetc as etc
 from Eurasia.web import config
-from Eurasia.aisarue import urlopen
-from Eurasia.web import config, mainloop, Request, Response
+from Eurasia.web import config, mainloop, Response
+
+from urllib import urlopen
 
 # 代理服务器
 def controller(client):
-	request = Request(client)
-
-	url = client.query_string and '%s?%s' %(
-		client.path, client.query_string
-		) or client.path
-
-	d = {}
+	headers = {}
 	for key, value in client.headers.items():
-		d['-'.join(i.capitalize() for i in key.split('-'))] = value
-	del d['Proxy-Connection']
-	d['Connection'] = 'close'
+		headers['-'.join(i.capitalize() for i in key.split('-'))] = value
+	del headers['Proxy-Connection']
+	headers['Connection'] = 'close'
 
-	fd = (client.method == 'get') and urlopen(url, headers=d
-		) or urlopen(url, headers=d, data=request)
+	fd = (client.method == 'get') and urlopen(client.path, headers=headers
+		) or urlopen(client.path, data=client.read(), headers=headers)
 
-	response = Response(client)
-	for key in fd.keys():
+	print '%s %s' %(client.method.upper(), client.path)
+
+	response = Response(client,
+		version=fd.version, status=fd.status, message=fd.message)
+	for key, value in fd.headers.items():
 		response['-'.join(i.capitalize() for i in key.split('-'))
-			] = fd[key]
+			] = value
 
 	response.begin()
 	ll = fd.read(8192)
@@ -36,7 +34,7 @@ def controller(client):
 		ll = fd.read(8192)
 
 	response.end()
-	print '[%s]' %url
+	print '(%s %s %s)' %(client.path, response.status, response.message)
 
 # 配置服务器
 etc.load(schema.ETC('demo.conf'), # 配置文件

@@ -1,223 +1,66 @@
 import stackless
 import os, re, sys
-from cgi import parse_header
-from sys import stderr, stdout
-from stackless import tasklet, schedule, channel
-from time import gmtime, strftime, time
-from traceback import print_exc
-from urllib import unquote_plus
-from mimetools import Message
 from string import Template
+from cgi import parse_header
+from mimetools import Message
+from sys import stderr, stdout
 from cStringIO import StringIO
+from urllib import unquote_plus
+from traceback import print_exc
+from time import gmtime, strftime, time, sleep
+from stackless import tasklet, schedule, channel
+from BaseHTTPServer import BaseHTTPRequestHandler
+from select import poll as Poll, error as SelectError, \
+	POLLIN, POLLPRI, POLLOUT, POLLERR, POLLHUP, POLLNVAL
 from errno import EALREADY, EINPROGRESS, EWOULDBLOCK, ECONNRESET, \
-     ENOTCONN, ESHUTDOWN, EINTR, EISCONN, errorcode
+	ENOTCONN, ESHUTDOWN, EINTR, EISCONN, errorcode
 from socket import socket as Socket, error as SocketError, \
 	AF_INET, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR, SO_REUSEADDR
 
-from select import poll as Poll, error as SelectError, \
-	POLLIN, POLLPRI, POLLOUT, POLLERR, POLLHUP, POLLNVAL
-
 try:
-	x = getattr(__import__('Eurasia.x-sqlite3'), 'x-sqlite3')
-	sleep, UidError, UidGenerator = (
-		x.sleep, x.UidError, x.UidGenerator)
+	from Eurasia import OverLimit, Disconnect
 except ImportError:
-	pass
+	class OverLimit(IOError): pass
+	class Disconnect(IOError): pass
 
-class OverLimit(IOError  ): pass
-class Disconnect(IOError ): pass
-class MethodError(IOError): pass
+def Form(client, max_size=1048576):
+	p = client.path.find('?')
+	if p == -1:
+		content = ''
+	else:
+		content = client.path[p+1:]
 
-class Request:
-	uid = property(lambda self: self.req.uid)
+	if client.method == 'post':
+		content = content and '%s&%s' %(client.read(max_size), content
+			) or client.read(max_size)
 
-	def __init__(self, req, max_size=1048576):
-		self.req = req
-		self.pid = req.pid
-		self.keys = req.headers.keys
-		self.__getitem__ = req.__getitem__
-
-		if req.method == 'get':
-			return
-
+	if client.rfile:
+		raise OverLimit
+	d = {}
+	for ll in content.split('&'):
 		try:
-			length = int(req['content-length'])
-			if length > max_size:
-				req.shutdown()
-				raise OverLimit
-		except:
-			length = max_size
-
-		self.content_length = length
-
-	def read(self, size=None):
-		req = self.req
-		pid = req.pid
-
-		if not socket_map.has_key(pid):
-			raise Disconnect
-
-		try:
-			left = self.left
-		except AttributeError:
+			k, v = ll.split('=', 1); v = unquote_plus(v)
 			try:
-				self.left = left = self.content_length
-			except AttributeError:
-				raise MethodError
+				if isinstance(d[k], list):
+					d[k].append(v)
+				else:
+					d[k] = [d[k], v]
+			except KeyError:
+				d[k] = v
+		except ValueError:
+			continue
+	return d
 
-		data = req.rfile
-		bufl = len(data)
-		if bufl > left:
-			req.shutdown()
-			raise OverLimit
-
-		if not size or size > left:
-			size = left
-
-		if bufl >= size:
-			req.rfile = data[size:]
-			self.left = left - size
-			return data[:size]
-
-		buff = []
-		while bufl < size:
-			req.rfile = ''
-			buff.append(data)
-
-			if not socket_map.has_key(pid):
-				raise Disconnect
-
-			pollster.register(pid, RE)
-			schedule()
-
-			data = req.rfile
-			bufl += len(data)
-			if bufl > left:
-				req.shutdown()
-				raise OverLimit
-
-		n = size - bufl
-		if n == 0:
-			buff.append(data)
-			req.rfile = ''
-		else:
-			buff.append(data[:n])
-			req.rfile = data[n:]
-
-		self.left = left - size
-		return ''.join(buff)
-
-	def readline(self, size=None):
-		req = self.req
-		pid = req.pid
-
-		if not socket_map.has_key(pid):
-			raise Disconnect
-
-		try:
-			left = self.left
-		except AttributeError:
-			try:
-				self.left = left = self.content_length
-			except AttributeError:
-				raise MethodError
-
-		data = req.rfile
-		bufl = len(data)
-		if bufl > left:
-			req.shutdown()
-			raise OverLimit
-
-		nl = data.find('\n', 0, size)
-		if nl >= 0:
-			nl += 1
-			req.rfile = data[nl:]
-			self.left = left - nl
-			return data[:nl]
-
-		if not size or size > left:
-			size = left
-
-		if bufl >= size:
-			req.rfile = data[size:]
-			self.left = left - size
-			return data[:size]
-
-		buff = []
-		while bufl < size:
-			req.rfile = ''
-			buff.append(data)
-
-			pollster.register(pid, RE)
-			schedule()
-
-			data = req.rfile
-			p = size - bufl
-			bufl += len(data)
-			if bufl > left:
-				req.shutdown()
-				raise OverLimit
-
-			nl = data.find('\n', 0, p)
-			if nl >= 0:
-				nl += 1
-				rfile = data[nl:]
-				req.rfile = rfile
-				buff.append(data[:nl])
-				self.left = left + len(rfile) - bufl 
-				return ''.join(buff)
-
-		n = size - bufl
-		if n == 0:
-			buff.append(data)
-			req.rfile = ''
-		else:
-			buff.append(data[:n])
-			req.rfile = data[n:]
-
-		self.left = left - size
-		return ''.join(buff)
-
-class Form(dict):
-	uid = property(lambda self: self.req.uid)
-
-	def __init__(self, req, max_size=1048576):
-		self.req = fi = Request(req, max_size)
-		self.pid = req.pid
-
-		content = req.query_string
-		if req.method == 'post':
-			if content:
-				content = '%s&%s' %(fi.read(), content)
-			else:
-				content = fi.read()
-
-		for ll in content.split('&'):
-			try:
-				k, v = ll.split('=', 1); v = unquote_plus(v)
-				try:
-					if isinstance(self[k], list):
-						self[k].append(v)
-					else:
-						self[k] = [self[k], v]
-				except KeyError:
-					self[k] = v
-			except ValueError:
-				continue
-
-def SimpleUpload(req, max_size=1048576):
-	fi = Request(req, max_size)
-
+def SimpleUpload(client):
 	global next, last
 	try:
-		next = '--' + parse_header(req['content-type'])[1]['boundary']
+		next = '--' + parse_header(client.headers['content-type'])[1]['boundary']
 	except:
 		raise IOError
 
 	last = next + '--'
-
 	def _preadline():
-		l = fi.readline(65536)
+		l = client.readline(65536)
 		if not l: raise IOError
 		if l[:2] == '--':
 			sl = l.strip()
@@ -228,7 +71,7 @@ def SimpleUpload(req, max_size=1048576):
 			l[-1] == '\n' and '\n' or '')
 
 		while True:
-			l2 = fi.readline(65536)
+			l2 = client.readline(65536)
 			if not l2: raise IOError
 			if l2[:2] == '--' and el:
 				sl = l2.strip()
@@ -236,18 +79,14 @@ def SimpleUpload(req, max_size=1048576):
 					yield l[:-len(el)]
 					break
 			yield l
-
 			l = l2
 			el = l[-2:] == '\r\n' and '\r\n' or (
 				l[-1] == '\n' and '\n' or '')
-
 		while True:
 			yield None
-
 	class CGIFile:
 		def __getitem__(self, k):
 			return self.form[k]
-
 	def _fp():
 		rl = _preadline().next
 		_fp.buff = ''
@@ -267,9 +106,7 @@ def SimpleUpload(req, max_size=1048576):
 			d = [buff]; _fp.buff = ''
 			while True:
 				l = rl()
-				if not l:
-					return ''.join(d)
-
+				if not l: return ''.join(d)
 				d.append(l)
 
 		def _readline(size=None):
@@ -283,17 +120,14 @@ def SimpleUpload(req, max_size=1048576):
 				elif len(s) > size:
 					_fp.buff = s[size:]
 					return s[:size]
-
 				t = rl()
 				if not t:
 					_fp.buff = ''
 					return s
-
 				s = s + t
 				if len(s) > size:
 					_fp.buff = s[size:]
 					return s[:size]
-
 				_fp.buff = ''
 				return s
 			else:
@@ -305,25 +139,18 @@ def SimpleUpload(req, max_size=1048576):
 				else:
 					t = rl()
 					_fp.buff = ''
-					if not t:
-						return s
-
+					if not t: return s
 					s += t
 					return s
-
 		fp = CGIFile()
 		fp.read = _read; fp.readline = _readline
-
 		return fp
-
 	c = 0
 	while True:
-		l = fi.readline(65536)
+		l = client.readline(65536)
 		c += len(l)
-
 		if not l:
 			raise IOError
-
 		if l[:2] == '--':
 			sl = l.strip()
 			if sl == next:
@@ -337,52 +164,36 @@ def SimpleUpload(req, max_size=1048576):
 	while True:
 		name = None
 		for i in xrange(10):
-			l = fi.readline(65536)
+			l = client.readline(65536)
 			c += len(l); l = l.strip()
 			if not l:
-				if not name:
-					raise IOError
-
+				if not name: raise IOError
 				if filename:
 					fp = _fp()
 					fp.filename = filename
 					fp.form = d
-
-					try:
-						size = int(req['content-length'])
-					except:
-						return fp
+					try: size = int(req['content-length'])
+					except: return fp
 					fp.size = size - c - c1 - len(last)
 					return fp
 
 				s = _fp().read()
 				c += cnext + len(s)
-				try:
-					d[name].append(s)
-				except KeyError:
-					d[name] = s
-				except AttributeError:
-					d[name] = [d[name], s]
-
+				try: d[name].append(s)
+				except KeyError: d[name] = s
+				except AttributeError: d[name] = [d[name], s]
 				break
 
 			t1, t2 = l.split(':', 1)
 			if t1.lower() != 'content-disposition':
 				continue
-
  			t1, t2 = parse_header(t2)
 			if t1.lower() != 'form-data':
 				raise IOError
-
-			try:
-				name = t2['name']
-			except KeyError:
-				raise IOError
-
-			try:
-				filename = t2['filename']
-			except KeyError:
-				continue
+			try: name = t2['name']
+			except KeyError: raise IOError
+			try: filename = t2['filename']
+			except KeyError: continue
 
 			m = R_UPLOAD(filename)
 			if not m:
@@ -390,31 +201,61 @@ def SimpleUpload(req, max_size=1048576):
 
 			filename = m.groups()[0]
 
-class Response(dict):
-	def __init__(self, req):
-		dict.__init__(self)
+class Headers:
+	def __init__(self, *args, **kw):
+		self._dict = dict(DEFAULTHEADERS)
+		self._dict.update(dict(*args, **kw))
+		self.items = self._dict.items
+
+	def __getitem__(self, key):
+		return self._dict['-'.join(i.capitalize() for i in key.split('-'))]
+
+	def __setitem__(self, key, value):
+		self._dict['-'.join(i.capitalize() for i in key.split('-'))] = value
+
+class Response:
+	def __init__(self, req, **args):
 		self.req = req
 		self.pid = req.pid
 		self.uid = None
 		self.content = ''
 
+		self.version = args.get('version', 'HTTP/1.1')
+		self.status  = int(args.get('status' , 200))
+		self.message = args.get('message', RESPONSES[self.status])
+
+		self.headers = dict(DEFAULTHEADERS)
+		self.items = self.headers.items
+
+	def __getitem__(self, key):
+		return self.headers[key]
+
+	def __setitem__(self, key, value):
+		self.headers[key] = value
+
 	def write(self, data):
 		self.content += data
+
+	def write_flush(self, data):
+		self.req.wfile += data
+		pollster.register(self.pid, WE)
+		schedule()
 
 	def begin(self):
 		if self.req.disconnected:
 			raise Disconnect
 
-		ll = ['%s: %s' %(k, self[k]) for k in self]
+		ll = ['%s: %s' %(key, value) for key, value in self.items()]
 		if self.uid:
 			ll.append( T_UID(uid=self.uid, expires=strftime(
 				'%a, %d-%b-%Y %H:%M:%S GMT', gmtime(time() + 157679616) )
 				) )
-		self.req.wfile = T_RESPONSE(header=ll and '\r\n'.join(ll) + '\r\n' or '')
+		self.req.wfile = T_RESPONSE(headers=ll and '\r\n'.join(ll) + '\r\n' or '',
+			version=self.version, status=str(self.status), message=self.message)
 
 		pollster.register(self.pid, WE)
 
-		self.write = self.req.write
+		self.write = self.write_flush
 		self.end   = self._end
 		delattr(self, 'content')
 
@@ -430,25 +271,35 @@ class Response(dict):
 		if not socket_map.has_key(self.pid):
 			raise Disconnect
 
-		ll = ['%s: %s' %(k, self[k]) for k in self]
+		ll = ['%s: %s' %(key, value) for key, value in self.items()]
 		if self.uid:
 			ll.append( T_UID(uid=self.uid, expires=strftime(
 				'%a, %d-%b-%Y %H:%M:%S GMT', gmtime(time() + 157679616) )
 				) )
 		ll.append(T_CONTENT_LENGTH(content_length=len(self.content)))
-		self.req.wfile = T_RESPONSE(header=ll and '\r\n'.join(ll) + '\r\n' or ''
+		self.req.wfile = T_RESPONSE(headers=ll and '\r\n'.join(ll) + '\r\n' or '',
+			version=self.version, status=str(self.status), message=self.message
 			) + self.content
 
 		self.req.closed   = True
 		pollster.register(self.pid, WE)
 		schedule()
 
-class Pushlet(dict):
+class Pushlet(object):
 	def __init__(self, req):
 		dict.__init__(self)
 		self.req = req
 		self.pid = req.pid
 		self.uid = None
+
+		self.headers = dict(DEFAULTHEADERS)
+		self.items = self.headers.items
+
+	def __getitem__(self, key):
+		return self.headers[key]
+
+	def __setitem__(self, key, value):
+		self.headers[key] = value
 
 	def __getattr__(self, name):
 		return RemoteCall(self.req, name)
@@ -457,13 +308,12 @@ class Pushlet(dict):
 		if self.req.disconnected:
 			raise Disconnect
 
-		ll = ['%s: %s' %(k, self[k]) for k in self]
+		ll = ['%s: %s' %(key, value) for key, value in self.items()]
 		if self.uid:
 			ll.append( T_UID(uid=self.uid, expires=strftime(
 				'%a, %d-%b-%Y %H:%M:%S GMT', gmtime(time() + 157679616) )
 				) )
-		self.req.wfile = T_PUSHLET_BEGIN(header=ll and '\r\n'.join(ll) + '\r\n' or '')
-
+		self.req.wfile = T_PUSHLET_BEGIN(headers=ll and '\r\n'.join(ll) + '\r\n' or '')
 		pollster.register(self.pid, WE)
 
 	def end(self):
@@ -507,26 +357,136 @@ class Client:
 		self.address = addr
 		self.pid = sock.fileno()
 
-		socket_map[self.pid] = self
-		pollster.register(self.pid, RE)
-
 		self.closed = False
 		self.rbuff = self.rfile = self.wfile = ''
 
 		self.handle_read = self.handle_read_header
+		socket_map[self.pid] = self
+		pollster.register(self.pid, RE)
 
 	@property
 	def uid(self):
 		try: return R_UID(self.headers['cookie']).groups()[0]
 		except: return None
 
-	def write(self, s):
+	def read(self, size=None):
 		if not socket_map.has_key(self.pid):
 			raise Disconnect
 
-		self.wfile += s
-		pollster.register(self.pid, WE)
-		schedule()
+		try:
+			left = self.left
+		except AttributeError:
+			self.left = left = int(self.headers['content-length'])
+
+		data = self.rfile
+		bufl = len(data)
+		if bufl > left:
+			self.shutdown()
+			raise OverLimit
+
+		if not size or size > left:
+			size = left
+
+		if bufl >= size:
+			self.rfile = data[size:]
+			self.left = left - size
+			return data[:size]
+
+		buff = []
+		while bufl < size:
+			self.rfile = ''
+			buff.append(data)
+
+			if not socket_map.has_key(self.pid):
+				raise Disconnect
+
+			pollster.register(self.pid, RE)
+			schedule()
+
+			data = self.rfile
+			bufl += len(data)
+			if bufl > left:
+				self.shutdown()
+				raise OverLimit
+
+		n = size - bufl
+		if n == 0:
+			buff.append(data)
+			self.rfile = ''
+		else:
+			buff.append(data[:n])
+			self.rfile = data[n:]
+
+		self.left = left - size
+		return ''.join(buff)
+
+	def readline(self, size=None):
+		if not socket_map.has_key(self.pid):
+			raise Disconnect
+
+		try:
+			left = self.left
+		except AttributeError:
+			self.left = left = int(self.headers['content-length'])
+
+		data = self.rfile
+		bufl = len(data)
+		if bufl > left:
+			self.shutdown()
+			raise OverLimit
+
+		nl = data.find('\n', 0, size)
+		if nl >= 0:
+			nl += 1
+			self.rfile = data[nl:]
+			self.left = left - nl
+			return data[:nl]
+
+		if not size or size > left:
+			size = left
+
+		if bufl >= size:
+			self.rfile = data[size:]
+			self.left = left - size
+			return data[:size]
+
+		buff = []
+		while bufl < size:
+			self.rfile = ''
+			buff.append(data)
+
+			if not socket_map.has_key(self.pid):
+				raise Disconnect
+
+			pollster.register(self.pid, RE)
+			schedule()
+
+			data = self.rfile
+			p = size - bufl
+			bufl += len(data)
+			if bufl > left:
+				self.shutdown()
+				raise OverLimit
+
+			nl = data.find('\n', 0, p)
+			if nl >= 0:
+				nl += 1
+				rfile = data[nl:]
+				self.rfile = rfile
+				buff.append(data[:nl])
+				self.left = left + len(rfile) - bufl 
+				return ''.join(buff)
+
+		n = size - bufl
+		if n == 0:
+			buff.append(data)
+			self.rfile = ''
+		else:
+			buff.append(data[:n])
+			self.rfile = data[n:]
+
+		self.left = left - size
+		return ''.join(buff)
 
 	def mk_header(self):
 		rfile = StringIO(self.rfile)
@@ -544,23 +504,12 @@ class Client:
 
 		elif len(words) == 2:
 			[method, self.path] = words
-
 		else:
 			self.shutdown()
 			return
 
-		p = self.path.find('?')
-		if p == -1:
-			self.query_string = ''
-		else:
-			self.query_string = self.path[p+1:]
-			self.path = self.path[:p]
-
 		self.method = method.lower()
-
 		self.headers, self.rfile = Message(rfile, 0), ''
-		self.__getitem__ = self.headers.getheader
-
 		try:
 			tasklet(controller)(self)
 		except:
@@ -812,24 +761,23 @@ R = POLLIN | POLLPRI; W = POLLOUT
 E = POLLERR | POLLHUP | POLLNVAL
 RE = R | E; WE = W | E; RWE = R | W | E
 
+RESPONSES = dict((key, value[0]) for key, value in BaseHTTPRequestHandler.responses.items())
+DEFAULTHEADERS = (
+	('Cache-Control', 'no-cache, must-revalidate'),
+	('Pragma'       , 'no-cache'                 ),
+	('Expires'      , 'Mon, 26 Jul 1997 05:00:00 GMT') )
+
 R_UPLOAD = re.compile(r'([^\\/]+)$').search
 R_UID = re.compile('(?:[^;]+;)* *uid=([^;\r\n]+)').search
 T_UID = Template('Set-Cookie: uid=${uid}; path=/; expires=${expires}').safe_substitute
 T_CONTENT_LENGTH = Template('Content-Length: ${content_length}').safe_substitute
 T_RESPONSE = Template(
-	'HTTP/1.1 200 OK\r\n'
-	'Cache-Control:no-cache, must-revalidate\r\n'
-	'Pragma: no-cache\r\n'
-	'Expires: Mon, 26 Jul 1997 05:00:00 GMT\r\n'
-	'${header}\r\n'
+	'${version} ${status} ${message}\r\n'
+	'${headers}\r\n'
 	).safe_substitute
 T_PUSHLET_BEGIN = Template(
 	'HTTP/1.1 200 OK\r\n'
-	'Content-Type: text/html\r\n'
-	'Cache-Control: no-cache, must-revalidate\r\n'
-	'Pragma: no-cache\r\n'
-	'Expires: Mon, 26 Jul 1997 05:00:00 GMT\r\n'
-	'${header}\r\n'
+	'${headers}\r\n'
 	'<html>\r\n<head>\r\n'
 	'<META http-equiv="Content-Type" content="text/html">\r\n'
 	'<meta http-equiv="Pragma" content="no-cache">\r\n'
@@ -846,3 +794,9 @@ T_REMOTECALL = Template(
 pollster = Poll(); tasklet(poll)()
 controller = server_socket = serverpid = None
 socket_map = { serverpid: Server() }
+
+plugin = lambda m: getattr(__import__('Eurasia.%s' %m), m)
+try: plugin('x-hypnus')
+except ImportError: pass
+try: plugin('x-aisarue').config(pollster=pollster, socket_map = socket_map)
+except ImportError: pass
