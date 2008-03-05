@@ -201,18 +201,6 @@ def SimpleUpload(client):
 
 			filename = m.groups()[0]
 
-class Headers:
-	def __init__(self, *args, **kw):
-		self._dict = dict(DEFAULTHEADERS)
-		self._dict.update(dict(*args, **kw))
-		self.items = self._dict.items
-
-	def __getitem__(self, key):
-		return self._dict['-'.join(i.capitalize() for i in key.split('-'))]
-
-	def __setitem__(self, key, value):
-		self._dict['-'.join(i.capitalize() for i in key.split('-'))] = value
-
 class Response:
 	def __init__(self, req, **args):
 		self.req = req
@@ -224,7 +212,7 @@ class Response:
 		self.status  = int(args.get('status' , 200))
 		self.message = args.get('message', RESPONSES[self.status])
 
-		self.headers = dict(DEFAULTHEADERS)
+		self.headers = Message(StringIO(DEFAULTHEADERS))
 		self.items = self.headers.items
 
 	def __getitem__(self, key):
@@ -237,12 +225,15 @@ class Response:
 		self.content += data
 
 	def write_flush(self, data):
+		if not socket_map.has_key(self.pid):
+			raise Disconnect
+
 		self.req.wfile += data
 		pollster.register(self.pid, WE)
 		schedule()
 
 	def begin(self):
-		if self.req.disconnected:
+		if not socket_map.has_key(self.pid):
 			raise Disconnect
 
 		ll = ['%s: %s' %(key, value) for key, value in self.items()]
@@ -292,7 +283,7 @@ class Pushlet(object):
 		self.pid = req.pid
 		self.uid = None
 
-		self.headers = dict(DEFAULTHEADERS)
+		self.headers = Message(StringIO(DEFAULTHEADERS))
 		self.items = self.headers.items
 
 	def __getitem__(self, key):
@@ -763,9 +754,9 @@ RE = R | E; WE = W | E; RWE = R | W | E
 
 RESPONSES = dict((key, value[0]) for key, value in BaseHTTPRequestHandler.responses.items())
 DEFAULTHEADERS = (
-	('Cache-Control', 'no-cache, must-revalidate'),
-	('Pragma'       , 'no-cache'                 ),
-	('Expires'      , 'Mon, 26 Jul 1997 05:00:00 GMT') )
+	'Cache-Control: no-cache, must-revalidate\r\n'
+	'Pragma: no-cache\r\n'
+	'Expires: Mon, 26 Jul 1997 05:00:00 GMT' )
 
 R_UPLOAD = re.compile(r'([^\\/]+)$').search
 R_UID = re.compile('(?:[^;]+;)* *uid=([^;\r\n]+)').search

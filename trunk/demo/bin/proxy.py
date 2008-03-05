@@ -3,13 +3,12 @@
 
 import schema # 载入配置文件定义
 from Eurasia import pyetc as etc
-from Eurasia.web import config
-from Eurasia.web import config, mainloop, Response
+from Eurasia.web import config, mainloop, stdout, Response
 
 from urllib import urlopen
 
 # 代理服务器
-def controller(client):
+def proxy(client):
 	headers = {}
 	for key, value in client.headers.items():
 		headers['-'.join(i.capitalize() for i in key.split('-'))] = value
@@ -19,7 +18,7 @@ def controller(client):
 	fd = (client.method == 'get') and urlopen(client.path, headers=headers
 		) or urlopen(client.path, data=client.read(), headers=headers)
 
-	print '%s %s' %(client.method.upper(), client.path)
+	print '[%s] %s' %(client.method.upper(), client.path)
 
 	response = Response(client,
 		version=fd.version, status=fd.status, message=fd.message)
@@ -30,11 +29,20 @@ def controller(client):
 	response.begin()
 	ll = fd.read(8192)
 	while ll:
+		print '\tloading ...'
+
 		response.write(ll)
 		ll = fd.read(8192)
 
 	response.end()
-	print '(%s %s %s)' %(client.path, response.status, response.message)
+	print '[%s] %s %s' %(response.status, client.path, response.message)
+
+def controller(client):
+	try:
+		proxy(client)
+	except:
+		print '[ERR] %s Faild' % client.path
+		client.shutdown()
 
 # 配置服务器
 etc.load(schema.ETC('demo.conf'), # 配置文件
