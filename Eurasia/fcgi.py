@@ -10,6 +10,7 @@ from traceback import print_exc
 from struct import pack, unpack, calcsize
 from time import gmtime, strftime, time, sleep
 from stackless import tasklet, schedule, channel
+from BaseHTTPServer import BaseHTTPRequestHandler
 from select import poll as Poll, error as SelectError, \
 	POLLIN, POLLPRI, POLLOUT, POLLERR, POLLHUP, POLLNVAL
 from errno import EALREADY, EINPROGRESS, EWOULDBLOCK, ECONNRESET, \
@@ -17,11 +18,19 @@ from errno import EALREADY, EINPROGRESS, EWOULDBLOCK, ECONNRESET, \
 from socket import fromfd, socket as Socket, error as SocketError, \
 	AF_INET, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR, SO_REUSEADDR
 
-class OverLimit(IOError): pass
-class Disconnect(IOError): pass
+try:
+	from Eurasia import OverLimit, Disconnect
+except ImportError:
+	class OverLimit(IOError): pass
+	class Disconnect(IOError): pass
 
 def Form(client, max_size=1048576):
-	content = client.query_string
+	p = client.path.find('?')
+	if p == -1:
+		content = ''
+	else:
+		content = client.path[p+1:]
+
 	if client.method == 'post':
 		content = content and '%s&%s' %(client.read(max_size), content
 			) or client.read(max_size)
@@ -193,31 +202,51 @@ def SimpleUpload(client):
 
 			filename = m.groups()[0]
 
-class Response(dict):
-	def __init__(self, req):
-		dict.__init__(self)
+class Response:
+	def __init__(self, req, **args):
 		self.req = req
 		self.pid = req.pid
 		self.uid = None
 		self.content = ''
 
+		self.status  = int(args.get('status' , 200))
+		self.message = args.get('message', RESPONSES[self.status])
+
+		self.headers = Message(StringIO(DEFAULTHEADERS))
+		self.items = self.headers.items
+
+	def __getitem__(self, key):
+		return self.headers[key]
+
+	def __setitem__(self, key, value):
+		self.headers[key] = value
+
 	def write(self, data):
 		self.content += data
 
-	def begin(self):
-		if self.req.disconnected:
+	def write_flush(self, data):
+		if not socket_map.has_key(self.pid):
 			raise Disconnect
 
-		ll = ['%s: %s' %(k, self[k]) for k in self]
+		self.req.wfile += data
+		pollster.register(self.pid, WE)
+		schedule()
+
+	def begin(self):
+		if not socket_map.has_key(self.pid):
+			raise Disconnect
+
+		ll = ['%s: %s' %(key, value) for key, value in self.items()]
 		if self.uid:
 			ll.append( T_UID(uid=self.uid, expires=strftime(
 				'%a, %d-%b-%Y %H:%M:%S GMT', gmtime(time() + 157679616) )
 				) )
-		self.req.wfile = T_RESPONSE(header=ll and '\r\n'.join(ll) + '\r\n' or '')
+		self.req.wfile = T_RESPONSE(headers=ll and '\r\n'.join(ll) + '\r\n' or '',
+			status=str(self.status), message=self.message)
 
 		pollster.register(self.pid, WE)
 
-		self.write = self.req.write
+		self.write = self.write_flush
 		self.end   = self._end
 		delattr(self, 'content')
 
@@ -233,25 +262,35 @@ class Response(dict):
 		if not socket_map.has_key(self.pid):
 			raise Disconnect
 
-		ll = ['%s: %s' %(k, self[k]) for k in self]
+		ll = ['%s: %s' %(key, value) for key, value in self.items()]
 		if self.uid:
 			ll.append( T_UID(uid=self.uid, expires=strftime(
 				'%a, %d-%b-%Y %H:%M:%S GMT', gmtime(time() + 157679616) )
 				) )
 		ll.append(T_CONTENT_LENGTH(content_length=len(self.content)))
-		self.req.wfile = T_RESPONSE(header=ll and '\r\n'.join(ll) + '\r\n' or ''
+		self.req.wfile = T_RESPONSE(headers=ll and '\r\n'.join(ll) + '\r\n' or '',
+			status=str(self.status), message=self.message
 			) + self.content
 
 		self.req.closed   = True
 		pollster.register(self.pid, WE)
 		schedule()
 
-class Pushlet(dict):
+class Pushlet(object):
 	def __init__(self, req):
 		dict.__init__(self)
 		self.req = req
 		self.pid = req.pid
 		self.uid = None
+
+		self.headers = Message(StringIO(DEFAULTHEADERS))
+		self.items = self.headers.items
+
+	def __getitem__(self, key):
+		return self.headers[key]
+
+	def __setitem__(self, key, value):
+		self.headers[key] = value
 
 	def __getattr__(self, name):
 		return RemoteCall(self.req, name)
@@ -260,13 +299,12 @@ class Pushlet(dict):
 		if self.req.disconnected:
 			raise Disconnect
 
-		ll = ['%s: %s' %(k, self[k]) for k in self]
+		ll = ['%s: %s' %(key, value) for key, value in self.items()]
 		if self.uid:
 			ll.append( T_UID(uid=self.uid, expires=strftime(
 				'%a, %d-%b-%Y %H:%M:%S GMT', gmtime(time() + 157679616) )
 				) )
-		self.req.wfile = T_PUSHLET_BEGIN(header=ll and '\r\n'.join(ll) + '\r\n' or '')
-
+		self.req.wfile = T_PUSHLET_BEGIN(headers=ll and '\r\n'.join(ll) + '\r\n' or '')
 		pollster.register(self.pid, WE)
 
 	def end(self):
@@ -790,24 +828,23 @@ R = POLLIN | POLLPRI; W = POLLOUT
 E = POLLERR | POLLHUP | POLLNVAL
 RE = R | E; WE = W | E; RWE = R | W | E
 
+RESPONSES = dict((key, value[0]) for key, value in BaseHTTPRequestHandler.responses.items())
+DEFAULTHEADERS = (
+	'Cache-Control: no-cache, must-revalidate\r\n'
+	'Pragma: no-cache\r\n'
+	'Expires: Mon, 26 Jul 1997 05:00:00 GMT' )
+
 R_UPLOAD = re.compile(r'([^\\/]+)$').search
 R_UID = re.compile('(?:[^;]+;)* *uid=([^;\r\n]+)').search
 T_UID = Template('Set-Cookie: uid=${uid}; path=/; expires=${expires}').safe_substitute
 T_CONTENT_LENGTH = Template('Content-Length: ${content_length}').safe_substitute
 T_RESPONSE = Template(
-	'Status: 200 OK\r\n'
-	'Cache-Control:no-cache, must-revalidate\r\n'
-	'Pragma: no-cache\r\n'
-	'Expires: Mon, 26 Jul 1997 05:00:00 GMT\r\n'
-	'${header}\r\n'
+	'Status: ${status} ${message}\r\n'
+	'${headers}\r\n'
 	).safe_substitute
 T_PUSHLET_BEGIN = Template(
 	'Status: 200 OK\r\n'
-	'Content-Type: text/html\r\n'
-	'Cache-Control: no-cache, must-revalidate\r\n'
-	'Pragma: no-cache\r\n'
-	'Expires: Mon, 26 Jul 1997 05:00:00 GMT\r\n'
-	'${header}\r\n'
+	'${headers}\r\n'
 	'<html>\r\n<head>\r\n'
 	'<META http-equiv="Content-Type" content="text/html">\r\n'
 	'<meta http-equiv="Pragma" content="no-cache">\r\n'
@@ -825,11 +862,8 @@ pollster = Poll(); tasklet(poll)()
 controller = server_socket = serverpid = None
 socket_map = { serverpid: Server() }
 
-try:
-	import aisarue
-	aisarue.config(pollster = pollster, socket_map = socket_map)
-
-	import urllib as patch
-	patch.urlopen = aisarue.urlopen
-except ImportError:
-	pass
+plugin = lambda m: getattr(__import__('Eurasia.%s' %m), m)
+try: plugin('x-hypnus')
+except ImportError: pass
+try: plugin('x-aisarue').config(pollster=pollster, socket_map = socket_map)
+except ImportError: pass
