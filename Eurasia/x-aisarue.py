@@ -95,10 +95,10 @@ def urlopen(url, data='', headers={}):
 
 	pollster.register(client.pid, WE)
 	if headers:
-		client.wfile.send('%s %s HTTP/1.1\r\n%s\r\n\r\n' %(
+		client.wfile.send('%s %s HTTP/1.0\r\n%s\r\n\r\n' %(
 			method, path, headers))
 	else:
-		client.wfile.send('%s %s HTTP/1.1\r\n\r\n' %(method, path))
+		client.wfile.send('%s %s HTTP/1.0\r\n\r\n' %(method, path))
 
 	s = read(30720)
 	while s:
@@ -375,7 +375,6 @@ def config(**args):
 	if args.has_key('socket_map'):
 		socket_map = args['socket_map']
 
-version = 'HTTP/1.0'
 pollster = socket_map = None
 
 R_PROTOCOL = re_compile('^([^:]+)://').search
