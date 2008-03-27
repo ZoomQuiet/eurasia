@@ -51,4 +51,3 @@ except ImportError:
 
 class OverLimit(IOError): pass
 class Disconnect(IOError): pass
-class ProtocolError(IOError): pass
