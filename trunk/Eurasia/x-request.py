@@ -1,5 +1,7 @@
-from Eurasia import OverLimit
 from urllib import unquote_plus
+
+class Overlimit(IOError):
+	pass
 
 def Form(client, max_size=1048576):
 	if client.method == 'POST':

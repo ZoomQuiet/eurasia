@@ -1,6 +1,5 @@
 import re
 from string import Template
-from Eurasia import response as firstline
 from time import gmtime, strftime, time
 from BaseHTTPServer import BaseHTTPRequestHandler
 
@@ -9,7 +8,6 @@ class Response(dict):
 		dict.__init__(DEFAULTHEADERS)
 
 		self.client = client
-		self.pid = client.pid
 		self.uid = None
 		self.content = ''
 
@@ -48,17 +46,16 @@ class Response(dict):
 		items.append('\r\n')
 		items = '\r\n'.join(items)
 
-		client.write(T_RESPONSE(headers=items, version=self.version,
+		self.client.write(T_RESPONSE(headers=items, version=self.version,
 			status=str(self.status), message=self.message) + self.content)
 
-		client.shutdown()
+		self.client.close()
 
 class Pushlet(dict):
 	def __init__(self, client, **args):
 		dict.__init__(DEFAULTHEADERS)
 
 		self.client = client
-		self.pid = client.pid
 		self.uid = None
 
 		self.version = args.get('version', 'HTTP/1.1')
@@ -82,16 +79,15 @@ class Pushlet(dict):
 
 	def end(self):
 		self.client.write(PUSHLET_END)
-		self.client.shutdown()
+		self.client.close()
 
 	def close(self):
 		self.client.write(PUSHLET_END)
-		self.client.shutdown()
+		self.client.close()
 
 class RemoteCall(object):
 	def __init__(self, client, function):
 		self.client = client
-		self.pid = client.pid
 		self.function = function
 
 	def __call__(self, *args):
@@ -115,9 +111,9 @@ DEFAULTHEADERS = {'Pragma': 'no-cache', 'Cache-Control': 'no-cache, must-revalid
 R_UPLOAD = re.compile(r'([^\\/]+)$').search
 R_UID = re.compile('(?:[^;]+;)* *uid=([^;\r\n]+)').search
 T_UID = Template('Set-Cookie: uid=${uid}; path=/; expires=${expires}').safe_substitute
-T_RESPONSE = Template(firstline + '\r\n${headers}').safe_substitute
-T_PUSHLET_BEGIN = Template(firstline + (
-	'\r\n${headers}'
+T_RESPONSE = Template('${version} ${status} ${message}\r\n${headers}').safe_substitute
+T_PUSHLET_BEGIN = Template( (
+	'${version} ${status} ${message}\r\n${headers}'
 	'<html>\r\n<head>\r\n'
 	'<META http-equiv="Content-Type" content="text/html">\r\n'
 	'<meta http-equiv="Pragma" content="no-cache">\r\n'
