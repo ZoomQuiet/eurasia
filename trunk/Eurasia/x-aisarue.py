@@ -16,7 +16,7 @@ def urlopen(url, data='', headers={}, **args):
 	netloc = netloc.split(':')
 	host = netloc[0]
 	try:
-		port = netloc[1]
+		port = int(netloc[1])
 	except IndexError:
 		port = https and 443 or 80
 

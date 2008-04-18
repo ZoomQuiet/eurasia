@@ -124,6 +124,11 @@ class FcgiClient(dict):
 				yield data[:size]
 				raise StopIteration
 
+			if self.eof:
+				self._rbuf = ''
+				yield data
+				raise StopIteration
+
 			buffers = data and [data] or []
 			self._rbuf = ''
 			data = yield
@@ -233,8 +238,13 @@ def process_input(conn, addr):
 
 	while True:
 		try:
+			timeout = client.read(8)
+			if len(timeout) != 8:
+				print >> stderr, 'warning: fastcgi timeout, ignore'
+				break
+
 			version, msgtype, request_id, record_length, \
-				padding_length = unpack('!BBHHBx', client.read(8))
+				padding_length = unpack('!BBHHBx', timeout)
 
 			record = client.read(record_length)
 			client.read(padding_length)
@@ -274,7 +284,9 @@ def process_input(conn, addr):
 
 				request.path = request.env['REQUEST_URI']
 				request.query_string = request.env['QUERY_STRING']
-				request.method = request.env['REQUEST_METHOD'].lower()
+				request.method = request.env['REQUEST_METHOD'].upper()
+				if request.method == 'POST':
+					request['Content-Length'] = int(request.env['CONTENT_LENGTH'])
 
 				ctrler = tasklet(controller)
 				request.tasklet = ctrler
