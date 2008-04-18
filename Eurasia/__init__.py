@@ -48,6 +48,3 @@ except ImportError:
 	patch.POLLIN   = POLLIN ; patch.POLLOUT  = POLLOUT
 	patch.POLLERR  = POLLERR; patch.POLLPRI  = POLLPRI
 	patch.POLLHUP  = POLLHUP; patch.POLLNVAL = POLLNVAL
-
-class OverLimit(IOError): pass
-class Disconnect(IOError): pass
