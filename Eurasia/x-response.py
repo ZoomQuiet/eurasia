@@ -5,7 +5,7 @@ from BaseHTTPServer import BaseHTTPRequestHandler
 
 class Response(dict):
 	def __init__(self, client, **args):
-		dict.__init__(DEFAULTHEADERS)
+		dict.__init__(self, DEFAULTHEADERS)
 
 		self.client = client
 		self.uid = None
@@ -53,7 +53,7 @@ class Response(dict):
 
 class Pushlet(dict):
 	def __init__(self, client, **args):
-		dict.__init__(DEFAULTHEADERS)
+		dict.__init__(self, PUSHLETHEADERS)
 
 		self.client = client
 		self.uid = None
@@ -104,11 +104,38 @@ class RemoteCall(object):
 
 		return RemoteCall(self.client, '%s[%s]' %(self.function, repr(name)))
 
+def json(obj):
+	if isinstance(obj, str): return repr(obj)
+	elif isinstance(obj, unicode): return repr(obj)[1:]
+	elif obj is None: return 'null'
+	elif obj is True: return 'true'
+	elif obj is False: return 'false'
+	elif isinstance(obj, (int, long)): return str(obj)
+	elif isinstance(obj, float): return _json_float(obj)
+	elif isinstance(obj, (list, tuple)): return '[%s]' %', '.join(_json_array(obj))
+	elif isinstance(obj, dict): return '{%s}' %', '.join(_json_object(obj))
+	elif isinstance(obj, RemoteCall): return 'parent.' + obj.function
+	raise ValueError
+def _json_array(l):
+	for item in l: yield json(item)
+def _json_object(d):
+	for key in d: yield '"%s":%s' %(key, json(d[key]))
+def _json_float(o):
+	s = str(o)
+	if (o < 0.0 and s[1].isdigit()) or s[0].isdigit(): return s
+	if s == 'nan': return 'NaN'
+	if s == 'inf': return 'Infinity'
+	if s == '-inf': return '-Infinity'
+	if o != o or o == 0.0: return 'NaN'
+	if o < 0: return '-Infinity'
+	return 'Infinity'
+
 RESPONSES = dict((key, value[0]) for key, value in BaseHTTPRequestHandler.responses.items())
 DEFAULTHEADERS = {'Pragma': 'no-cache', 'Cache-Control': 'no-cache, must-revalidate',
 	'Expires': 'Mon, 26 Jul 1997 05:00:00 GMT' }
+PUSHLETHEADERS = {'Pragma': 'no-cache', 'Cache-Control': 'no-cache, must-revalidate',
+	'Expires': 'Mon, 26 Jul 1997 05:00:00 GMT', 'Content-Type': 'text/html; charset=UTF-8' }
 
-R_UPLOAD = re.compile(r'([^\\/]+)$').search
 R_UID = re.compile('(?:[^;]+;)* *uid=([^;\r\n]+)').search
 T_UID = Template('Set-Cookie: uid=${uid}; path=/; expires=${expires}').safe_substitute
 T_RESPONSE = Template('${version} ${status} ${message}\r\n${headers}').safe_substitute
