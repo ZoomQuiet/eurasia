@@ -1,3 +1,5 @@
+import re
+from cgi import parse_header
 from urllib import unquote_plus
 
 class Overlimit(IOError):
@@ -213,3 +215,5 @@ def SimpleUpload(client):
 				raise IOError
 
 			filename = m.groups()[0]
+
+R_UPLOAD = re.compile(r'([^\\/]+)$').search
