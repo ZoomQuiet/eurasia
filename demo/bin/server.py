@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # 请阅读 lib/controller.py 文件
 
 import sys
