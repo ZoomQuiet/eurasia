@@ -1,19 +1,17 @@
 import os, sys
-from httplib import HTTP, HTTPConnection
-from pwd import getpwnam, getpwuid
-from signal import signal as setsignal, SIGCHLD, SIGTERM
-from sys import stderr, stdout
 from urllib import urlopen
+from sys import stderr, stdout
+from httplib import HTTP, HTTPConnection
 from SocketServer import UnixStreamServer
+from signal import signal as setsignal, SIGCHLD, SIGTERM
 from socket import socket, error as SocketError, \
 	AF_UNIX, SOCK_STREAM
 from SimpleXMLRPCServer import SimpleXMLRPCDispatcher, \
 	SimpleXMLRPCRequestHandler, SimpleXMLRPCServer
+from os import execv, chdir, chmod, dup2, fork, kill, umask, \
+	unlink, waitpid, error as OSError, WNOHANG
 from xmlrpclib import Fault, Transport, dumps as xmlrpc_dumps, \
 	_Method as _XMLRPCMethod, ServerProxy as ServerProxy_N___G
-from os import execv, chdir, chmod, dup2, fork, geteuid, getpid, \
-	kill, setgid, setuid, umask, unlink, waitpid, \
-	error as OSError, WNOHANG
 
 class error(Exception): pass
 
@@ -65,10 +63,7 @@ class Daemon:
 		self.pid     = None
 		self.running = True
 
-		self.program       =     args[ 'program'             ]
-
-		DaemonizeTools.setuid(
-			user       = args.get( 'user'      , None    )  )
+		self.program = args['program']
 
 		SignalTools.setsignals(self)
 
@@ -192,36 +187,6 @@ def ServerProxy(address, **args):
 		return ServerProxy_N___G('http://%s:%d' %(host, port), **args)
 
 class DaemonizeTools:
-	@staticmethod
-	def setuid(**args):
-		user = args['user']
-		if user is None:
-			return
-
-		try:
-			uid = int(user)
-
-		except ValueError:
-			try:
-				pwrec = pwd.getpwnam(user)
-			except KeyError:
-				raise error, 'username %r not found' % user
-
-			uid = pwrec[2]
-
-		else:
-			try:
-				pwrec = pwd.getpwuid(uid)
-			except KeyError:
-				raise error, 'uid %r not found' % user
-
-		euid = geteuid()
-		if euid != 0 and euid != uid:
-			raise error, 'only root can change users'
-
-		setgid(pwrec[3])
-		setuid(uid)
-
 	@staticmethod
 	def daemonize(**args):
 		pid = fork()

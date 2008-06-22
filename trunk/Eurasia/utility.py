@@ -1,3 +1,29 @@
+def setuid(user):
+	import os, pwd
+	try:
+		uid = int(user)
+
+	except ValueError:
+		try:
+			pwrec = pwd.getpwnam(user)
+		except KeyError:
+			raise OSError, 'username %r not found' % user
+
+		uid = pwrec[2]
+
+	else:
+		try:
+			pwrec = pwd.getpwuid(uid)
+		except KeyError:
+			raise OSError, 'uid %r not found' % user
+
+	euid = os.geteuid()
+	if euid != 0 and euid != uid:
+		raise OSError, 'only root can change users'
+
+	os.setgid(pwrec[3])
+	os.setuid(uid)
+
 def setprocname(procname, libc='/lib/libc.so.6', env='__PROCNAME', format='%s:'):
 	import os, sys
 	if not os.environ.has_key(env):
