@@ -114,7 +114,7 @@ def json(obj):
 	elif isinstance(obj, float): return _json_float(obj)
 	elif isinstance(obj, (list, tuple)): return '[%s]' %', '.join(_json_array(obj))
 	elif isinstance(obj, dict): return '{%s}' %', '.join(_json_object(obj))
-	elif isinstance(obj, RemoteCall): return 'parent.' + obj.function
+	elif isinstance(obj, RemoteCall): return '__comet__.' + obj.function
 	raise ValueError
 def _json_array(l):
 	for item in l: yield json(item)
