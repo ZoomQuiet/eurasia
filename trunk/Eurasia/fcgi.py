@@ -483,15 +483,17 @@ else:
 		'Status: ${status} ${message}\r\n${headers}'
 		) ).safe_substitute
 
-	m.T_PUSHLET_BEGIN = m.Template( (
+	m.T_COMET_BEGIN = m.Template( (
 		'Status: ${status} ${message}\r\n${headers}'
 		'<html>\r\n<head>\r\n'
 		'<META http-equiv="Content-Type" content="text/html">\r\n'
 		'<meta http-equiv="Pragma" content="no-cache">\r\n'
 		'<body>\r\n'
-		'<script language="JavaScript">\r\n'
-		'if(document.all) parent.escape("FUCK IE");\r\n'
-		'</script>\r\n' ) ).safe_substitute
+		'<script language="JavaScript">\r\n<!--\r\n'
+		'if(!window.__comet__) window.__comet__ = window.parent?'
+		'(window.parent.__comet__?parent.__comet__:parent):window;\r\n'
+		'if(document.all) __comet__.escape("FUCK IE");\r\n'
+		'//-->\r\n</script>\r\n<!--COMET BEGIN-->\r\n' ) ).safe_substitute
 
-	Pushlet  = m.Pushlet
+	Comet    = m.Comet
 	Response = m.Response
