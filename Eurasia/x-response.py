@@ -51,9 +51,9 @@ class Response(dict):
 
 		self.client.close()
 
-class Pushlet(dict):
+class Comet(dict):
 	def __init__(self, client, **args):
-		dict.__init__(self, PUSHLETHEADERS)
+		dict.__init__(self, COMETHEADERS)
 
 		self.client = client
 		self.uid = None
@@ -74,15 +74,15 @@ class Pushlet(dict):
 		items.append('\r\n')
 		items = '\r\n'.join(items)
 
-		self.client.write(T_PUSHLET_BEGIN(headers=items, version=self.version,
+		self.client.write(T_COMET_BEGIN(headers=items, version=self.version,
 			status=str(self.status), message=self.message))
 
 	def end(self):
-		self.client.write(PUSHLET_END)
+		self.client.write(COMET_END)
 		self.client.close()
 
 	def close(self):
-		self.client.write(PUSHLET_END)
+		self.client.write(COMET_END)
 		self.client.close()
 
 class RemoteCall(object):
@@ -133,23 +133,25 @@ def _json_float(o):
 RESPONSES = dict((key, value[0]) for key, value in BaseHTTPRequestHandler.responses.items())
 DEFAULTHEADERS = {'Pragma': 'no-cache', 'Cache-Control': 'no-cache, must-revalidate',
 	'Expires': 'Mon, 26 Jul 1997 05:00:00 GMT' }
-PUSHLETHEADERS = {'Pragma': 'no-cache', 'Cache-Control': 'no-cache, must-revalidate',
+COMETHEADERS = {'Pragma': 'no-cache', 'Cache-Control': 'no-cache, must-revalidate',
 	'Expires': 'Mon, 26 Jul 1997 05:00:00 GMT', 'Content-Type': 'text/html; charset=UTF-8' }
 
 R_UID = re.compile('(?:[^;]+;)* *uid=([^;\r\n]+)').search
 T_UID = Template('Set-Cookie: uid=${uid}; path=/; expires=${expires}').safe_substitute
 T_RESPONSE = Template('${version} ${status} ${message}\r\n${headers}').safe_substitute
-T_PUSHLET_BEGIN = Template( (
+T_COMET_BEGIN = Template( (
 	'${version} ${status} ${message}\r\n${headers}'
 	'<html>\r\n<head>\r\n'
 	'<META http-equiv="Content-Type" content="text/html">\r\n'
 	'<meta http-equiv="Pragma" content="no-cache">\r\n'
 	'<body>\r\n'
-	'<script language="JavaScript">\r\n'
-	'if(document.all) parent.escape("FUCK IE");\r\n'
-	'</script>\r\n' ) ).safe_substitute
-PUSHLET_END = '</body>\r\n</html>'
+	'<script language="JavaScript">\r\n<!--\r\n'
+	'if(!window.__comet__) window.__comet__ = window.parent?'
+	'(window.parent.__comet__?parent.__comet__:parent):window;\r\n'
+	'if(document.all) __comet__.escape("FUCK IE");\r\n'
+	'//-->\r\n</script>\r\n<!--COMET BEGIN-->\r\n' ) ).safe_substitute
+COMET_END = '<!--COMET END-->\r\n</body>\r\n</html>'
 T_REMOTECALL = Template(
-	'<script language="JavaScript">\r\n'
-	'parent.${function}(${arguments});\r\n'
-	'</script>\r\n' ).safe_substitute
+	'<script language="JavaScript">\r\n<!--\r\n'
+	'__comet__.${function}(${arguments});\r\n'
+	'//-->\r\n</script>\r\n' ).safe_substitute

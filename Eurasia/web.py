@@ -200,5 +200,5 @@ try:
 except ImportError:
 	pass
 else:
-	Pushlet  = m.Pushlet
+	Comet    = m.Comet
 	Response = m.Response
