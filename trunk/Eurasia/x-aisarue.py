@@ -93,11 +93,11 @@ def urlopen(url, data='', headers={}, **args):
 class Aisarue(dict):
 	def __init__(self, client):
 		first = client.readline(8192)
-		if first[-2:] != '\r\n':
+		if first[-1:] != '\n':
 			client.shutdown()
 			raise IOError
 
-		l = first[:-2].split(None, 2)
+		l = first.rstrip().split(None, 2)
 		if len(l) == 3:
 			version, self.status, self.message = l
 			self.version = version.upper()
@@ -115,8 +115,8 @@ class Aisarue(dict):
 
 		counter = len(first)
 		line = client.readline(8192)
-		while line != '\r\n':
-			if line[-2:] != '\r\n':
+		while line != '\r\n' and line != '\n':
+			if line[-1:] != '\n':
 				client.shutdown()
 				raise IOError
 
@@ -125,11 +125,11 @@ class Aisarue(dict):
 				client.shutdown()
 				raise IOError
 
-			try: key, value = line[:-2].split(':', 1)
+			try: key, value = line.strip().split(':', 1)
 			except ValueError:
 				continue
 
-			self['-'.join(i.capitalize() for i in key.split('-'))] = value.strip()
+			self['-'.join(i.capitalize() for i in key.strip().split('-'))] = value.strip()
 			line = client.readline(8192)
 
 		self.pid      = client.pid
