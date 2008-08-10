@@ -475,13 +475,6 @@ else:
 	SimpleUpload = m.SimpleUpload
 
 try:
-	m = getattr(__import__('Eurasia.x-nonblocking'), 'x-nonblocking')
-except ImportError:
-	pass
-else:
-	nonblocking = m.nonblocking
-
-try:
 	m = getattr(__import__('Eurasia.x-response'), 'x-response')
 except ImportError:
 	pass

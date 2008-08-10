@@ -202,10 +202,3 @@ except ImportError:
 else:
 	Comet    = m.Comet
 	Response = m.Response
-
-try:
-	m = getattr(__import__('Eurasia.x-nonblocking'), 'x-nonblocking')
-except ImportError:
-	pass
-else:
-	nonblocking = m.nonblocking
