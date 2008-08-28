@@ -732,6 +732,8 @@ if __name__ == '__main__':
 	mainloop()
 }}}
 
+(注意, 在 Eurasia-3.0.0alpha4 版本以后, 请使用 Comet 来代替 Pushlet)
+
 ===Pushlet vs AJAX===
 
 首先, 我必须告诉大家, AJAX 是不可战胜的, 因为它从来就没有出现过。
