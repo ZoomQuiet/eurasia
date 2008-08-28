@@ -3,6 +3,8 @@
 #!/usr/bin/env python2.5
 # -*- coding: utf-8 -*-
 
+## 注意: 因为文档滞后, 请以发布包中自带的 Demo 为准
+
 from Eurasia.web import config, mainloop, sleep, \
 	Request, Form, Response, Pushlet, SimpleUpload, \
 	UidGenerator, UidError
