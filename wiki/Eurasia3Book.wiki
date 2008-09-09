@@ -58,7 +58,7 @@ hello world!'''
 
 def controller(client):
 	print >> client, hello
-	client.shutdown()
+	client.close()
 
 config(
 	controller = controller,
@@ -84,20 +84,18 @@ if __name__ == '__main__':
 ||client.path||提供了请求的 url, 是一个从根 ("/") 开始的字符串||
 ||client.method||提供了请求的方法, 通常是 "get" 或者 "post" (小写)||
 ||client.address||提供了请求者的 IP 以及端口信息||
-||client['header-name']||提供了对 HTTP 头 (Header) 的访问, 注意, "header-name" 应该是小写的||
+||client['Header-Name']||提供了对 HTTP 头 (Header) 的访问, 注意, "Header-Name" 应该是首字母大写的||
 ||client.uid||传说中的 Session Id, 具体用法后面会讲到||
 ||client.pid||传说中的 Socket fileno||
-||client.closed||设为 True, 则 Eurasia3 会自动关闭和浏览器的连接||
-||client.wfile||当前准备发送的数据 _于 Eurasia3 系统调度时自动发送_, 不常用||
 
 好的, 您现在知道如何取 POST 报文长度了吗?
 
-很简单, 使用 `client['content-length']` 就可以了, *注意* 请小写 "header-name"!
+很简单, 使用 `client['Content-Length']` 就可以了
 
 让我们回顾一下第一个 "hello world" 程序, client 还提供了以下两个方法:
 
 ||client.write(str)||向浏览器写数据||
-||client.shutdown()||和 client.closed = True 不同, shutdown 会 *立即* 关闭到浏览器的连接||
+||client.close()||*立即* 关闭到浏览器的连接||
 
 事实上, 对于基于 GET 方法的简单 HTTP 请求, client 已经可以应付了。
 
@@ -569,11 +567,11 @@ def controller(client):
 	...
 }}}
 
-下面是 Eurasia3 中和 IO 相关的接口 (常规接口) 自动调用 schedule 交出 CPU 的情况:
+下面是 Eurasia3 中和 IO 相关的接口 (常规接口) 使用 (stackless) channel 交出 CPU 的情况:
 
-||*IO 操作名称*||*使用 schedule? (发生真实 IO)*||
+||*IO 操作名称*||*使用 channel? (发生真实 IO)*||
 ||Client.write(s)||yes||
-||Client.shutdown()||no||
+||Client.shutdown()||yes||
 ||Response.write(s)||no||
 ||Response.close()||yes||
 ||Request.read(size)||yes||
@@ -582,13 +580,13 @@ def controller(client):
 
 下面是很快会涉及到的流式 IO 接口的情况:
 
-||*IO 操作名称*||*使用 schedule? (发生真实 IO)*||
+||*IO 操作名称*||*使用 channel? (发生真实 IO)*||
 ||_流式_ Response.begin()||yes||
 ||_流式_ Response.write(s)||yes||
-||_流式_ Response.end()||no||
+||_流式_ Response.end()||yes||
 ||Pushlet.begin()||yes||
 ||Pushlet.RemoteCall(...)||yes||
-||Pushlet.end()||no||
+||Pushlet.end()||yes||
 ||SimpleUpload(client, max_size)||yes||
 ||SimpleUpload.read(size)||yes||
 ||SimpleUpload.readline(size)||yes||
