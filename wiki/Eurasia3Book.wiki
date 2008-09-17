@@ -142,27 +142,19 @@ Form 是这样的一个字典: `{'a': 1, 'b': 2}`。然后, POST 方法也是支
 
 {{{
 from Eurasia.web import config, mainloop
-from Eurasia.web import Response, Form, OverLimit
+from Eurasia.web import Response, Form
 
 def controller(client):
 	resp = Response(client)
 	resp['Content-Type'] = 'text/html; charset=utf-8'
 
-	try:
-		form = Form(client,
+	form = Form(client,
 
-			max_size=10000) # 限制 Form (POST 模式) 上传内容的大小
-			                # 默认 1048576 字节
+		max_size=10000) # 限制 Form (POST 模式) 上传内容的大小
+		                # 默认 1048576 字节
 
-		        	        # 当 form 超过限制, 会得到 OverLimit 异常
-			                # client 会自动 shutdown
-	except OverLimit:
-		# client 已经 shutdown, 我除了写日志无事可干
-
-		# 通常情况下, 我在 HTML 页面里已经限制了可提交内容的大小,
-		# 这应该是一次 Crack 行为
-		pass
-
+	        	        # 当 form 超过限制, 会得到 OverLimit 异常
+		                # client 会自动 shutdown
 
 	print >> resp, '你的表单提交了这些变量:',
 	for key, value in form.items():
@@ -176,70 +168,6 @@ config(
 
 mainloop()
 }}}
-
-===我们还有 Request 接口===
-
-Request 恰和 Response 相反, Request 可以读取 POST 报文的 Body 部分。
-
-但是请注意, 不是 GET 报文 (GET 报文没有 Body), 否则您将得到一个 MethodError 异常。
-
-{{{
-from Eurasia.web import config, mainloop
-from Eurasia.web import Request, Response, MethodError, OverLimit
-
-def controller(client):
-	resp = Response(client)
-	resp['Content-Type'] = 'text/html; charset=utf-8'
-	try:
-		req  = Request(client,
-
-			max_size=10000 ) # 超出 10000 字节, 读取时将抛出 OverLimit 异常
-			                 # (而 Form 的 OverLimit 是发生在初始化时)
-			                 # 服务器将自动关闭
-
-		        	         # 默认 1048576 字节
-	except MethodError:
-		print >> resp, '[Request 接口只支持 POST 方法]'
-		resp.close()
-		return
-
-	try:
-		s  = req.read(100)     # 我可以这么读
-		s += req.readline(100) # 也可以这么读
-		s += req.readline()    # 还可以这么读
-		s += req.read()        # shut up, 读取所有内容 now!
-	except OverLimit:
-		# client 已经挂掉, 我无事可干
-		return
-
-	print >> resp, s
-	resp.close()
-
-config(
-	controller = controller, port = 8080,
-	verbose = True )
-
-mainloop()
-}}}
-
-下面是天杀的测试页面, 贴到本地文件里, 用浏览器打开吧 (也别忘了启动上面的服务器程序)。
-
-{{{
-<html>
-<!-- 我是测试页面, 我会发出 POST 数据 -->
-<form method="post" action="http://localhost:8080/">
-<input type="text" name="a" value="...">
-<input type="text" name="b" value="...">
-<input type="submit">
-</form>
-</html>
-}}}
-
-最后, Form 是基于 Request 实现的。
-
-可想而知, 在遇到 POST 请求时 Form 调用的是 Request.read(), 读完整个 POST 报文。
-
-因此, 在*绝大多数情况下请勿*混用 Form 和 Request。
 
 ===Response 和 Request 的比较研究===
 
@@ -540,7 +468,8 @@ channels  = {}
 ──── 所以请放心使用, 您不必像下面的程序那样过度小心:
 
 {{{
-from Eurasia.web import sleep, schedule
+from Eurasia.web import schedule
+from time import sleep
 
 def controller(client):
 	...
@@ -640,7 +569,8 @@ def controller(client):
 
 {{{
 from Eurasia.web import config, mainloop
-from Eurasia.web import sleep, Response
+from Eurasia.web import Response
+from time import sleep
 
 def controller(client):
 	resp = Response(client)
@@ -682,7 +612,8 @@ _Hello, 小朋友, 我要调用你页面上的 JavaScript。 _
 
 {{{
 from Eurasia.web import config, mainloop
-from Eurasia.web import sleep, Pushlet, Response
+from Eurasia.web import Pushlet, Response
+from time import sleep
 
 page = '''\
 <html>
@@ -730,7 +661,7 @@ if __name__ == '__main__':
 	mainloop()
 }}}
 
-(注意, 在 Eurasia-3.0.0alpha4 版本以后, 请使用 Comet 来代替 Pushlet)
+(注意, 从 Eurasia-3.0.0alpha5 版本以后, 请使用 Comet 来代替 Pushlet)
 
 ===Pushlet vs AJAX===
 
