@@ -77,9 +77,9 @@ if __name__ == '__main__':
 
 现在, 您可以尝试访问 'http://localhost:8080/' 这个地址了。
 
-===client 参数===
+===client (Request) 参数===
 
-参数 "client" 提供的一些重要信息:
+参数 "client (Request)" 提供的一些重要信息:
 
 ||client.path||提供了请求的 url, 是一个从根 ("/") 开始的字符串||
 ||client.method||提供了请求的方法, 通常是 "get" 或者 "post" (小写)||
@@ -169,17 +169,17 @@ config(
 mainloop()
 }}}
 
-===Response 和 Request 的比较研究===
+===Response 和 client (Request) 的比较研究===
 
-||接口名称||Client||Response||Request||Form||
-||uid 属性||读取 Session Id||写 Session Id||读取 Session Id||读取 Session Id||
-||pid 属性||读取 Socket fileno|| ||读取 Socket Fileno||读取 Socket Fileno||
-||read(size=None)|| || ||读取 POST 报文体|| ||
-||readline(size=None)|| || ||行读取 POST 报文体|| ||
-||write(s)||直写, 立即发生 IO 行为||写缓冲区|| || ||
-||close()|| ||写出缓冲区, 并关闭连接|| || ||
-||`__getitem__`|| || ||取 HTTP Header||读取表单||
-||`__setitem__`|| ||向缓冲区写 HTTP Header|| || ||
+||接口名称||Response||Request||Form||
+||uid 属性||写 Session Id||读取 Session Id||读取 Session Id||
+||pid 属性|| ||读取 Socket Fileno||读取 Socket Fileno||
+||read(size=None)|| ||读取 POST 报文体|| ||
+||readline(size=None)|| ||行读取 POST 报文体|| ||
+||write(s)||写缓冲区|| 直写, 立即发生 IO 行为 || ||
+||close()|| 写出缓冲区, 并关闭连接|| || ||
+||`__getitem__`|| ||取 HTTP Header||读取表单||
+||`__setitem__`||向缓冲区写 HTTP Header|| || ||
 
 Response 与 Request 基本上是一一对应的, 互为逆操作。
 
