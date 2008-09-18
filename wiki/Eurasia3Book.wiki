@@ -177,7 +177,7 @@ mainloop()
 ||read(size=None)|| ||读取 POST 报文体|| ||
 ||readline(size=None)|| ||行读取 POST 报文体|| ||
 ||write(s)||写缓冲区|| 直写, 立即发生 IO 行为 || ||
-||close()|| 写出缓冲区, 并关闭连接|| || ||
+||close()|| 写出缓冲区, 并关闭连接|| 立即关闭连接 || ||
 ||`__getitem__`|| ||取 HTTP Header||读取表单||
 ||`__setitem__`||向缓冲区写 HTTP Header|| || ||
 
@@ -189,7 +189,7 @@ Response 与 Request 基本上是一一对应的, 互为逆操作。
 
 我们将得到一个 IOError, 并杀死这个 Socket (Client)。
 
-所以在遇到 POST 报文时, 在进行 Response 之前, 我们需要先使用 Request.read() 读完整个 POST 报文。
+所以在遇到 POST 报文时, 在进行 Response 之前, 我们需要先使用 client.read() 读完整个 POST 报文。
 
 当然最简单地, 调用 Form 接口, Form() 调用会自动读取整个 POST 请求。
 
@@ -201,7 +201,7 @@ Response 与 Request 基本上是一一对应的, 互为逆操作。
 
 而 Client.write() 会立即产生 IO, 因此 Client.write()
 
-必须在 Request 完成所有 POST 报文的读操作之后调用。
+必须在 client 完成所有 POST 报文的读操作之后调用。
 
 ===好了, 休息一下===
 
@@ -462,7 +462,7 @@ channels  = {}
 ===Eurasia3 是基于 Stackless 的框架===
 
 这里的意思是, Eurasia3 永远不会害你:
-  * Eurasia.web.sleep(sec) 不会真正阻塞掉整个服务器 (他不是 time.sleep)
+  * time.sleep(sec) 不会真正阻塞掉整个服务器 (Eurasia 会给 time.sleep 打上补丁)
   * Eurasia3 中所有的 IO 操作都 "不是" IO 操作 ──── 他们会不停交出 CPU
 
 ──── 所以请放心使用, 您不必像下面的程序那样过度小心:
@@ -503,8 +503,8 @@ def controller(client):
 ||Client.shutdown()||yes||
 ||Response.write(s)||no||
 ||Response.close()||yes||
-||Request.read(size)||yes||
-||Request.readline(size)||yes||
+||client.read(size)||yes||
+||client.readline(size)||yes||
 ||Form(client, max_size)||yes||
 
 下面是很快会涉及到的流式 IO 接口的情况:
