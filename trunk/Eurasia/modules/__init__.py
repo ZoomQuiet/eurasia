@@ -1,57 +1,27 @@
 import sys
-class Node(object):
-	def __init__(self, modules, name):
-		self.__name = name
-		self.__modules = modules
-
-	def __call__(self):
-		raise ImportError(self.__name)
-
-	def __getattr__(self, name):
-		name = '%s.%s' %(self.__name, name)
-		try:
-			return self.__modules[name]()
-		except KeyError:
-			self.__name = name
-			return self
-
-	def __getitem__(self, name):
-		name = '%s.%s' %(self.__name, name)
-		try:
-			return self.__modules[name]()
-		except KeyError:
-			self.__name = name
-			return self
-
 class Modules(type(sys)):	
 	def __init__(self):
 		type(sys).__init__(self, 'Eurasia.modules')
-		self.__node    = Node
 		self.__modules = modules
 
 	def __getattr__(self, name):
 		try:
 			return self.__modules[name]()
 		except KeyError:
-			return self.__node(self.__modules, name)
+			raise ImportError(name)
 
-	def __getitem__(self, name):
-		try:
-			return self.__modules[name]()
-		except KeyError:
-			return self.__node(self.__modules, name)
+modules = (
+	('time'  , 'hypnus' ),
+	('urllib', 'aisarue') )
 
-def sleep():
-	from Eurasia.__modules import hypnus
-	return hypnus.sleep
+code = '''\
+def %s_module():
+	from Eurasia.__modules import %s
+	return %s'''
 
-def urlopen():
-	from Eurasia.__modules import aisarue
-	return aisarue.urlopen
+for dummy, s in modules:
+	exec(code %(s, s, s))
 
-modules = dict((
-	('time.sleep'    , sleep  ),
-	('urllib.urlopen', urlopen)  ))
-
+modules = dict((a, eval(b+'_module')) for a, b in modules)
 sys.modules['Eurasia.__modules'] = sys.modules['Eurasia.modules']
 sys.modules['Eurasia.modules'] = Modules()
