@@ -5,51 +5,42 @@ from sys import stdout, stderr
 class DefaultClient(dict):
 	def __init__(self, conn, addr):
 		client = Client(conn, addr)
-
 		first = client.readline(8192)
-		if first[-2:] != '\r\n':
+		try:
+			method, self.path, version = R_FIRST(first).groups()
+		except AttributeError:
 			client.shutdown()
 			raise IOError
 
-		l = first[:-2].split(None, 2)
-		if len(l) == 3:
-			method, self.path, version = l
-			self.version = version.upper()
-			if self.version[:5] != 'HTTP/':
-				client.shutdown()
-				raise IOError
-
-		elif len(l) == 2:
-			method, self.path = l
-			self.version = 'HTTP/1.0'
-		else:
-			client.shutdown()
-			raise IOError
-
-		counter = len(first)
+		self.version = version.upper()
 		line = client.readline(8192)
-		while line != '\r\n':
-			if line[-2:] != '\r\n':
+		counter = len(first) + len(line)
+		while True:
+			try:
+				key, value = R_HEADER(line).groups()
+			except AttributeError:
+				if line in ('\r\n', '\n'):
+					break
+
 				client.shutdown()
 				raise IOError
 
+			self['-'.join(i.capitalize() for i in key.split('-'))] = value
+			line = client.readline(8192)
 			counter += len(line)
 			if counter > 10240:
 				client.shutdown()
 				raise IOError
 
-			try: key, value = line[:-2].split(':', 1)
-			except ValueError:
-				continue
-
-			self['-'.join(i.capitalize() for i in key.split('-'))] = value.strip()
-			line = client.readline(8192)
-
 		self.method = method.upper()
 		if self.method == 'GET':
 			self.left = 0
 		else:
-			self.left = int(self['Content-Length'])
+			try:
+				self.left = int(self['Content-Length'])
+			except:
+				client.shutdown()
+				raise IOError
 
 		self.address  = client.address
 		self.pid      = client.pid
@@ -85,39 +76,46 @@ class DefaultClient(dict):
 		return data
 
 	def __del__(self):
-		if socket_map.has_key(self.pid):
-			self.shutdown()
+		try:
+			client = self.client
+		except AttributeError:
+			pass
+		else:
+			client.shutdown()
 
-def default0(conn, addr):
-	try:
-		client = DefaultClient(conn, addr)
-	except IOError:
-		return
+def DefaultHandler(controller):
+	def handler(conn, addr):
+		try:
+			client = DefaultClient(conn, addr)
+		except IOError:
+			return
 
-	try:
-		controller(client)
-	except:
-		print_exc(file=stderr)
+		try:
+			controller(client)
+		except:
+			print_exc(file=stderr)
+
+	return handler
 
 class Server:
-	def __init__(self):
-		global server_socket, serverpid
-		server_socket = Socket(AF_INET, SOCK_STREAM)
-		server_socket.setblocking(0)
+	def __init__(self, handler):
+		sock = Socket(AF_INET, SOCK_STREAM)
+		sock.setblocking(0)
 		try:
-			server_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR,
-				server_socket.getsockopt(
-					SOL_SOCKET, SO_REUSEADDR) | 1)
+			sock.setsockopt(SOL_SOCKET, SO_REUSEADDR,
+				sock.getsockopt(SOL_SOCKET, SO_REUSEADDR) | 1)
 		except SocketError:
 			pass
 
-		serverpid = server_socket.fileno()
-		pollster.register(serverpid, RE)
+		self.socket  = sock
+		self.handler = handler
+		self.pid = sock.fileno()
+		pollster.register(self.pid, RE)
 
 	def handle_read(self):
-		ctrler = tasklet(controller0)
+		ctrler = tasklet(self.handler)
 		try:
-			conn, addr = server_socket.accept()
+			conn, addr = self.socket.accept()
 			try:
 				ctrler(conn, addr)
 			except:
@@ -140,31 +138,122 @@ class nul:
 	read  = staticmethod(lambda n: ''  )
 
 def config(**args):
-	if not args.get('verbose', False):
+	for name, value in (('multicore', True), ('verbose', False),
+		('address', {}), ('server', {}), ('tcpserver', {})):
+
+		setattr(config, name, value)
+
+	if args.has_key('verbose'):
+		config.verbose = bool(args['verbose'])
+
+	if args.has_key('multicore'):
+		multicore = args['multicore']
+		if not isinstance(multicore, (int, bool)):
+			raise ValueError('multicore')
+
+		config.multicore = multicore
+
+	if args.has_key('fcgi') or args.has_key('fastcgi'):
+		controller = args['fcgi'] if args.has_key('fcgi'
+			) else args['fastcgi']
+
+		import fcgi
+		global mainloop0, Comet, Response
+
+		mainloop0 = fcgi.mainloop
+		fcgi.config(controller=controller, verbose=config.verbose)
+
+		if hasattr(fcgi, 'Comet'):
+			Comet = fcgi.Comet
+		if hasattr(fcgi, 'Response'):
+			Response = fcgi.Response
+
+		return
+
+	def cfghandler(srvdct, name):
+		if not args.has_key(name):
+			return
+
+		handler = args[name]
+		if callable(handler):
+			try:
+				address = config.address
+			except AttributeError:
+				raise ValueError('%s' %name)
+			else:
+				for addr in address.keys():
+					srvdct[addr] = handler
+		else:
+			for address, handler in args[name]:
+				if isinstance(address, (int, basestring)) == 1:
+					host, port = '0.0.0.0', address
+				elif len(address) == 2:
+					host, port = address
+				else:
+					raise ValueError('%s' %name)
+
+				srvdct[(host, int(port))] = handler
+
+	if args.has_key('address'):
+		host, port = args['address']
+		config.address[(host, int(port))] = None
+	if args.has_key('port'):
+		config.address[('0.0.0.0', int(args['port']))] = None
+
+	for name, key in (
+		('handler'    , config.server   ),
+		('controller' , config.server   ),
+		('tcphandler' , config.tcpserver),
+		('controller0', config.tcpserver) ):
+
+		cfghandler(key, name)
+
+	for address, controller in config.server.items():
+		server = Server(DefaultHandler(controller))
+		socket_map[server.pid] = server
+		server.socket.bind(address)
+		server.socket.listen(4194304)
+
+	for address, handler in config.tcpserver.items():
+		server = Server(handler)
+		socket_map[server.pid] = server
+		server.socket.bind(address)
+		server.socket.listen(4194304)
+
+	if not config.verbose:
 		global stdout, stderr
 		sys.stdout = sys.__stdout__ = stdout = args.get('stdout', nul)
 		sys.stderr = sys.__stderr__ = stderr = args.get('stderr', nul)
 
-	if args.has_key('controller0'):
-		global controller0
-		controller0 = args['controller0']
-
-	elif args.has_key('controller'):
-		global controller
-		controller = args['controller']
-
-	if args.has_key('address'):
-		server_socket.bind(args['address'])
-		server_socket.listen(4194304)
-
-	elif args.has_key('port'):
-		server_socket.bind((
-			args.get('host', '0.0.0.0'),
-			args.get('port', 8080)))
-
-		server_socket.listen(4194304)
-
 def mainloop():
+	mainloop0()
+
+def mainloop0():
+	if config.multicore == True:
+		try:
+			import multiprocessing as processing
+		except ImportError:
+			import processing
+
+		config.multicore = processing.cpuCount()
+	elif config.multicore == False:
+		config.multicore = 0
+
+	if config.multicore > 1:
+		try:
+			import multiprocessing as processing
+		except ImportError:
+			import processing
+
+		for i in xrange(config.multicore - 1):
+			proc = processing.Process(target=mainloop1, args=())
+			proc.start()
+
+		mainloop1()
+	else:
+		mainloop1()
+
+def mainloop1():
 	while True:
 		try:
 			stackless.run()
@@ -175,30 +264,22 @@ def mainloop():
 			print_exc(file=stderr)
 			continue
 
-R_UID = re.compile('(?:[^;]+;)* *uid=([^;\r\n]+)').search
-
-controller0 = default0
-server_socket = serverpid = None
-socket_map[serverpid] = Server()
-
-for x in ('x-hypnus', 'x-aisarue'):
-	try:
-		__import__('Eurasia.%s' %x)
-	except ImportError:
-		pass
-
 try:
 	m = getattr(__import__('Eurasia.x-request'), 'x-request')
+
 except ImportError:
 	pass
 else:
-	Form = m.Form
-	SimpleUpload = m.SimpleUpload
+	Form, SimpleUpload = m.Form, m.SimpleUpload
 
 try:
 	m = getattr(__import__('Eurasia.x-response'), 'x-response')
+
 except ImportError:
 	pass
 else:
-	Comet    = m.Comet
-	Response = m.Response
+	Comet, Response = m.Comet, m.Response
+
+R_UID    = re.compile(r'(?:[^;]+;)* *uid=([^;\r\n]+)').search
+R_FIRST  = re.compile(r'^(GET|POST)[\s\t]+([^\r\n]+)[\s\t]+(HTTP/1\.[0-9])\r?\n$', re.I).match
+R_HEADER = re.compile(r'^[\s\t]*([^\r\n:]+)[\s\t]*:[\s\t]*([^\r\n]+)[\s\t]*\r?\n$', re.I).match

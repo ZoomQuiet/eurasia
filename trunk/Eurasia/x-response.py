@@ -21,17 +21,8 @@ class Response(dict):
 	def begin(self):
 		items = ['%s: %s' %(key, value) for key, value in self.items()]
 		if self.uid:
-			try:
-				uid, offset = self.uid
-			except ValueError:
-				uid, offset = self.uid, 157679616
-
-			items.append(T_UID(uid=uid, expires=strftime(
-				'%a, %d-%b-%Y %H:%M:%S GMT', gmtime(time() + offset) ) ) )
-
-		elif self.uid is not None:
-			items.append(T_UID(uid=self.uid,
-				expires='Thu, 01-Jan-1970 00:00:00 GMT' ) )
+			items.append(T_UID(uid=self.uid, expires=strftime(
+				'%a, %d-%b-%Y %H:%M:%S GMT', gmtime(time() + 157679616) ) ) )
 
 		items.append('\r\n')
 		items = '\r\n'.join(items)
@@ -49,17 +40,8 @@ class Response(dict):
 		self['Content-Length'] = str(len(self.content))
 		items = ['%s: %s' %(key, value) for key, value in self.items()]
 		if self.uid:
-			try:
-				uid, offset = self.uid
-			except ValueError:
-				uid, offset = self.uid, 157679616
-
-			items.append(T_UID(uid=uid, expires=strftime(
-				'%a, %d-%b-%Y %H:%M:%S GMT', gmtime(time() + offset) ) ) )
-
-		elif self.uid is not None:
-			items.append(T_UID(uid=self.uid,
-				expires='Thu, 01-Jan-1970 00:00:00 GMT' ) )
+			items.append(T_UID(uid=self.uid, expires=strftime(
+				'%a, %d-%b-%Y %H:%M:%S GMT', gmtime(time() + 157679616) ) ) )
 
 		items.append('\r\n')
 		items = '\r\n'.join(items)
@@ -86,17 +68,8 @@ class Comet(dict):
 	def begin(self):
 		items = ['%s: %s' %(key, value) for key, value in self.items()]
 		if self.uid:
-			try:
-				uid, offset = self.uid
-			except ValueError:
-				uid, offset = self.uid, 157679616
-
-			items.append(T_UID(uid=uid, expires=strftime(
-				'%a, %d-%b-%Y %H:%M:%S GMT', gmtime(time() + offset) ) ) )
-
-		elif self.uid is not None:
-			items.append(T_UID(uid=self.uid,
-				expires='Thu, 01-Jan-1970 00:00:00 GMT' ) )
+			items.append(T_UID(uid=self.uid, expires=strftime(
+				'%a, %d-%b-%Y %H:%M:%S GMT', gmtime(time() + 157679616) ) ) )
 
 		items.append('\r\n')
 		items = '\r\n'.join(items)

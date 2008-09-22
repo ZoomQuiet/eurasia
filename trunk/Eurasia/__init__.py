@@ -1,3 +1,5 @@
+__version__ = '3.0.0'
+
 try:
 	from select import poll
 except ImportError:
