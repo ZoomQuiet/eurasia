@@ -138,7 +138,7 @@ class nul:
 	read  = staticmethod(lambda n: ''  )
 
 def config(**args):
-	for name, value in (('multicore', True), ('verbose', False),
+	for name, value in (('fcgi', False), ('multicore', True), ('verbose', False),
 		('address', {}), ('server', {}), ('tcpserver', {})):
 
 		setattr(config, name, value)
@@ -158,11 +158,10 @@ def config(**args):
 			) else args['fastcgi']
 
 		import fcgi
-		global mainloop0, Comet, Response
-
-		mainloop0 = fcgi.mainloop
 		fcgi.config(controller=controller, verbose=config.verbose)
+		config.fcgi = fcgi.mainloop
 
+		global Comet, Response
 		if hasattr(fcgi, 'Comet'):
 			Comet = fcgi.Comet
 		if hasattr(fcgi, 'Response'):
@@ -226,9 +225,10 @@ def config(**args):
 		sys.stderr = sys.__stderr__ = stderr = args.get('stderr', nul)
 
 def mainloop():
-	mainloop0()
+	if config.fcgi:
+		config.fcgi()
+		return
 
-def mainloop0():
 	if config.multicore == True:
 		try:
 			import multiprocessing as processing
@@ -246,14 +246,14 @@ def mainloop0():
 			import processing
 
 		for i in xrange(config.multicore - 1):
-			proc = processing.Process(target=mainloop1, args=())
+			proc = processing.Process(target=mainloop0, args=())
 			proc.start()
 
-		mainloop1()
+		mainloop0()
 	else:
-		mainloop1()
+		mainloop0()
 
-def mainloop1():
+def mainloop0():
 	while True:
 		try:
 			stackless.run()
