@@ -2,15 +2,12 @@ import re
 from cgi import parse_header
 from urllib import unquote_plus
 
-class Overlimit(IOError):
-	pass
-
 def Form(client, max_size=1048576):
 	if client.method == 'POST':
 		length = client['Content-Length']
 		if int(length) > max_size:
 			client.close()
-			raise Overlimit
+			raise IOError('overload')
 
 		data = client.read(length)
 	else:

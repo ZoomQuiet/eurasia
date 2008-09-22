@@ -422,14 +422,14 @@ def encode_pair(name, value):
 	return s + name + value
 
 def config(**args):
+	if args.has_key('controller'):
+		global controller
+		controller = args['controller']
+
 	if not args.get('verbose', False):
 		global stdout, stderr
 		sys.stdout = sys.__stdout__ = stdout = args.get('stdout', nul)
 		sys.stderr = sys.__stderr__ = stderr = args.get('stderr', nul)
-
-	if args.has_key('controller'):
-		global controller
-		controller = args['controller']
 
 def mainloop():
 	while True:
@@ -457,25 +457,21 @@ capability = {
 	'FCGI_MAX_REQS'  : 4194304,
 	'FCGI_MPXS_CONNS': 4194304 }
 
+multiprocessing = True
 server_socket = serverpid = None
 socket_map[serverpid] = Server()
 
-for x in ('x-hypnus', 'x-aisarue'):
-	try:
-		__import__('Eurasia.%s' %x)
-	except ImportError:
-		pass
-
 try:
 	m = getattr(__import__('Eurasia.x-request'), 'x-request')
+
 except ImportError:
 	pass
 else:
-	Form = m.Form
-	SimpleUpload = m.SimpleUpload
+	Form, SimpleUpload = m.Form, m.SimpleUpload
 
 try:
 	m = getattr(__import__('Eurasia.x-response'), 'x-response')
+
 except ImportError:
 	pass
 else:
@@ -495,5 +491,4 @@ else:
 		'if(document.all) __comet__.escape("FUCK IE");\r\n'
 		'//-->\r\n</script>\r\n<!--COMET BEGIN-->\r\n' ) ).safe_substitute
 
-	Comet    = m.Comet
-	Response = m.Response
+	Comet, Response = m.Comet, m.Response

@@ -1,5 +1,4 @@
-import os.path
-import re, urllib
+import os.path, re
 from copy import copy
 from socket2 import *
 from urlparse import urlparse
@@ -93,44 +92,33 @@ def urlopen(url, data='', headers={}, **args):
 class Aisarue(dict):
 	def __init__(self, client):
 		first = client.readline(8192)
-		if first[-1:] != '\n':
+		try:
+			version, self.status, self.message = R_FIRST(first).groups()
+		except AttributeError:
 			client.shutdown()
 			raise IOError
 
-		l = first.rstrip().split(None, 2)
-		if len(l) == 3:
-			version, self.status, self.message = l
-			self.version = version.upper()
-			if self.version[:5] != 'HTTP/':
-				client.shutdown()
-				raise IOError
-
-		elif len(l) == 2:
-			version, self.status = l
-			self.version = version.upper()
-			self.message = ''
-		else:
-			client.shutdown()
-			raise IOError
-
-		counter = len(first)
+		self.version = version.upper()
 		line = client.readline(8192)
-		while line != '\r\n' and line != '\n':
-			if line[-1:] != '\n':
+		print line
+		counter = len(first) + len(line)
+		while True:
+			try:
+				key, value = R_HEADER(line).groups()
+			except AttributeError:
+				if line in ('\r\n', '\n'):
+					break
+
 				client.shutdown()
 				raise IOError
 
+			self['-'.join(i.capitalize() for i in key.split('-'))] = value
+			line = client.readline(8192)
+			print line
 			counter += len(line)
 			if counter > 10240:
 				client.shutdown()
 				raise IOError
-
-			try: key, value = line.strip().split(':', 1)
-			except ValueError:
-				continue
-
-			self['-'.join(i.capitalize() for i in key.strip().split('-'))] = value.strip()
-			line = client.readline(8192)
 
 		self.pid      = client.pid
 		self.close    = client.shutdown
@@ -147,8 +135,13 @@ class Aisarue(dict):
 			return None
 
 	def __del__(self):
-		if socket_map.has_key(self.pid):
-			self.shutdown()
+		try:
+			client = self.client
+		except AttributeError:
+			pass
+		else:
+			client.shutdown()
 
-R_UID = re.compile('(?:[^;]+;)* *uid=([^;\r\n]+)').search
-urllib.urlopen = urlopen
+R_UID    = re.compile(r'(?:[^;]+;)* *uid=([^;\r\n]+)').search
+R_FIRST  = re.compile(r'^(HTTP/1\.[0-9])[\s\t]*([1-9][0-9][0-9])[\s\t]*([^\r\n]*)[\s\t]*\r?\n$', re.I).match
+R_HEADER = re.compile(r'^[\s\t]*([^\r\n:]+)[\s\t]*:[\s\t]*([^\r\n]+)[\s\t]*\r?\n$', re.I).match
