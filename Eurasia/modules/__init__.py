@@ -2,26 +2,24 @@ import sys
 class Modules(type(sys)):	
 	def __init__(self):
 		type(sys).__init__(self, 'Eurasia.modules')
-		self.__modules = modules
+
+	def __getitem__(self, name):
+		fullname = 'Eurasia.__modules.x-' + name
+		try:
+			__import__(fullname)
+		except ImportError:
+			raise KeyError(name)
+
+		return sys.modules[fullname]
 
 	def __getattr__(self, name):
+		fullname = 'Eurasia.__modules.x-' + name
 		try:
-			return self.__modules[name]()
-		except KeyError:
-			raise ImportError(name)
+			__import__(fullname)
+		except ImportError:
+			raise AttributeError(name)
 
-modules = (
-	('time'  , 'hypnus' ),
-	('urllib', 'aisarue') )
+		return sys.modules[fullname]
 
-code = '''\
-def %s_module():
-	from Eurasia.__modules import %s
-	return %s'''
-
-for dummy, s in modules:
-	exec(code %(s, s, s))
-
-modules = dict((a, eval(b+'_module')) for a, b in modules)
 sys.modules['Eurasia.__modules'] = sys.modules['Eurasia.modules']
 sys.modules['Eurasia.modules'] = Modules()
