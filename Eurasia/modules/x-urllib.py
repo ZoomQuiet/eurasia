@@ -1,6 +1,6 @@
 import os.path, re
 from copy import copy
-from socket2 import *
+from Eurasia.socket2 import *
 from urlparse import urlparse
 from StringIO import StringIO
 
