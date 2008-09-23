@@ -154,11 +154,22 @@ def config(**args):
 		config.multicore = multicore
 
 	if args.has_key('fcgi') or args.has_key('fastcgi'):
-		controller = args['fcgi'] if args.has_key('fcgi'
+		fctrl = args['fcgi'] if args.has_key('fcgi'
 			) else args['fastcgi']
 
+		if not callable(fctrl):
+			fctrl = args['handler'] if args.has_key('handler'
+				) else args['controller']
+
+	elif args.has_key('port') and args['port'] in ('fcgi', 'fastcgi'):
+		fctrl = args['handler'] if args.has_key('handler'
+			) else args['controller']
+	else:
+		fctrl = None
+
+	if fctrl:
 		import fcgi
-		fcgi.config(controller=controller, verbose=config.verbose)
+		fcgi.config(controller=fctrl, verbose=config.verbose)
 		config.fcgi = fcgi.mainloop
 
 		global Comet, Response
