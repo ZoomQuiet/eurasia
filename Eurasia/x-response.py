@@ -77,6 +77,8 @@ class Comet(dict):
 		self.client.write(T_COMET_BEGIN(headers=items, version=self.version,
 			status=str(self.status), message=self.message))
 
+		del self.version, self.status, self.message
+
 	def end(self):
 		self.client.write(COMET_END)
 		self.client.close()
@@ -88,21 +90,21 @@ class Comet(dict):
 class RemoteCall(object):
 	def __init__(self, client, function):
 		self.client = client
-		self.function = function
+		self._function = function
 
 	def __call__(self, *args):
 		self.client.write(T_REMOTECALL(
-			function  = self.function,
+			function  = self._function,
 			arguments = args and ', '.join([json(arg) for arg in args]) or '' ) )
 
 	def __getattr__(self, name):
-		return RemoteCall(self.client, '%s.%s' %(self.function, name))
+		return RemoteCall(self.client, '%s.%s' %(self._function, name))
 
 	def __getitem__(self, name):
 		if isinstance(unicode):
-			return RemoteCall(self.client, '%s[%s]' %(self.function, repr(name)[1:]))
+			return RemoteCall(self.client, '%s[%s]' %(self._function, repr(name)[1:]))
 
-		return RemoteCall(self.client, '%s[%s]' %(self.function, repr(name)))
+		return RemoteCall(self.client, '%s[%s]' %(self._function, repr(name)))
 
 def json(obj):
 	if isinstance(obj, str): return repr(obj)
