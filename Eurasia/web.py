@@ -97,6 +97,15 @@ def DefaultHandler(controller):
 
 	return handler
 
+def TcpHandler(controller):
+	def handler(conn, addr):
+		try:
+			controller(Client(conn, addr))
+		except:
+			print_exc(file=stderr)
+
+	return handler
+
 class Server:
 	def __init__(self, handler):
 		sock = Socket(AF_INET, SOCK_STREAM)
@@ -224,8 +233,8 @@ def config(**args):
 		server.socket.bind(address)
 		server.socket.listen(4194304)
 
-	for address, handler in config.tcpserver.items():
-		server = Server(handler)
+	for address, controller in config.tcpserver.items():
+		server = Server(TcpHandler(controller))
 		socket_map[server.pid] = server
 		server.socket.bind(address)
 		server.socket.listen(4194304)
