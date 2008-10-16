@@ -2,7 +2,7 @@ import re, stackless
 from socket2 import *
 from sys import stdout, stderr
 
-class DefaultClient(dict):
+class HttpClient(dict):
 	def __init__(self, conn, addr):
 		client = Client(conn, addr)
 		first = client.readline(8192)
@@ -83,10 +83,10 @@ class DefaultClient(dict):
 		else:
 			client.shutdown()
 
-def DefaultHandler(controller):
+def HttpHandler(controller):
 	def handler(conn, addr):
 		try:
-			client = DefaultClient(conn, addr)
+			client = HttpClient(conn, addr)
 		except IOError:
 			return
 
@@ -122,11 +122,11 @@ class Server:
 		pollster.register(self.pid, RE)
 
 	def handle_read(self):
-		ctrler = tasklet(self.handler)
+		handler = tasklet(self.handler)
 		try:
 			conn, addr = self.socket.accept()
 			try:
-				ctrler(conn, addr)
+				handler(conn, addr)
 			except:
 				print_exc(file=stderr)
 
@@ -147,7 +147,8 @@ class nul:
 	read  = staticmethod(lambda n: ''  )
 
 def config(**args):
-	for name, value in (('fcgi', False), ('multicore', True), ('verbose', False),
+	for name, value in (
+		('fcgi', False), ('multicore', True), ('verbose', False),
 		('address', {}), ('server', {}), ('tcpserver', {})):
 
 		setattr(config, name, value)
@@ -163,12 +164,12 @@ def config(**args):
 		config.multicore = multicore
 
 	if args.has_key('fcgi') or args.has_key('fastcgi'):
-		fctrl = args['fcgi'] if args.has_key('fcgi'
-			) else args['fastcgi']
+		fctrl = args['fcgi'] if args.has_key(
+			'fcgi') else args['fastcgi']
 
 		if not callable(fctrl):
-			fctrl = args['handler'] if args.has_key('handler'
-				) else args['controller']
+			fctrl = args['handler'] if args.has_key(
+				'handler') else args['controller']
 
 	elif args.has_key('port') and args['port'] in ('fcgi', 'fastcgi'):
 		fctrl = args['handler'] if args.has_key('handler'
@@ -228,7 +229,7 @@ def config(**args):
 		cfghandler(key, name)
 
 	for address, controller in config.server.items():
-		server = Server(DefaultHandler(controller))
+		server = Server(HttpHandler(controller))
 		socket_map[server.pid] = server
 		server.socket.bind(address)
 		server.socket.listen(4194304)
