@@ -309,15 +309,13 @@ ${strl}
 code_main1 = '''\
 def ____getcall(func):
 	func = func.__class__()
-	func.caller = ____getcaller(_getframe(1).f_locals)
+	func.environ = _getframe(1).f_locals
+	func.caller  = ____getcaller(func.environ)
 	return func
 
 class ____getcaller(object):
 	def __init__(self, environ):
 		self.__environ = environ
-
-	def __getitem__(self, key):
-		return self.__environ[key]
 
 	def __getattr__(self, name):
 		try:
@@ -332,7 +330,8 @@ class ____getcaller(object):
 code_func0 = _Template('''\
 ${t}def _____${name}(self, ${args}):
 ${t}	if hasattr(self, 'caller'):
-${t}		environ = caller = self.caller
+${t}		caller  = self.caller
+${t}		environ = self.environ
 
 ${t}	out = StringIO()
 ${t}	____getvalue = out.getvalue
