@@ -1,4 +1,4 @@
-import re, sys
+import re
 from string import Template as _Template
 
 def Template(text, env={}):
@@ -9,96 +9,98 @@ def Template(text, env={}):
 	return module
 
 def compile(text):
-	self = Instance(text=text, stack=[], scount=0, scode=[])
+	self = Instance(text=text, strc=0, strl=[])
 	try:
 		tr = list(lines(self, False))
 	except error, e:
 		e.line = len(text.split('\n')) - len(self.text.split('\n')) + 1
 		raise e
 
-	code = [code_main0(scode='\n'.join(self.scode))]
-	_compile(code, 0, tr, False)
+	code = [code_main0(strl='\n'.join(self.strl))]
+	_compile(code, 0, tr)
 	code.append(code_main1)
 	return '\n'.join(code)
 
-def _compile(code, base, tr, ntop=True):
+def _compile(code, base, tr):
 	for i in tr:
-		if isinstance(i, basestring) and ntop: # "..." NOT ON TOP LEVEL (ntop)
+		if isinstance(i, basestring) and base > 0:
 			code.append('%s____w(%s)' %(base*'\t', i))
 
-		elif isinstance(i, Var) and ntop: # ${...} NOT ON TOP LEVEL (ntop)
+		elif isinstance(i, Var) and base > 0:
 			tabs = base*'\t'
 			code.append('%s____w(%s)' %(tabs, i.data))
 
-		elif isinstance(i, (If, Elif, For)): # %if/%elif/%for
-			code.append('%s%s' %(base*'\t', i.args))
+		elif isinstance(i, If):
+			code.append('%sif %s:' %(base*'\t', i.args))
+			_compile(code, base + 1, i.data)
+
+		elif isinstance(i, For):
+			code.append('%sfor %s:' %(base*'\t', i.args))
+			_compile(code, base + 1, i.data)
+
+		elif isinstance(i, Elif):
+			code.append('%selif %s:' %(base*'\t', i.args))
 			_compile(code, base + 1, i.data)
 
 		elif isinstance(i, Else):
 			code.append(base*'\t' + 'else:')
 			_compile(code, base + 1, i.data)
 
-		elif isinstance(i, Src): # <% ... %>
+		elif isinstance(i, Py):
 			tabs = base*'\t'
 			code.append('\n'.join(tabs + j for j in i.data))
 
 		elif isinstance(i, Def):
-			dummy, name, args = cml(i.name).groups()
 			tabs = base*'\t'
-			code.append(code_func0(t=tabs, name=name, args=args))
+			code.append(code_func0(t=tabs, name=i.name, args=i.args))
 			_compile(code, base + 1, i.data)
+			code.append(code_func1(t=tabs, name=i.name))
 
-			code.append(code_func1(t=tabs, name=name))
-
-		elif isinstance(i, Call) and ntop: # %call NOT ON TOP LEVEL (ntop)
-			dummy, name, args = cml(i.expr).groups()
+		elif isinstance(i, Call) and base > 0:
 			tabs = base*'\t'
-			code.append(code_call0(t=tabs, name=name))
+			code.append(code_call0(t=tabs, name=i.name))
 			_compile(code, base + 1, i.data)
+			code.append(code_call1(t=tabs, name=i.name, args=i.args))
 
-			code.append(code_call1(t=tabs, name=name, args=args))
-
-def lines(self, ntop=True):
+def lines(self, level=0):
 	buff = []
 	while True:
 		lst = split(self.text, 1)
 		try:
-			t, m0, m1, m2, m3, m4, m5, m6, m7, self.text = lst
+			s, esc, var, cmd, sta, stags, eta, code, self.text = lst
 
 		except ValueError:
 			buff.append(lst[0])
 			break
 
-		buff.append(t)
-		if m0 is not None: # $$ -> $
-			buff.append('$')
-			continue
+		buff.append(s)
+		if esc is not None:
+			buff.append(esc[0])
 
-		elif m3 is not None: # %% -> %
-			buff.append('%')
-			continue
-
-		elif m4 is not None: # %if/%elif/%for
+		elif cmd is not None:
 			try:
-				args, a, b, c = cmd(m4).groups()
+				m1, args, m2, m3 = match_cmd(cmd).groups()
+
 			except AttributeError:
 				continue
-			else:
-				if buff:
-					if ntop:
-						s = ''.join(buff)
-						if s:
-							self.scode.append('____s%d = %r' %(self.scount, s))
-							yield '____s%d' %self.scount
-							self.scount += 1
 
-					buff = []
-				if a == 'if':
+			if buff:
+				if level > 0:
+					s = ''.join(buff)
+					if s:
+						self.strl.append('____s%d = %r' %(self.strc, s))
+						yield '____s%d' %self.strc
+						self.strc += 1
+				buff = []
+
+			if m1:
+				m1, args = m1.lower(), args.strip()
+				if m1 == 'if':
 					currtype = If
 					while True:
 						data = []
 						try:
-							for i in lines(self):
+							for i in lines(self, level):
 								data.append(i)
 
 							raise NotClosed('%if: ... [!]%endif')
@@ -116,61 +118,78 @@ def lines(self, ntop=True):
 							data = []
 							while True:
 								try:
-									for i in lines(self):
+									for i in lines(self, level):
 										data.append(i)
 
 									raise NotClosed('%if: ... %else: ... [!]%endif')
 
 								except EndOfIf:
 									yield Else(data=data)
+									break
+
+								except NotClosed:
+									raise
+
+								except error:
+									raise NotClosed('%if: ... %else: ... [!]%endif')
 							break
 
-				elif a == 'for':
+						except NotClosed:
+							raise
+
+						except error:
+							raise NotClosed('%if: ... [!]%endif')
+
+				elif m1 == 'for':
 					data = []
 					try:
-						for i in lines(self):
+						for i in lines(self, level):
 							data.append(i)
 
 						raise NotClosed('%for: ... [!]%endfor')
+
 					except EndOfFor:
 						yield For(args=args, data=data)
 
-				elif a == 'elif':
+					except NotClosed:
+						raise
+
+					except error:
+						raise NotClosed('%for: ... [!]%endfor')
+
+				elif m1 == 'elif':
 					raise BeginOfElif('%if[!] ... %elif:', args)
 
-				elif b == 'else':
-					raise BeginOfElse('%if[!] ... %else:')
+			elif m2 is not None and m2.lower() == 'else':
+				raise BeginOfElse('%if[!] ... %else:')
 
-				elif c == 'endif':
+			elif m3 is not None:
+				m3 = m3.strip()
+				if m3 == 'endif':
 					raise EndOfIf('%if[!] ... %endif')
 
-				elif c == 'endfor':
+				elif m3 == 'endfor':
 					raise EndOfFor('%for[!] ... %endfor')
+			continue
 
-				continue
 		if buff:
-			if ntop:
+			if level > 0:
 				s = ''.join(buff)
 				if s:
-					self.scode.append('____s%d = %r' %(self.scount, s))
-					yield '____s%d' %self.scount
-					self.scount += 1
+					self.strl.append('____s%d = %r' %(self.strc, s))
+					yield '____s%d' %self.strc
+					self.strc += 1
 
 			buff = []
 
-		if m1 is not None: # ${...}
-			yield Var(data=m1)
+		if var is not None and level > 0:
+			yield Var(data=var)
 
-		elif m2 is not None: # <% ... %>
-			try:
-				code, dummy, self.text = eop(self.text, 1)
-			except ValueError:
-				raise NotClosed('<% ... [!]%>')
-
+		elif code is not None:
 			n, data, l = None, [], code.split('\n')
-			space, s = spc(l[0]).groups()
-			if s:
-				raise IndentationError('<%% [X]%s' %s)
+			space, start = match_space(l[0]).groups()
+			if start:
+				raise IndentationError('<%% [X]%s ...' %start.strip())
 
 			data.append(l[0][len(space):])
 			for j in l[1:]:
@@ -178,7 +197,7 @@ def lines(self, ntop=True):
 					continue
 
 				if n is None:
-					space, s = spc(j).groups()
+					space, s = match_space(j).groups()
 					t = len(space)
 					if s:
 						n = t
@@ -191,62 +210,115 @@ def lines(self, ntop=True):
 
 				data.append(j[n:])
 
-			yield Src(data=data)
+			yield Py(data=data)
 
-		elif m5 is not None: # <def name=...>
-			data = []
-			try:
-				for i in lines(self):
-					data.append(i)
+		elif sta is not None:
+			sta, stags = sta.lower(), stags.strip()
+			if sta == 'def':
+				data = []
+				try:
+					for i in lines(self, level+1):
+						data.append(i)
 
-				raise NotClosed('<def> ... [!]</def>')
+					raise NotClosed('<%def> ... [!]</%def>')
 
-			except EndOfDef:
-				yield Def(name=m5, data=data)
+				except EndOfDef:
+					m = match_drags(stags)
+					if m:
+						stags = eval(m.groups()[0])
 
-		elif m6 is not None: # <call expr=...>
-			data = []
-			try:
-				for i in lines(self):
-					data.append(i)
+					try:
+						name, args = match_frags(stags).groups()
+					except AttributeError:
+						raise SyntaxError(stags)
 
-				raise NotClosed('<call> ... [!]</call>')
+					yield Def(name=name, args=args.strip(), data=data)
 
-			except EndOfCall:
-				yield Call(expr=m6, data=data)
+				except NotClosed:
+					raise
 
-		elif m7 is not None: # </def> / </call>
-			if m7 == 'def' :
+				except error:
+					raise NotClosed('<%def> ... [!]</%def>')
+
+			elif sta == 'call' and level > 0:
+				data = []
+				try:
+					for i in lines(self, level+1):
+						data.append(i)
+
+					raise NotClosed('<%call> ... [!]</%call>')
+
+				except EndOfCall:
+					m = match_crags(stags)
+					if m:
+						stags = eval(m.groups()[0])
+
+					try:
+						name, args = match_frags(stags).groups()
+					except AttributeError:
+						raise SyntaxError(stags)
+
+					yield Call(name=name, args=args.strip(), data=data)
+
+				except NotClosed:
+					raise
+
+				except error:
+					raise NotClosed('<%call> ... [!]</%call>')
+
+		elif eta is not None:
+			eta = eta.lower()
+			if eta == 'def':
 				raise EndOfDef('? ... </def>')
 
-			elif m7 == 'call':
+			elif eta == 'call' and level > 0:
 				raise EndOfCall('? ... </call>')
 
-	if buff and ntop:
+	if buff and level > 0:
 		s = ''.join(buff)
 		if s:
-			self.scode.append('____s%d = %r' %(self.scount, s))
-			yield '____s%d' %self.scount
-			self.scount += 1
+			self.strl.append('____s%d = %r' %(self.strc, s))
+			yield '____s%d' %self.strc
+			self.strc += 1
 
-Module = type(sys)
+Module = type(re)
+
+class error(Exception):
+	def __str__(self):
+		return '%s, line %d' %(self.args[0], self.line)
+class Instance:
+	def __init__(self, **args):
+		self.__dict__.update(args)
+
+for cls in ('EndOfIf', 'EndOfDef', 'EndOfFor', 'EndOfCall', 'NotClosed',
+	'BeginOfElif', 'BeginOfElse', 'SyntaxError', 'IndentationError'):
+
+	exec 'class %s(error): pass' %cls
+
+for cls in ('If', 'Def', 'For', 'Py', 'Var', 'Elif', 'Else', 'Call'):
+	exec 'class %s(Instance): pass' %cls
 
 code_main0 = _Template('''\
 from sys import _getframe
-from cStringIO import StringIO
-${scode}
+from StringIO import StringIO
+${strl}
 ''').substitute
 
 code_main1 = '''\
+def ____Call(func):
+	func = ____func.__class__()
+	func.caller = ____Caller(_getframe(1).f_locals)
+	return func
+
 class ____Caller(object):
-	def __init__(self):
-		self.__locals = _getframe(1).f_locals
+	def __init__(self, environ):
+		self.__environ = environ
 
 	def __getattr__(self, name):
 		try:
-			return self.__locals[name]
+			return self.__environ[name]
 		except KeyError:
-			raise AttributeError(name)
+			raise AttributeError(name)\
 '''
 
 code_func0 = _Template('''\
@@ -270,43 +342,29 @@ ${t}def ____call_${name}(____w):\
 ''').substitute
 
 code_call1 = _Template('''\
-${t}	____cp_${name} = ${name}.__class__()
-${t}	____cp_${name}.caller = ____Caller()
 
-${t}	____w(____cp_${name}(${args}))
+${t}	____w(____Call(${name})(${args}))
 ${t}____call_${name}(____w)
 ''').substitute
 
-class error(Exception):
-	def __str__(self):
-		return '%s, line %d' %(self.args[0], self.line)
-class Instance:
-	def __init__(self, **args):
-		self.__dict__.update(args)
+ignstr = r'(?:"(?:(?:\\\\)?(?:\\")?[^"]?)*")?'+r"(?:'(?:(?:\\\\)?(?:\\')?[^']?)*')?"
 
-for cls in ('EndOfIf', 'EndOfDef', 'EndOfFor', 'EndOfCall',
-	'NotClosed', 'BeginOfElif', 'BeginOfElse', 'IndentationError'):
-
-	exec 'class %s(error): pass' %cls
-
-for cls in ('If', 'Def', 'For', 'Src', 'Var', 'Elif', 'Else', 'Call'):
-	exec 'class %s(Instance): pass' %cls
+match_drags = re.compile(r'(?:name\s*=\s*)(%s)' %ignstr).match
+match_crags = re.compile(r'(?:expr\s*=\s*)(%s)' %ignstr).match
+match_frags = re.compile(r'([a-zA-Z][a-zA-Z0-9_]*)\s*\((.*)\)').match
+match_space = re.compile(r'^(\s*)(def\s|class\s|if\s|try\s*:|for\s|while\s)?.*$').match
 
 split = re.compile('|'.join((
-	r'(\$\$)', #0 # $$ -> $
-	r'\${[\s\t]*([^}]*)[\s\t]*}', #1 # ${...}
-	r'(<%)', #2 # <% ...
-	r'(%%)', #3 # %% -> %
-	r'%(.*)[\s\t]*$', #4 # %cmd
-	r'(?:<[\s\t]*def[\s\t]+name[\s\t]*=[\s\t]*([^>]+)[\s\t]*>)', #5 # <def name=...>
-	r'(?:<[\s\t]*call[\s\t]+expr[\s\t]*=[\s\t]*([^>]+)[\s\t]*>)', #6 # <call expr=...>
-	r'(?:<[\s\t]*/[\s\t]*(def|call)[\s\t]*>)' #7 # <def>/<call>
-	)), re.I | re.M).split
+	r'(\$\$|%%)',
+	r'\${(%s)}' %(r'(?:%s[^}]?)*' %ignstr),
+	r'\n?\s*%(.*)(?:\n|$)',
+	r'\n?\s*<%%(def|call)\s+(%s)>' %(r'(?:%s[^>]?)*' %ignstr),
+	r'\n?\s*<\s*/\s*%(def|call)>',
+	r'\n?\s*<%%%s%%>\n?' %(r'((?:%s[^%%]?(?:%%(?!>))?)*)' %ignstr
 
-eop = re.compile(r'(%>)', re.I | re.M).split
-cml = re.compile(r'(\'|\")[\s\t]*([^(\s\t]+)[\s\t]*\((.*)\)[\s\t]*\1').match
-spc = re.compile(r'^([\s\t]*)(?:(def[\s\t]|class[\s\t]|if[\s\t]|try[\s\t]*:|for[\s\t]|while[\s\t])?.*)$').match
-cmd = re.compile('|'.join((
-	r'(^(if|elif|for)[\s\t]+.*:(?:[\s\t]*#.*)?$)',
-	r'(?:^(else)[\s\t]*:$)',
-	r'(?:(endif|endfor)(?:[\s\t]*#.*)?)'))).match
+	))), re.I | re.M).split
+
+match_cmd = re.compile('|'.join((
+	r'^([a-zA-Z][a-zA-Z0-9]*)\s+((?:%s[^#]?)*):(?:\s*#.*)?$' %ignstr,
+	r'^([a-zA-Z][a-zA-Z0-9]*)\s*:(?:\s*#.*)?$',
+	r'^([a-zA-Z][a-zA-Z0-9]*)\s*(?:#.*)?$' ))).match
