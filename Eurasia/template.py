@@ -127,14 +127,14 @@ def lines(self, level=0):
 									yield Else(data=data)
 									break
 
-								except NotClosed:
+								except fatalerrors:
 									raise
 
 								except error:
 									raise NotClosed('%if: ... %else: ... [!]%endif')
 							break
 
-						except NotClosed:
+						except fatalerrors:
 							raise
 
 						except error:
@@ -151,7 +151,7 @@ def lines(self, level=0):
 					except EndOfFor:
 						yield For(args=args, data=data)
 
-					except NotClosed:
+					except fatalerrors:
 						raise
 
 					except error:
@@ -234,7 +234,7 @@ def lines(self, level=0):
 
 					yield Def(name=name, args=args.strip(), data=data)
 
-				except NotClosed:
+				except fatalerrors:
 					raise
 
 				except error:
@@ -260,10 +260,10 @@ def lines(self, level=0):
 
 					yield Call(name=name, args=args.strip(), data=data)
 
-				except NotClosed:
+				except fatalerrors:
 					raise
 
-				except error:
+				except error, e:
 					raise NotClosed('<%call> ... [!]</%call>')
 
 		elif eta is not None:
@@ -295,6 +295,8 @@ for cls in ('EndOfIf', 'EndOfDef', 'EndOfFor', 'EndOfCall', 'NotClosed',
 
 	exec 'class %s(error): pass' %cls
 
+fatalerrors = (NotClosed, SyntaxError, IndentationError)
+
 for cls in ('If', 'Def', 'For', 'Py', 'Var', 'Elif', 'Else', 'Call'):
 	exec 'class %s(Instance): pass' %cls
 
@@ -305,14 +307,15 @@ ${strl}
 ''').substitute
 
 code_main1 = '''\
-def ____Call(func):
-	func = ____func.__class__()
-	func.caller = ____Caller(_getframe(1).f_locals)
+def ____getcall(func):
+	func = func.__class__()
+	func.caller = ____getcaller(_getframe(1).f_locals)
 	return func
 
-class ____Caller(object):
+class ____getcaller(object):
 	def __init__(self, environ):
-		self.__environ = environ
+		self.__environ   = environ
+		self.__getitem__ = environ.__getitem__
 
 	def __getattr__(self, name):
 		try:
@@ -324,7 +327,7 @@ class ____Caller(object):
 code_func0 = _Template('''\
 ${t}def _____${name}(self, ${args}):
 ${t}	if hasattr(self, 'caller'):
-${t}		caller = self.caller
+${t}		environ = caller = self.caller
 
 ${t}	out = StringIO()
 ${t}	____getvalue = out.getvalue
@@ -338,19 +341,19 @@ ${t}${name} = type('${name}', (), dict(__call__=_____${name}))()
 ''').substitute
 
 code_call0 = _Template('''\
-${t}def ____call_${name}(____w):\
+${t}def ____call_${name}():\
 ''').substitute
 
 code_call1 = _Template('''\
 
-${t}	____w(____Call(${name})(${args}))
-${t}____call_${name}(____w)
+${t}	____w(____getcall(${name})(${args}))
+${t}____call_${name}()\
 ''').substitute
 
 ignstr = r'(?:"(?:(?:\\\\)?(?:\\")?[^"]?)*")?'+r"(?:'(?:(?:\\\\)?(?:\\')?[^']?)*')?"
 
-match_drags = re.compile(r'(?:name\s*=\s*)(%s)' %ignstr).match
-match_crags = re.compile(r'(?:expr\s*=\s*)(%s)' %ignstr).match
+match_drags = re.compile(r'(?:name\s*=\s*)?(%s)' %ignstr).match
+match_crags = re.compile(r'(?:expr\s*=\s*)?(%s)' %ignstr).match
 match_frags = re.compile(r'([a-zA-Z][a-zA-Z0-9_]*)\s*\((.*)\)').match
 match_space = re.compile(r'^(\s*)(def\s|class\s|if\s|try\s*:|for\s|while\s)?.*$').match
 
