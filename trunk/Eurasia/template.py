@@ -316,14 +316,17 @@ class ____getcaller(object):
 	def __init__(self, environ):
 		self.__environ = environ
 
-	def __getitem__(self, name):
-		return self.__environ[name]
+	def __getitem__(self, key):
+		return self.__environ[key]
 
 	def __getattr__(self, name):
 		try:
 			return self.__environ[name]
 		except KeyError:
-			raise AttributeError(name)\
+			raise AttributeError(name)
+
+	def has_key(self, key):
+		return self.__environ[key]\
 '''
 
 code_func0 = _Template('''\
