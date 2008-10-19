@@ -3,7 +3,7 @@ from string import Template as _Template
 
 def Template(text, env={}):
 	code = compile(text)
-	module = Module('<string>')
+	module = Module('<template>')
 	module.__dict__.update(env)
 	exec code in module.__dict__
 	return module
@@ -314,8 +314,10 @@ def ____getcall(func):
 
 class ____getcaller(object):
 	def __init__(self, environ):
-		self.__environ   = environ
-		self.__getitem__ = environ.__getitem__
+		self.__environ = environ
+
+	def __getitem__(self, name):
+		return self.__environ[name]
 
 	def __getattr__(self, name):
 		try:
