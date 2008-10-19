@@ -309,8 +309,8 @@ ${strl}
 code_main1 = '''\
 def ____getcall(func):
 	func = func.__class__()
-	func.environ = _getframe(1).f_locals
-	func.caller  = ____getcaller(func.environ)
+	func.context = _getframe(1).f_locals
+	func.caller  = ____getcaller(func.context)
 	return func
 
 class ____getcaller(object):
@@ -331,7 +331,7 @@ code_func0 = _Template('''\
 ${t}def _____${name}(self, ${args}):
 ${t}	if hasattr(self, 'caller'):
 ${t}		caller  = self.caller
-${t}		environ = self.environ
+${t}		context = self.context
 
 ${t}	out = StringIO()
 ${t}	____getvalue = out.getvalue
