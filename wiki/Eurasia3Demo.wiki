@@ -2,8 +2,8 @@
 {{{
 # -*- coding: utf-8 -*-
 from traceback import print_exc
-from Eurasia.web import Form, Response, Pushlet, SimpleUpload
-from Eurasia.web import config, mainloop
+from eurasia.web import Form, Response, Pushlet, SimpleUpload
+from eurasia.web import config, mainloop
 from time import sleep
 
 # 简单页面演示:
@@ -94,7 +94,7 @@ def UploadPage(conn):
                 # 所以请尽量起成 "zzzzzzzz" 之类的名字, 以保证他的值是最大的。
 
                 # 另外, SimpleUpload 组件只上传支持一个文件,
-                # ──── Eurasia3 的作者认为多线程上传是一个好主意。
+                # ──── eurasia3 的作者认为多线程上传是一个好主意。
 
         '<input type="submit" />'
         '</form>'
