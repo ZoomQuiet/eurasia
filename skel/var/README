@@ -1,0 +1,4 @@
+This directory contains files created and maintained by the Eurasia
+application server and related utilities while the server is running.
+This can include the object database as well as supplemental files
+(such as "pidfiles").

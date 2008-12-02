@@ -44,7 +44,7 @@ class Daemon:
 		except SocketError:
 			pass
 		else:
-			raise error, 'Another daemon is already up using socket %s' %repr(address)
+			raise error('another daemon is already up using socket %s' %repr(address))
 
 		if isinstance(address, str):
 			try:
@@ -125,7 +125,7 @@ class Daemon:
 				except OSError:
 					pass
 
-			raise error, 'no subprocess running'
+			raise error('no subprocess running')
 
 		kill(self.pid, SIGTERM)
 		self.running = False

@@ -1,10 +1,10 @@
 import sys
 class Modules(type(sys)):	
 	def __init__(self):
-		type(sys).__init__(self, 'Eurasia.modules')
+		type(sys).__init__(self, 'eurasia.modules')
 
 	def __getitem__(self, name):
-		fullname = 'Eurasia.__modules.x-' + name
+		fullname = 'eurasia.__modules.x-' + name
 		try:
 			__import__(fullname)
 		except ImportError:
@@ -13,7 +13,7 @@ class Modules(type(sys)):
 		return sys.modules[fullname]
 
 	def __getattr__(self, name):
-		fullname = 'Eurasia.__modules.x-' + name
+		fullname = 'eurasia.__modules.x-' + name
 		try:
 			__import__(fullname)
 		except ImportError:
@@ -21,5 +21,5 @@ class Modules(type(sys)):
 
 		return sys.modules[fullname]
 
-sys.modules['Eurasia.__modules'] = sys.modules['Eurasia.modules']
-sys.modules['Eurasia.modules'] = Modules()
+sys.modules['eurasia.__modules'] = sys.modules['eurasia.modules']
+sys.modules['eurasia.modules'] = Modules()
