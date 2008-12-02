@@ -1,8 +1,8 @@
 import os.path, re
 from copy import copy
-from Eurasia.socket2 import *
+from eurasia.web import *
 from urlparse import urlparse
-from StringIO import StringIO
+from cStringIO import StringIO
 
 def urlopen(url, data='', headers={}, **args):
 	headers = dict(('-'.join(i.capitalize() for i in key.split('-')), value

@@ -887,9 +887,6 @@ else:
 
 __new__ = object.__new__
 
-range16 = '\x00' * 16; fmt = '%02x' * 16
 range01288 = list(reversed(range(0, 128, 8)))
-n1 = ~(0xc000 << 48L); n2 = 0x8000 << 48L
-n3 = ~(0xf000 << 64L); n4 = 4 << 76L
-
-id0 = '\x00' * 16; minimum_degree = 16
+n1, n2, n3, n4 = ~(0xc000 << 48L), 0x8000 << 48L, ~(0xf000 << 64L), 4 << 76L
+range16, fmt, id0, minimum_degree = '\x00' * 16, '%02x' * 16, '\x00' * 16, 16

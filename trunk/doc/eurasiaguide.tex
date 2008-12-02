@@ -1,0 +1,1977 @@
+\documentclass{manual}
+
+\title{Eurasia 用户指引}
+
+\author{沈崴}
+
+\authoraddress{
+	项目: \url{http://eurasia.pyforce.com}
+	邮件列表: \url{http://groups.google.com/group/eurasia-users}
+}
+
+\date{2008 年 11 月 11 日}
+
+\release{3.0.0a5}
+
+\makeindex
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+
+\noindent
+
+Eurasia 高性能应用服务器, 同时也是一种简洁高效的开发框架, 可以用于面向高并发的长连接 HTTP 服务器, 和 TCP 服务器的设计。
+
+\end{abstract}
+
+\tableofcontents
+
+
+\chapter{安装}
+
+\section{系统要求}
+
+Eurasia 基于 Python 2.5。一般来说, 支持 Python 2.5 的计算机平台都能够运行 Eurasia。
+
+推荐配置:
+
+\begin{itemize}
+
+\item \strong{32 位 x86 体系结构}
+
+目前尚没有证据证明 Eurasia 能通过 64 位或其他体系结构来获得额外的性能提升。
+
+\item \strong{Unix 或 Linux 操作系统}
+
+Eurasia 基于 Unix 异步 IO 设计。
+
+\item \strong{Stackless Python 2.5.2}
+
+Eurasia 基于 Stackless Python 轻便线程技术设计。所以 Stackless Python 是最适合的。
+
+\end{itemize}
+
+\subsection{兼容性话题}
+
+\strong{Windows 操作系统}
+
+需要注意的是, Eurasia 在 Windows 上并不能达到 Unix/Linux 上的并发性能。
+
+\strong{Python 2.5}
+
+普通的 Python 2.5 可以通过 greenlet 技术来实现 Eurasia 所需的 Stackless 特性。在性能上并不会有明显差别。如果你正在使用非 Stackless 的 Python 版本, Eurasia 会自动从网上下载并安装 py 包, 你需要准备好网络连接。
+
+\strong{Python 2.6}
+
+Python 2.6 是否能够很好地兼容 Eurasia, 未经充分测试。但无论如何 Eurasia 还是推荐使用 2.5 版本的 Python, 因为 Python 2.5 在性能和成熟度上似乎都要优于 Python 2.6。同时 Eurasia 也没有 (借助 Python 2.6 的过渡) 升级到 Python 3000 的明显愿望, 目前看来 Eurasia 更倾向于 PyPy。
+
+\section{开始安装}
+
+Eurasia 的官方网站是 \url{http://eurasia.pyforce.com}, 可以在这里下载到 Eurasia 的最新版本。
+
+你可以通过解压目录中的安装脚本 \file{setup.py} 来安装 Eurasia 库:
+
+\begin{verbatim}
+    python setup.py install
+\end{verbatim}
+
+对于非 Stackless 的 Python 2.5, Eurasia 需要 py (\url{http://codespeak.net/py}) 包的支持。如果没有检查到 py 包, 安装程序会尝试通过 setuptools 自动下载并安装 py 包。
+
+除此之外, Eurasia 还提供了一种更为便捷的绿色安装方式, 通过 \file{mkinstance.py} 脚本, 你可以创建一个直接可用的 Eurasia 站点。这时, 把 Eurasia 安装到 Python 上去并不是必须的。
+
+\begin{verbatim}
+    python mkeurinstance.py
+\end{verbatim}
+
+需要注意的是对于非 Stackless Python, py 包仍然是必须的, \file{mkinstance.py} 脚本同样会尝试下载, 并自动安装 py 包。
+
+关于 \file{mkinstance.py} 及 Eurasia 默认的应用服务器架构, 后面会有专门章节详加叙述。
+
+
+\chapter{快速开始}
+
+我们将从最简单的 hello world 开始, 通过一些范例程序, 快速进入 Eurasia 的世界。
+
+\section{第一个 http 服务器: hello world!}
+
+下面我们来编写一个服务器。
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+from eurasia.web import config, mainloop, Response
+def controller(request):
+	response = Response(request)
+	response.write('hello world!')
+	response.close()
+
+config(controller=controller, port=8080)
+mainloop()
+\end{verbatim}
+
+保存为 \file{hello.py}, 启动服务器。
+
+\begin{verbatim}
+$/usr/bin/python hello.py
+\end{verbatim}
+
+这个程序简单地把一个处理函数 controller 绑定到本机的 8080 端口, 所有发往本机 8080 端口的 HTTP 请求都会得到一个 "hello world!" 的响应。
+
+这样, 我们的第一个 Eurasia 程序就完成了。
+
+\section{使用 request 和 response 对象}
+
+在 hello world 中, 我们已经接触到了 request 和 response 对象。这里我们再进一步了解他们的使用。
+
+\subsection{通过 request 对象访问请求信息}
+
+controller 函数的 request 参数对用户请求进行了包装, request 对象包含以下属性。
+
+\begin{tableii}{c|l}{}{ 属性 }{ 信息 }
+\lineii{ request.path           }{ 请求地址, 比如 '/index.html' }
+\lineii{ request.method         }{ 请求方法, 取值是大写的 'GET' 或大写的 'POST' }
+\lineii{ request.version        }{ 请求的 HTTP 版本, 'HTTP/1.0' 或 'HTTP/1.1' }
+\lineii{ request['Http-Header'] }{ HTTP 请求头部, 比如 request['User-Agent'], 注意 Key 是首字母大写的 }
+\end{tableii}
+
+你可以编写一个程序来测试这些属性。
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+from eurasia.web import config, mainloop, Response
+from cStringIO import StringIO
+def controller(request):
+	out = StringIO()
+	print >> out, '%s %s %s' %(request.method, request.path, request.version)
+	for key, value in request.items():
+		print >> out, '%s: %s' %(key, value)
+
+	response = Response(request)
+	response.write('<pre>%s</pre>' %out.getvalue())
+	response.close()
+
+config(controller=controller, port=8080)
+mainloop()
+\end{verbatim}
+
+\subsection{使用 response 对象与浏览器进行通信}
+
+response 的使用与 request 基本上是对应的。
+
+\begin{tableii}{c|l}{}{ 属性 }{ 信息 }
+\lineii{ response.status             }{ 响应状态, 常见的有 200 (正常响应, 默认), 404 (未找到) 等 }
+\lineii{ response.version            }{ 响应的 HTTP 版本, 'HTTP/1.1' (默认) 或 'HTTP/1.0' }
+\lineii{ response['Response-Header'] }{ HTTP 头, 比如 response['Content-Type'] = 'text/html', 注意 Key 是首字母大写的 }
+\end{tableii}
+
+你可以在创建 response 对象时直接指定 status 和 version。
+
+\begin{verbatim}
+response = Response(request, status=200, version='HTTP/1.1')
+\end{verbatim}
+
+下面是一个返回 404 Not Found 的例子, 服务器不管收到任何请求, 用户都会得到一个 404 页面。
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+from eurasia.web import config, mainloop, Response
+page = '''\
+<html>
+<head>
+	<title>404 Not Found</title>
+</head>
+<body>
+	<h1>Not Found</h1>
+	<p>The requested URL %s was not found on this server.</p>
+	<hr>
+	<address>Eurasia Demo Server</address>
+</body>
+</html>'''
+
+def controller(request):
+	response = Response(request, status=404)
+	response['Content-Type'] = 'text/html'
+	response.write(page %request.path)
+	response.close()
+
+config(controller=controller, port=8080)
+mainloop()
+\end{verbatim}
+
+\subsection{一个综合应用: 文件服务器}
+
+接下来, 是一个简单的文件服务器。接到请求后, 服务器会到系统的 \file{/www} 目录下去寻找指定的文件, 如果文件存在, 则返回文件, 如果文件不存在, 则返回一个简单的 404 未找到页面。另外, 这个简单的文件服务器并不支持列出目录, 如果发现用户请求的是一个目录, 则返回一个简单的 403 拒绝页面。
+
+\note{需要注意的是, 这个服务器只是示范用途, 切勿实用。在实用中, Eurasia 已经为你准备了文件服务器, 请使用 \file{eurasia.cherrypy.Directory}, 这在后面会有详细介绍。}
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+#-*- coding: utf-8 -*-
+import os.path
+from eurasia.web import config, mainloop, Response
+
+def controller(request):
+	filename = '/www' + request.path
+	if not os.path.exists(filename): # 文件不存在  , 返回 404
+		response = Response(request, status=404)
+		response.write('<h1>Not Found</h1>')
+		return response.close()
+
+	if os.path.isdir(filename):      # 请求的是目录, 返回 403
+		response = Response(request, status=403)
+		response.write('<h1>Forbidden</h1>')
+		return response.close()
+
+	try:
+		data = open(filename).read()
+	except (IOError, OSError):                  # 文件读取错误, 返回 500
+		response = Response(request, status=500)
+		response.write('<h1>Internal Server Error</h1>')
+		return response.close()
+
+	# 正确返回文件内容, 因为设定了 application/octet-stream 的 Content-Type,
+	# 浏览器将提示用户是否下载该文件, 而不是直接显示出来
+	response = Response(request)
+	response['Content-Type'] = 'application/octet-stream'
+	response.write(data)
+	response.close()
+
+config(controller=controller, port=8080)
+
+mainloop()
+\end{verbatim}
+
+我们会发现, 这里仅仅用到了 hello world 这一节的知识, request 和 response 虽然简单, 但已经可以完成许多应用。
+
+\section{表单处理与文件上传}
+
+Eurasia 为你提供了表单处理工具, 还有处理文件上传的简单工具。
+
+\subsection{Form}
+
+Form 函数将用户提交的表单解析成一个 dict 对象。
+
+\begin{verbatim}
+	formdict = Form(request)
+\end{verbatim}
+
+你可以通过设定 max_size 来限制用户 POST 数据的大小, 如果用户提交的数据超过限制, Form 函数会抛出 IOError。
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+#-*- coding: utf-8 -*-
+import os.path
+from eurasia.web import config, mainloop, Form, Response
+
+def controller(request):
+	try:
+		form = Form(request, max_size=1024)
+	except IOError:
+		request.close()
+
+	response = Response(request)
+	response['Content-Type'] = 'text/plain'
+	print >> response, `form`
+	response.close()
+
+config(controller=controller, port=8080)
+
+mainloop()
+\end{verbatim}
+
+\note{如果用户提交了多个重名的表单变量, Form 会使用 list 来保存。比如用户提交了 url?a=1\&a=2\&a=3\&b=4, 那么 form['a'] 的取值是 ['1', '2', '3'], form['b'] 的取值是 '4'。}
+
+\subsection{文件上传}
+
+这是一个典型的文件提交页面。
+
+\begin{verbatim}
+<html>
+<form action="/simpleupload" method="post" enctype="multipart/form-data">
+<input type="hidden" name="a" value="表单变量A" />
+<input type="file" name="z-file" />
+<input type="submit" />
+</form>
+</html>
+\end{verbatim}
+
+Eurasia 的 SimpleUpload 工具对文件上传提供了支持。
+
+\begin{verbatim}
+	fd = SimpleUpload(request)
+\end{verbatim}
+
+SimpleUpload 会返回一个上传文件的描述符 (fd), 我们可以从 fd.filename 和 fd.size 中取出文件名和文件大小。其余的表单变量可以通过 fd[name] 的形式取出。
+
+\begin{tableii}{c|l}{}{ 属性 }{ 信息 }
+\lineii{ SimpleUpload.size           }{ 上传文件的大小 }
+\lineii{ SimpleUpload.filename       }{ 上传文件的文件名 }
+\lineii{ SimpleUpload['name']        }{ 除了上传文件之外, 表单中其余的变量 }
+\lineii{ SimpleUpload.read(size)     }{ 从上传文件中读取指定大小的内容, 默认读取全部内容 }
+\lineii{ SimpleUpload.readline(size) }{ 行读取 }
+\end{tableii}
+
+下面是完整的处理脚本。服务器将返回上传文件的缩略介绍。
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+#-*- coding: utf-8 -*-
+from eurasia.web import config, mainloop, SimpleUpload, Response
+
+page = '''\
+<html>
+<form action="/simpleupload" method="post" enctype="multipart/form-data">
+<input type="hidden" name="a" value="表单变量A" />
+<input type="file" name="z-file" />
+<input type="submit" />
+</form>
+</html>
+'''
+
+def controller(request):
+	if request.path != '/simpleupload':
+		response = Response(request)
+		response.write(page) # 输出前面定义的上传表单
+		return response.close()
+
+	fd = SimpleUpload(request)
+	a = fd['a'] # <input type="hidden" name="a" value="..."/>
+
+	filename = fd.filename
+	size     = fd.size
+
+	s1 = fd.read(10)      # 读取 10 个字符
+	s2 = fd.readline(10)  # 读取一行 (最多读取 10 个字符)
+	s3 = fd.read()[-20:]  # 读取所有内容, s3 保存了文件末尾的 20 个字符
+
+	response = Response(conn) # 上传文件如果没有读取完毕, 可能会引起 IO 错误 
+	response['Content-Type'] = 'text/plain; charset=utf-8'
+
+	print >> response, '文件内容:'
+	print >> response, s1 + s2, '...',
+
+	print >> response, s3
+
+	print >> resp, ''
+	print >> resp, '变量 a:', a
+	print >> resp, '文件名:', filename
+	print >> resp, '文件大小:', size
+
+	response.close()
+
+config(controller=controller, port=8080)
+mainloop()
+\end{verbatim}
+
+\note{SimpleUpload 要求表单变量名 (这里是 'a') 必须小于文件控件的名称 (这里是 'z-file')。因为对 SimpleUpload 组件来说, 文件组件的名字并不重要, 所以请尽量起成 "zzzzzzzz" 之类的名字, 以保证他的值是最大的。另外, SimpleUpload 组件只支持上传一个文件。当需要提交多个文件时, 你可以使用多个 SimpleUpload 组件, 这是 Eurasia 推荐使用多线程上传方式。}
+
+\note{SimpleUpload 并不会真的把用户上传的文件建立在磁盘上, 也不会把用户的上传读取到内存中, 而是在调用 read() 时才会从 socket 中去获取。因此, 在没有读取完整个上传文件之前, 上传用户的浏览器将一直保持在 "正在上传" 的状态下。}
+
+\note{HTTP 协议并不是每次都确切地知道用户上传文件的大小, SimpleUpload 能够猜测出用户上传内容的大小, 对于标准的浏览器和客户端这通常是准确的。在极少数情况下 SimpleUpload.size 和 SimpleUpload.read 取出的内容大小并不匹配, 这时应以 SimpleUpload.read 取出的实际内容大小为准, 一般来说, 你可以认为这是一种恶意行为。}
+
+\section{使用 session}
+
+你可以通过 Response['Set-Cookie'] 和 Request['Cookie'] 这两个接口直接操作 Cookie, 去实现一个自己喜欢的 Session 机制。
+
+此外, Eurasia 也提供了 Session 支持。通过设置 Response.uid, 你可以为用户的浏览器指定一个永久的 Id (基于 Cookie), 并通过 Request.uid 取出。
+
+\begin{tableii}{c|l}{}{ 属性 }{ 信息 }
+\lineii{ request.uid          }{ 取得永久 Id }
+\lineii{ response.uid = 永久Id }{ 设置永久 Id }
+\end{tableii}
+
+这里是一个简单的演示程序。创建并获取一个 uid。
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+#-*- coding: utf-8 -*-
+import random, sha
+from eurasia.web import config, mainloop, Response
+
+def controller(request):
+	response = Response(request)
+
+	# 如果没有 uid 就为该浏览器用户分配一个
+	if not request.uid:
+		uid = sha.new('%s' %random.random()).hexdigest()
+		response.uid = uid
+		print >> response, 'uid %r created' %uid
+		return response.close()
+
+	# 有 uid 就在页面上输出
+	print >> response, 'uid is %r' %request.uid
+	response.close()
+
+config(controller=controller, port=8080)
+mainloop()
+\end{verbatim}
+
+基于永久 Id 可以做出各种 Session 实现。这里是一个内存 Session, 我们将用户提交的表单保存在 Session 中, 在下一次访问时取出。使用 dbm、bsddb、memcached 以及 MySQL 的原理相同。
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+#-*- coding: utf-8 -*-
+import random, sha
+from eurasia.web import config, mainloop, Form, Response
+
+session = {}
+newid = lambda: sha.new('%s' %random.random()).hexdigest()
+
+def controller(request):
+	response = Response(request)
+	if not request.uid:          # 新建 session
+		uid = newid()
+		while uid in session:
+			uid = newid()
+
+		session[uid] = None
+		response.uid = uid
+	else:
+		uid = request.uid
+
+	data = session[uid]          # 前一次的表单数据
+	session[uid] = Form(request) # 在 session 中保存本次的表单数据
+
+	print >> response, data      # 返回前一次的表单数据
+	response.close()
+
+config(controller=controller, port=8080)
+mainloop()
+\end{verbatim}
+
+\section{长连接}
+
+Eurasia 主要是为长连接设计的, 在 Euraisa 中使用长连接就像呼吸一样自然。
+
+可以发现 Eurasia 中的所有连接默认都是长连接的。正如前面所展示的那样, 所有的 Response 都需要显式地 close 掉, 否则连接将一直维持到用户断开。
+
+除了常见的长连接页面输出, Eurasia 还提供了更为强大的基于长连接的 JavaScript 远程调用功能。
+
+下面我们将进入 Eurasia 的长连接的世界。
+
+\subsection{response 长连接模式}
+
+通过 Response.begin() 调用, 我们可以让 response 对象工作在长连接模式下。下面是一个 response 长连接的例子, 在这个例子中, 每 2 秒服务器会向浏览器输出一次。
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+#-*- coding: utf-8 -*-
+import eurasia
+from eurasia.web import config, mainloop, Response
+
+sleep = eurasia.modules['time'].sleep
+
+def controller(request):
+	response = Response(request)
+	response['Content-Type'] = 'text/html; charset=utf-8'
+
+	response.begin()
+	print >> response, '<html>'
+
+	for i in xrange(100):
+		print >> response, '收到第 %d 条回复<br/>' % i
+		sleep(2) # 间隔 2 秒发送一次
+
+	print >> response, '</html>'
+	response.end()
+
+config(controller=controller, port=8080)
+mainloop()
+\end{verbatim}
+
+一旦调用 response.begin() 以后, response.write() 会直接输出到浏览器, response.write() 函数会一直处于 "阻塞" 状态, 直至所有内容发送完毕。
+
+如果在 response.begin() 和 response.write() 调用时与客户端的连接已经断开, 你会得到一个 Disconnected 异常。
+
+\subsection{javascript rpc}
+
+Eurasia 中的 Comet 对象是一种更为强大的长连接工具。服务器端可以在任何时候直接调用客户端的 JavaScript 函数 (JavaScript 远程调用)。
+
+我们首先定义一个包含有 JavaScript 的 HTML 页面, 并与服务器建立一条长连接。
+
+\begin{verbatim}
+<html>
+<head>
+<script language="JavaScript">
+function my_alert(stuff) { alert(stuff); };
+</script>
+</head>
+<body>
+<!-- 与 /remotecall 位置的服务器脚本建立长连接 -->
+<iframe src="/remotecall" style="display: none;"></iframe>
+</body
+</html>
+\end{verbatim}
+
+下面是完整的处理脚本。
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+#-*- coding: utf-8 -*-
+import eurasia
+from eurasia.web import config, mainloop, Comet
+
+page = '''\
+<html>
+<head>
+<script language="JavaScript">
+function my_alert(stuff) { alert(stuff); };
+</script>
+</head>
+<body>
+<!-- 与 /remotecall 位置的服务器脚本建立长连接 -->
+<iframe src="/remotecall" style="display: none;"></iframe>
+</body
+</html>
+'''
+
+sleep = eurasia.modules['time'].sleep
+
+def controller(request):
+	if request.path != '/remotecall':
+		response = Response(request)
+		response.write(page) # 输出前面定义的上传表单
+		return response.close()
+
+	browser = Comet(request)
+	browser.begin()              # JavaScript 远程调用开始
+	for i in xrange(100):
+		browser.my_alert(i)  # 调用客户端名为 "my_alert()" 的 JS 函数
+		sleep(2)             # 间隔 2 秒发送一次
+
+
+config(controller=controller, port=8080)
+mainloop()
+\end{verbatim}
+
+我们同样可以通过 Comet['Header'] 和 Comet.uid 来设定响应的头部和持久 Id。
+
+Comet.status 与 Comet.version 同样可以在 Comet 对象初始化时设置。
+
+\begin{verbatim}
+	comet = Comet(request, status=200, version='HTTP/1.1')
+\end{verbatim}
+
+下面是面向 Comet 对象的一份完整描述。
+
+\begin{tableii}{c|l}{}{ 属性 }{ 信息 }
+\lineii{ comet.uid                }{ 可以用于设置浏览器用户的持久 Id }
+\lineii{ comet.status             }{ 响应状态, 常见的有 200 (正常响应, 默认), 404 (未找到) 等 }
+\lineii{ comet.version            }{ 响应的 HTTP 版本, 'HTTP/1.1' (默认) 或 'HTTP/1.0' }
+\lineii{ comet['Response-Header'] }{ HTTP 头, 注意 Key 是首字母大写的 }
+\lineii{ getattr(comet, 'JavaScript-Function') }{ 取出客户端的 JavaScript, 用于远程调用 }
+\end{tableii}
+
+\section{深入 request 对象}
+
+我们前面已经简单提到过 request 对象, 事实上 Eurasia 标准库包括 Form、Response、Comet、SimpleUpload 等工具都是基于 request 对象的。
+
+对于熟悉 HTTP 的用户, 直接调用 request 接口要更简洁、更自由, 基于 request 能够得到更为强大的功能和更好的性能。
+
+除了前面介绍的 request 属性之外, request 还带有读取 POST 报文和发送返回报文的功能, 这就是 request 的 read 和 write 接口。与 response 不同, request 能够直接向客户端发送原始请求报文, 包括返回 HTTP 状态以及 headers。
+
+\begin{verbatim}
+获取 POST 报文:
+	data = request.read(size)
+	data = request.readline(size)
+
+输出 HTTP 响应报文:
+	request.write(data)
+\end{verbatim}
+
+在下面的例子中, 服务器首先读取用户的 POST 报文, 然后发送响应报文。在这个例子里, 我们只用到了 request 对象而没有使用诸如 response 等额外的工具。
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+#-*- coding: utf-8 -*-
+from eurasia.web import config, mainloop
+
+def controller(request):
+	print request.method, request.path, request.version # 输出请求状态
+	for key, value in request.items():
+		print key, ':', value                       # 输出请求头部
+
+	if request.method == 'POST':
+		print `request.read()`                      # 输出 POST 报文
+
+	request.write('HTTP/1.1 200 OK\r\n')                # 输出响应状态
+	request.write('Content-Type: text/html\r\n')        # 输出响应头部
+	request.write('\r\n')
+	request.write('<html>hello world!</html>')          # 输出页面
+	request.close()
+
+config(controller=controller, port=8080)
+mainloop()
+\end{verbatim}
+
+上面我们已经基本涉及到了所有有用的 request 属性, 下面是一个汇总。
+
+\begin{tableii}{c|l}{}{ 属性 }{ 信息 }
+\lineii{ request.pid            }{ 当前 socket 连接的 fileno }
+\lineii{ request.uid            }{ 如果已经设置了持久 Id, uid 属性可以取出该浏览器的持久 Id }
+\lineii{ request.path           }{ 请求地址, 比如 '/index.html' }
+\lineii{ request.method         }{ 请求方法, 取值是大写的 'GET' 或大写的 'POST' }
+\lineii{ request.version        }{ 请求的 HTTP 版本, 'HTTP/1.0' 或 'HTTP/1.1' }
+\lineii{ request['Http-Header'] }{ HTTP 请求头部, 比如 request['User-Agent'], 注意 Key 是首字母大写的 }
+\lineii{ request.read(size)     }{ 读取指定大小的 POST 报文, 默认读取全部内容 }
+\lineii{ request.readline(size) }{ 行读取 }
+\lineii{ request.write(data)    }{ 写 HTTP 报文 }
+\lineii{ request.close()        }{ 关闭与客户端的连接 }
+\end{tableii}
+
+\section{tcp 服务器设计}
+
+除了 HTTP 服务器之外, Eurasia 还可以用于设计 TCP 服务器。
+
+下面是使用 Eurasia 编写的一个简单的 echo 服务器。
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+#-*- coding: utf-8 -*-
+from Eurasia.web import config, mainloop
+
+# echo 服务器
+def controller(request):
+	while True:
+		data = request.readline(1024) # 从 socket 读取
+		if data == 'quit':
+			request.close()
+			break
+		else:
+			request.write(data)   # 输出到 socket
+
+config(tcphandler=controller, port=8080)      # 与前面不同, 这里使用 tcphandler
+mainloop()
+\end{verbatim}
+
+可以看到, 基本上使用 Eurasia 编写 TCP 服务器与编写 HTTP 服务器区别不大。
+
+这里 TCP 服务器的 request 并不对 socket 中的内容作多余的处理, 你可以得到完整的 socket 输入, 并原样输出到 socket 客户端。
+
+另一个区别在于 TCP 在 config 函数中是使用 tcphandler 指定的而不是原来的 controller。
+
+在 Eurasia 中编写 TCP 服务器甚至要比编写一个 HTTP 服务器更简单, Eurasia 的 TCP 接口很少, 只涉及到 request 的输入输出。下面是在 TCP 服务器中可用的 request 属性。
+
+\begin{tableii}{c|l}{}{ 属性 }{ 信息 }
+\lineii{ request.pid            }{ 当前 socket 连接的 fileno }
+\lineii{ request.read(size)     }{ 从 socket 中读取指定大小的内容, 默认读取全部内容 }
+\lineii{ request.readline(size) }{ 行读取 }
+\lineii{ request.write(data)    }{ 写 socket }
+\lineii{ request.close()        }{ 关闭 socket 连接 }
+\end{tableii}
+
+这样, 基于 Eurasia 的 TCP 接口, 我们现在可以方便地设计出 FTP、SMTP 等基于 TCP 协议的服务器。
+
+\note{TCP 服务器无法使用 Eurasia 中与 HTTP 相关的功能, 比如虚拟主机, 这在后面的章节中会讲到}
+
+\subsection{一个简单的 HTTP 服务器}
+
+Eurasia 的 HTTP 服务器正是基于 Eurasia 的 TCP 接口设计的, 可以发现这并不是一件十分困难的事情。
+
+这是一个简单的示范, 使用浏览器连接到这个 TCP 服务器, 得到 hello world 的响应。
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+#-*- coding: utf-8 -*-
+from eurasia.web import config, mainloop
+
+def httpd(sockfile):
+	# HTTP 协议第一行, 诸如 GET /PATH HTTP/1.1
+	first = sockfile.readline(1024)
+
+	# 第二行开始是 HTTP 协议头部, 诸如 NAME: VALUE 这种形式, 以空行结束
+	headers = []
+	line = sockfile.readline(1024).strip()
+	while line: # 循环读取
+		headers.append(line)
+		line = sockfile.readline(1024).strip()
+
+	body = sockfile.read() # 如果是 POST 请求, 则读取所有 Body 部分的内容
+
+	# 返回响应关闭连接
+	sockfile.write('HTTP/1.1 200 OK\r\n\r\nhello world!')
+	sockfile.close()
+
+config(tcphandler=httpd, port=8080)
+\end{verbatim}
+
+\section{使用 cherrypy 模拟器}
+
+如果你熟悉 cherrypy, 对理解 Eurasia 的 cherrypy 模拟器会有一定帮助; 如果你不熟悉 cherrypy 那也没关系, Eurasia 只是借鉴了 cherrypy 的思想, 他们并不是一码事, 切勿对号入座。
+
+下面是一个简单的示范。
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+#-*- coding: utf-8 -*-
+from eurasia.web import config, mainloop, Response
+from eurasia.cherrypy import expose, CherryEmulator
+
+class MyRoot:
+	@expose
+	def __call__(self, request): # 默认页面, 相当于 cherrypy 中的 index 和 default
+		response = Response(request)
+		response.write('<h1>Default</h1>request.location is %r' %request.location)
+		response.close()
+
+	@expose
+	def foo(self, request):      # 所有路径为 /foo/... 的请求 (包含 /foo) 都由该函数处理
+		response = Response(request)
+		response.write('<h1>Foo</h1>request.location is %r' %request.location)
+		response.close()
+
+	# 这个函数不使用 @expose 前置声明, 故该函数对用户不可见,
+	# /bar 路径下的请求将由默认的 controller, 也就是前面的 __call__ 函数处理
+	def bar(self, request):
+		response = Response(request)
+		response.write('<h1>Bar</h1>request.location is %r' %request.location)
+		response.close()
+
+controller = CherryEmulator(root=MyRoot()) # 使用 CherryEmulator 生成标准 controller
+
+config(controller=controller, port=8080)
+mainloop()
+\end{verbatim}
+
+CherryEmulator 实现了一种 url 到对象的映射, 根据请求的 url 找到对象中对应的方法进行处理。
+
+在上面这个例子中, 存在如下映射关系。
+
+\begin{itemize}
+
+\item \strong{/... 映射至 MyRoot.__call__}
+
+__call__ 方法定义了整个 MyRoot 对象的默认页面, 相当于目录下的 index.html 文件, 在 cherrypy 下叫做 index 或 default, 或者 zope 下的 index_html。如果 url 在 MyRoot 对象中没有找到对应的处理函数, 会默认使用对象的 __call__ 方法。
+
+带有 __call__ 成员的对象事实上是一个函数对象, 可以想像, 使用 __call__ 作为默认页面, 是相当合适的。
+
+\item \strong{/foo 映射至 MyRoot.foo}
+
+所有发往包括 \file{/foo} 以及 \file{/foo/...} 的请求, 都由 MyRoot.foo 解析。
+
+\end{itemize}
+
+同样, 在这个例子中, 用到了 request 的 location 属性。这是 CherryEmulator 为 request 附加的新属性。对于 foo 方法来说, 如果用户请求的地址是 \file{/foo/a/b/c?a=1\&b=2} 那么 request.location 的取值是 \file{/a/b/c} (需要注意的是 \file{/foo} 和 \file{/foo/} 的取值是不同的, \file{/foo} 的 location 为空, 而 \file{/foo/} 为 \file{/})。
+
+在 CherryEmulator 中, request 共有三种与请求 url 相关的属性。
+
+\begin{tableii}{c|l}{}{ 属性 }{ 信息 }
+\lineii{ request.path        }{ 完整的请求地址 }
+\lineii{ request.location    }{ 未被解析的 url 部分, 不包括 query string }
+\lineii{ request.querystring }{ url 中问号 "?" 后面部分的内容, 常用于传递以 GET 方式提交的表单信息 }
+\end{tableii}
+
+Eurasia 的 cherrypy 模块附带了大量的实用工具。下面, 我们将继续深入。
+
+\note{cherrypy 模块是一个轻量级的应用层框架, 可以用来处理许多常见任务。一旦进入应用层, 功能的增长往往对应的是灵活性的快速下降, 如果你有信心基于 Eurasia 设计一个更顺手的应用层框架, 你并不需要基于 cherrypy 开始你的工作, 因为 cherrypy 模块已经引入了太多的限制。}
+
+\subsection{多级路径}
+
+这里将制造一个多级路径的处理程序。
+
+程序中定义了一个多级对象, 发往 /a 和 /b 的请求分别由 A 和 B 对象处理, 发往 /a/a1 的请求则会由 A1 对象处理。
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+#-*- coding: utf-8 -*-
+from eurasia.web import config, mainloop, Response
+from eurasia.cherrypy import expose, CherryEmulator
+
+class MyRoot:
+	def __init__(self):
+		self.a = A()                 # 将 A 对象挂接到 /a
+		self.b = B()                 # 将 B 对象挂接到 /b
+
+	@expose
+	def __call__(self, request):         # /...
+		response = Response(request)
+		print >> response, '<h1>Root</h1>'
+		response.close()
+
+class A:
+	def __init__(self):
+		self.a1 = A1()               # 将 A1 对象挂接到 /a/a1 上
+
+	@expose
+	def __call__(self, request):         # 处理 /a 路径下的请求
+		response = Response(request)
+		print >> response, '<h1>A</h1>'
+		response.close()
+
+class A1:
+	@expose
+	def __call__(self, request):         # /a/a1
+		response = Response(request)
+		print >> response, '<h1>A1</h1>'
+		response.close()
+
+	@expose
+	def a2(self, request):               # /a/a1/a2
+		response = Response(request)
+		print >> response, '<h1>A2</h1>'
+		response.close()
+
+class B:
+	@expose
+	def __call__(self, request):         # /b
+		response = Response(request)
+		print >> response, '<h1>B</h1>'
+		response.close()
+
+	@expose
+	def b1(self, request):               # /b/b1
+		response = Response(request)
+		print >> response, '<h1>B1</h1>'
+		response.close()
+
+controller = CherryEmulator(root=MyRoot())
+
+config(controller=controller, port=8080)
+mainloop()
+\end{verbatim}
+
+\subsection{动态路径}
+
+然而 url 往往是动态的。比如获取一个用户的基本信息, 我们常常会使用这样的 url: \file{/username/info}, 其中的 username 就是一个变量。
+
+我们可以这样应对。
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+from eurasia.web import config, mainloop, Response
+from eurasia.cherrypy import expose, CherryEmulator
+
+class MyRoot(object):
+	def __getattr__(self, name):
+		return User(name)
+
+class User:
+	def __init__(self, name):
+		self.name = name
+
+	@expose
+	def info(self, request):
+		response = Response(request)
+		print >> response, '<h1>my name is %s</h1>' %self.name
+		response.close()
+
+config(controller=CherryEmulator(root=MyRoot()), port=8080)
+mainloop()
+\end{verbatim}
+
+在这个程序里, 如果你请求的 url 是 \file{/william/info} , 那么服务器会返回 my name is william 。
+
+接下来如果把我们把站点的 root 对象指向对象数据库 (比如 ZODB 或者 Eurasia.shelve2) 那么会发生什么情况? 没错, 我们得到了 Zope!
+
+\subsection{使用标准出错页面}
+
+Eurasia CherryEmulator 为你准备了标准出错页面, 和 cherrypy 一样, 你只要抛出 NotFound 异常, CherryEmulator 就会为你输出标准的 404 页面。
+
+\begin{verbatim}
+	raise NotFound
+\end{verbatim}
+
+这里是异常与状态码的对应关系, 值得注意的是页面重定向 (Redirect) 也是以这种方式工作的。
+
+\begin{tableii}{c|l}{}{ 状态码 }{ 异常 }
+\lineii{ Forbidden           }{ 403 无权限 }
+\lineii{ NotFound            }{ 404 未找到 }
+\lineii{ InternalServerError }{ 500 服务器出错 }
+\lineii{ Redirect            }{ 页面跳转 }
+\end{tableii}
+
+下面把各种效果都演示一下。
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+from eurasia.web import config, mainloop, Response
+from eurasia.cherrypy import expose, CherryEmulator, \
+	Forbidden, NotFound, InternalServerError, Redirect
+
+class MyRoot(object):
+	@expose
+	def __call__(self, request):            # default page
+		response = Response(request)
+		response.write('<h1>Default</h1>')
+		response.close()
+
+	@expose
+	def forbidden(self, request):           # 403 page
+		raise Forbidden
+
+	@expose
+	def notfound(self, request):            # 404 page
+		raise NotFound
+
+	@expose
+	def internalservererror(self, request): # 500 page
+		raise InternalServerError
+
+	@expose
+	def google(self, request):              # www.google.com
+
+		raise Redirect('http://www.google.com/')
+
+config(controller=CherryEmulator(root=MyRoot()), port=8080)
+mainloop()
+\end{verbatim}
+
+\note{只有在 CherryEmulator 中标准出错才是可用的, 在 CherryEmulator 之外, 并没有相应的自动处理机制, 那些都是普通的异常。}
+
+\subsection{自定义标准出错页面}
+
+CherryEmulator 对象 (controller) 本身即是一个 dict 对象, CherryEmulator[状态码] 中保存了默认的标准出错页面, 可以方便地覆盖为我们自己的标准出错页面。
+
+在下面这个例子中, 当请求的地址无法找到, 或者访问了 \file{/notfound}, 访问者都将得到自定义的 404 页面 "mynotfound"。
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+#-*- coding: utf-8 -*-
+from eurasia.web import config, mainloop, Response
+from eurasia.cherrypy import expose, CherryEmulator, NotFound
+
+page = '''\
+<html>
+<head>
+	<title>404 Not Found</title>
+</head>
+<body>
+	<h1>My Not Found</h1>
+	<p>The requested URL %s was not found on this server.</p>
+	<hr>
+	<address>Eurasia Demo Server</address>
+</body>
+</html>'''
+
+def mynotfound(request):        # 自定义 404 页面
+	response = Response(request)
+	response.write(page %request.path)
+	response.close()
+
+class MyRoot(object):
+	@expose
+	def foo(self, request):
+		response = Response(request)
+		response.write('<h1>Foo</h1>')
+		response.close()
+
+	@expose
+	def notfound(self, request): # 404 page
+		raise NotFound
+
+controller = CherryEmulator(root=MyRoot())
+
+controller[404] = mynotfound # 覆盖为自定义的 404 页面
+
+config(controller=controller, port=8080)
+mainloop()
+\end{verbatim}
+
+\subsection{标准文件服务器}
+
+Eurasia 的 cherrypy 模块还提供了标准的静态文件输出服务。Directory 对象可以直接作为根 controller, 也可以挂接到 CherryEmulator 的二级路径下。
+
+在这个例子里, url 根路径 \file{/} 被映射到磁盘静态目录 \file{/www} 下。例如用户访问了 \file{/test.txt} 这个 url, 那么, Directory 对象会去找到 \file{/www/test.txt} 这个文件返回给用户。
+
+\note{如果没有找到指定的文件 Directory 对象会返回 404 Not Found 报文, 如果用户指定的是一个目录, Directory 对象会返回 403 Forbidden 报文。}
+
+\note{列出磁盘目录高度依赖定制, 并考虑到安全性, 故没有默认提供}
+
+\note{Directory 的磁盘 IO 主要是面向 Unix 的。}
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+#-*- coding: utf-8 -*-
+from eurasia.web import config, mainloop
+from eurasia.cherrypy import CherryEmulator, Directory
+
+# 使用 Directory 来解析根路径, 把 url 映射到 /www 目录下
+controller = CherryEmulator(root=Directory('/www'))
+config(controller=controller, port=8080)
+
+mainloop()
+\end{verbatim}
+
+Directory 对象也可以挂接到 CherryEmulator 对象的二级路径下。在这个例子里, Directory 被挂接到 \file{/static} 路径下。
+
+在例子中 Directory 是 MyRoot 类的静态属性, 这也是最常见的设置方法。当然也可以将 Directory 设置为 MyRoot 的实例属性 (在 __init__ 初始化中进行设置)。
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+#-*- coding: utf-8 -*-
+from eurasia.web import config, mainloop, Response
+from eurasia.cherrypy import expose, CherryEmulator, Directory
+
+class MyRoot(object):
+	static = Directory('/www') # 挂接静态目录至 /static 下
+
+	@expose
+	def __call__(self, request):
+		response = Response(request)
+		response.write('<h1>Default</h1>')
+		response.close()
+
+controller = CherryEmulator(root=MyRoot())
+config(controller=controller, port=8080)
+mainloop()
+\end{verbatim}
+
+\subsection{定制标准文件服务器}
+
+我们已经知道默认的 Directory 对象并没有将目录列出的功能, 而是直接返回 403 Forbidden 页面。我们可以通过定制, 实现列出目录的功能。
+
+在这个例子中, 我们定制的是 Directory 类的 listdir 方法, 除了 self, listdir 还接受 request, dirname 两个参数。
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+#-*- coding: utf-8 -*-
+import os, os.path
+from eurasia.web import config, mainloop, Response
+from eurasia.cherrypy import CherryEmulator, Directory
+
+page = '''\
+<html>
+<head>
+	<title>%s</title>
+</head>
+<body>
+	<h1>%s</h1>
+	<p>%s</p>
+	<hr>
+	<address>Eurasia Demo Server</address>
+</body>
+</html>'''
+
+class MyDirectory(Directory):
+	def listdir(self, request, dirname):
+		# 首先尝试输出 index 索引页面
+		for index in ['index.html', 'index.htm']:
+			index = os.path.join(dirname, index)
+			if os.path.exists(index):
+				return self.fetch(request, index) # fatch 方法用于输出指定文件
+
+		# 列出目录中的文件及子目录
+		l1, l2 = ['..'], []
+		for i in os.listdir(dirname):
+			filename = os.path.join(dirname, i)
+			if os.path.isdir(filename):
+				l1.append(i)
+			else:
+				l2.append(i)
+
+		l1.sort(); l2.sort()
+		fldrlst = ['<a href="%s/">%s/</a>' %(i, i) for i in l1]
+		filelst = ['<a href="%s">%s</a>'   %(i, i) for i in l2]
+
+		# 输出页面
+		response = Response(request)
+		response['Content-Type'] = 'text/html'
+		print >> response, page %(request.location, request.location,
+			'<br />\n'.join(fldrlst + filelst))
+
+		response.close()
+
+config(controller=CherryEmulator(MyDirectory('/www')),
+	port = 8080)
+
+mainloop()
+\end{verbatim}
+
+Directory 类的 fetch 方法, 用于返回用户请求的单个文件。我们可以通过重载 Directory 的 fetch 方法来实现一些特定的功能, 比如隐藏 \file{.htaccess} 和 \file{.htpasswd} 文件。
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+#-*- coding: utf-8 -*-
+import os.path
+from eurasia.web import config, mainloop
+from eurasia.cherrypy import CherryEmulator, Directory, NotFound
+
+class MyDirectory(Directory):
+	def fetch(self, request, filename):
+		# 隐藏以 .ht 开头的文件
+		if os.path.split(filename)[1][:3] == '.ht':
+			raise NotFound
+
+		# 调用原 fetch 方法
+		return Directory.fetch(self, request, filename)
+
+config(controller=CherryEmulator(MyDirectory('/www')),
+	port = 8080)
+
+mainloop()
+\end{verbatim}
+
+\subsection{第一个 cgi 服务器}
+
+上面, 我们通过定制 Directory 对象的 fetch 方法实现了 \file{.ht} 文件的隐藏。现在, 我们进一步, 通过修改 fetch 制作出我们自己高度定制的 cgi 服务器。
+
+在这个例子中, 实现了一个 cgi 服务器 (出于演示目的, 只是简单地 dup 了 socket)。
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+#-*- coding: utf-8 -*-
+import sys, os, os.path, copy
+from urllib import unquote_plus
+from eurasia.web import config, mainloop, Form, Response
+from eurasia.cherrypy import CherryEmulator, Directory, NotFound, InternalServerError
+
+environ = copy.copy(os.environ)
+
+class CgiDirectory(Directory):
+	def fetch(self, request, filename):
+		if not os.path.exists(filename):
+			raise NotFound
+
+		try:
+			test = executable(filename)
+		except OSError:
+			raise InternalServerError
+
+		if not test:
+			return Directory.fetch(self, request, filename)
+
+		if os.fork() != 0:
+			return
+
+		environ.update(Form(request.querystring)) # 将表单设置到环境变量中
+		environ['LOCATION']       = request.location
+		environ['QUERY_STRING']   = request.querystring
+		environ['REQUEST_METHOD'] = request.method
+		try:
+			environ['HTTP_COOKIE'] = request['Cookie']
+		except KeyError:
+			pass
+		try:
+			environ['CONTENT_LENGTH'] = request['Content-Length']
+		except KeyError:
+			pass
+
+		# request.pid 即请求连接的 fileno
+		# 重定向标准 IO 至 socket
+		os.dup2(request.pid,  sys.stdin.fileno())
+		os.dup2(request.pid, sys.stdout.fileno())
+
+		# 运行 cgi 程序
+		os.execvpe(filename, (filename, ), environ)
+
+def executable(filename):
+	st = os.stat(filename)
+	return st.st_mode & 0111 != 0
+
+def Form(query): # 解析通过 GET 方式提交的表单信息
+	dct = {}
+	for item in query.split('&'):
+		try:
+			key, value = item.split('=', 1)
+		except ValueError:
+			continue
+		else:
+			dct[key] = unquote_plus(value)
+	return dct
+
+config(controller=CherryEmulator(CgiDirectory('/www')),
+	port = 8080)
+
+mainloop()
+\end{verbatim}
+
+下面, 我们在 \file{/www} 目录下编写一个名为 \file{test.py} 的 cgi 程序。
+
+\begin{verbatim}
+#!/usr/bin/env python
+import sys, cgi, cgitb; cgitb.enable()
+
+form = cgi.FieldStorage()
+response = '%s %s!' %(form['a'].value, form['b'].value)
+
+print 'HTTP/1.1 200 OK'
+print 'Content-Type: test/plain'
+print
+print response
+\end{verbatim}
+
+使用命令 "chmod +x test.py" 将程序设置为可执行。启动 cgi 服务器以后, 我们可以在浏览器中输入地址 \file{/test.py} (结果是 Python 标准 cgi 库的出错页面) 和 \file{/test.py?a=hello\&b=world} (结果是 "hello world!") 分别进行测试。
+
+\note{原理演示, 切勿实用!}
+
+\section{模拟 django}
+
+因为可以从 request.path 得到完整的 url, 所以可以较为方便地模拟出 django 的 url 映射。
+
+下面是 Eurasia 对于 django 的 url 处理模式的模拟。
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+#-*- coding: utf-8 -*-
+from eurasia.web import config, mainloop, Response
+
+def hello(resp, *args, **kw):
+	print >> resp, 'hello:', args, kw
+	resp.close()
+def world(resp, *args, **kw):
+	print >> resp, 'world:', args, kw
+	resp.close()
+
+urlpatterns = (
+	(r'^/hello/[^/]+/(?P<foo>.*)', hello),
+	(r'^/world/[^/]+/(?P<bar>.*)', world)  )
+
+def controller(client):
+	path = client.path
+	for pattern, func in urlpatterns:
+		match = pattern.search(path)
+		if match:
+			func(Response(client), *(match.groups()),
+				**(match.groupdict()) )
+			return
+
+	print >> client, '404'
+	client.shutdown()
+
+urlpatterns = tuple(
+	[(compile(pattern), func) for pattern, func in urlpatterns])
+
+config(controller = controller, port = 8080)
+
+mainloop()
+\end{verbatim}
+
+\note{这里模拟了 django 的工作方式, 但是省略了对于正则表达式的排序操作, 采用手工排序。}
+
+\note{在 CherryEmulator 中, 可以通过 request.location 和 request.querystring 两个实用属性混用 cherrypy 和 django 两种工作模式。在这种情况下, 可以省略相当一部分路径解析的工作, 我们可以很方便地实现正则表达式对于路径的一次扫描。正则表达式对于路径实现单次扫描对于性能的提高有一定意义。}
+
+\section{使用标准模板}
+
+Eurasia 的 template 模块是 Mako 模板的一个简化版, 带有大部分 Mako 模板的功能, 和相同的标签语法。同时 Eurasia 标准模板也是编译型的模板。
+
+template 包涵以下标签语法。
+
+\begin{itemize}
+
+\item \strong{表达式替换}
+
+\begin{verbatim}
+this is x: ${x}
+\end{verbatim}
+
+进一步, 取值表达式可以嵌入 Python 代码, 并替换为 Python 表达式的运算结果。
+
+\begin{verbatim}
+${int(a) + int(b)}
+\end{verbatim}
+
+\item \strong{控制结构}
+
+我们可以在模板中使用条件表达式及叠代循环表达式。
+
+这里是条件表达式。
+
+\begin{verbatim}
+%if x==1:
+	x is ${x}
+%elif x==2:
+	x is ${x}
+%else:
+	x is ${x}
+%endif
+\end{verbatim}
+
+这里是循环。
+
+\begin{verbatim}
+%for a in ['one', 'two', 'three', 'four', 'five']:
+	%if a[0] == 't':
+		its two or three
+	%elif a[0] == 'f':
+		four/five
+	%else:
+		one
+	%endif
+%endfor
+\end{verbatim}
+
+\item \strong{Python 代码}
+
+可以在模板中运行 Python 代码。
+
+\begin{verbatim}
+<% # 这里是 Python 代码
+a = 1
+b = 2
+%>
+
+测试一下 a + b : ${a + b}
+\end{verbatim}
+
+\note{第一行 Python 代码的缩进会被忽略, 所以请避免使用 def、class、if、for 等依赖缩进的 Python 代码。函数中的 Python 代码块在当前函数中可见, 函数外的代码块在当前模板中全局可见。}
+
+\item \strong{函数标签 <\%def name="..." \%>}
+
+函数是模板中最基本的调用单位, 类似于 Python 中的函数。
+
+\begin{verbatim}
+<%def name="myfunc(x)">
+    this is myfunc, x is ${x}
+</%def>
+
+调用: ${myfunc(7)}
+\end{verbatim}
+
+\item \strong{<\%call expr="..."\%> 标签}
+
+call 标签用于调用 <\%def\%> 标签，可传递额外的内嵌内容。稍后介绍。
+
+\end{itemize}
+
+\subsection{使用模板}
+
+为了演示 Eurasia 标准模板的用法, 这里将建立一个模板的应用范例。
+
+在这个例子里, 我们首先将编写一个字符串模板, 带有 test1 和 test2 两个函数。然后使用 template 模块中的 Template 函数将字符串模板编译成可执行的 Python 模块, 并对模板中的 test1、test2 函数进行调用。
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+#-*- coding: utf-8 -*-
+from eurasia.template import Template
+
+s = '''\                  # 字符串模板
+<%def name="test1(a)">
+	test1, a is ${a}
+</%def>
+
+<%def name="test2(b)">
+	test2, b is ${b}
+</%def>'''
+
+tmpl = Template(s)        # 将字符串模板编译成可执行的 Python 模块
+
+print tmpl.test1('hello') # 调用模板中的 "test1" 函数
+print tmpl.test2('world') # 调用模板中的 "test2" 函数
+\end{verbatim}
+
+结果是
+
+\begin{verbatim}
+test1, a is hello
+test2, b is world
+\end{verbatim}
+
+<\%def> 标签定义了模板的调用接口, 在这个例子中, 我们定义了 test1 和 test2 两个调用接口。
+
+\note{我们已经确认 CPython 中存在的一个 Bug 将导致 Template(s).test1('hello') 这种写法报错。因此, 在 CPython 中需要分开来写成 tmpl = Template(s); tmpl.test1('hello')。也就是上面这个例子中的写法。}
+
+\subsection{一个更为复杂的例子}
+
+本例中, 将用到大量模板常用语法。包括有条件判断, 循环等。
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+#-*- coding: utf-8 -*-
+from eurasia.template import Template
+
+s = '''\
+<%def name="main(lst)">
+--------------------------------------------
+<% # Python 代码块示范
+class Foo:
+	def test(self):
+		return 'from foo.test()'
+
+foo = Foo()
+
+# 在 Python 代码块中可以使用 write 函数进行内容输出
+write(foo.test())
+
+%>
+
+${Foo().test()}
+
+--------------------------------------------
+# 循环判断示范
+%for i in lst:
+	%if i == 1:
+		${1+2}
+	%elif i == 2:
+		${'hello' + 'world'}
+	%else:
+		${i}
+	%endif
+%endfor
+
+--------------------------------------------
+# 嵌入式函数示范, 只在 main 函数中可见
+<%def name="bar()">
+	this is bar
+</%def>
+${bar()}
+
+--------------------------------------------
+</%def>'''
+
+tmpl = Template(s)
+print tmpl.main([1, 2, 3, 4, 5])
+\end{verbatim}
+
+\subsection{使用 <\%call> 标签定义宏}
+
+<\%call> 标签提供了一种较为高级的功能, 也就是模板宏。
+
+\begin{verbatim}
+<%def name="macros(a, b)">
+${caller.slot1(a)}
+${caller.slot2(b)}
+</%def>
+
+----------------------------
+
+<%def name="main()">
+<%call expr="macros(1, 2)">
+  <%def name="slot1(a)">
+    slot1, ${a}
+  </%def>
+
+  <%def name="slot2(b)">
+    slot1, ${b}
+  </%def>
+</%call>
+</%def>
+\end{verbatim}
+
+这里首先使用 <\%def> 定义了一个名为 macros 的模板宏。
+
+然后在 main 函数中使用 <\%call> 调用 macros, 其中定义了 slot1 和 slot2, 在 macros 中可以通过 caller 取出。
+
+该模板的入口函数是 main()。调用结果是
+
+\begin{verbatim}
+slot1, 1
+slot2, 2
+\end{verbatim}
+
+\note{本例中在同一个模板中同时包涵了模板宏和宏调用, 通常情况下, 我们会将模板宏保存入外部文件。}
+
+\note{call 只能在函数中 (<\%def>) 调用。如果把 call 放置在模板顶层, 模板在编译时会忽略 call 调用。}
+
+\subsection{缓存编译结果}
+
+Eurasia 标准模板是一种编译型模板, 字符串模板经过 Template 函数可以编译成可执行的 Python 模块。
+
+我们也可以仅仅把字符串模板转换成 Python 源代码, 在文件中保存起来, 这样可以在下次使用时直接 import 进来, 省去了编译过程, 尽管这花不了多少时间。
+
+这里我们将用到 template 的 compile 工具。
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+#-*- coding: utf-8 -*-
+from eurasia.template import compile
+
+s = '''\
+<%def name="main()">
+	hello world!
+</%def>
+
+# 得到 Python 源码
+code = compile(s)
+
+# 保存为 Python 模块文件
+fd = open('cache.py', w)
+fd.write(code)
+fd.close()
+
+# 以模块方式导入模板
+import cache
+print cache.main()
+\end{verbatim}
+
+\subsection{<\%namespace> 标签}
+
+Euraisa 标准模板中没有 Mako 中 <\%namespace> 标签的等价物, 这个功能相当于 Python 中的 import。<\%namespace> 需要一系列关于导入路径的配置, 这比较复杂, 因此 Eurasia 换了一种方式。
+
+Template 函数第二个参数可以设定模板中可见的环境。你可以在这里预先导入一些模板中用得到的东西, 比如宏。
+
+这个例子在讲解 <\%call> 时出现过, 这里把宏和调用部分拆离开来。
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+#-*- coding: utf-8 -*-
+from eurasia.template import Template
+s1 = '''\ # 定义模板宏
+<%def name="macros(a, b)">
+${caller.slot1(a)}
+${caller.slot2(b)}
+</%def>'''
+
+s2 = '''\ # 调用模板宏
+<%def name="main()">
+<%call expr="macros(1, 2)">
+  <%def name="slot1(a)">
+    slot1, ${a}
+  </%def>
+
+  <%def name="slot2(b)">
+    slot1, ${b}
+  </%def>
+</%call>
+</%def>'''
+
+tmpl1 = Template(s1)
+
+# 使用 env 参数指定模板环境
+tmpl2 = Template(s2, env={'macros': tmpl1.macros})
+
+tmpl2.main()
+\end{verbatim}
+
+\section{使用对象数据库}
+
+Eurasia 带有一种极其轻便的嵌入式对象数据库 shelve2。如果用户具有 ZODB 或者 durus 等对象数据库的使用经验, 会有助于理解 shelve2 的使用方法和工作方式, 但是这不是必须的, 因为 shelve2.py 要简单得多。
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+#-*- coding: utf-8 -*-
+#from eurasia.shelve2 import open        # 即时 IO
+from eurasia.shelve2 import lazy as open # 惰性 IO
+
+d = open('test.fs', 'c') # 第二个参数是数据库文件的打开方式,
+                         # 'c' 是指以读写方式打开, 如果文件不存在则自动创建
+                         # 默认使用 'r' 以只读方式打开
+
+d['foo'] = {'a': 1, 'b': 2, 'c': 3}
+
+#d.sync() # 手动保存
+d.close() # 数据库关闭时会自动保存
+
+# 再次打开
+d2 = open('test.fs')
+print d2['foo']
+\end{verbatim}
+
+\subsection{对象数据库}
+
+在对象数据库中, Python 对象可以直接保存在数据库中, 而无须像关系数据库那样经过 "对象关系映射"。
+
+下面, 我们将定义一个 MyObject 对象并存入 shelve2 数据库。
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+#-*- coding: utf-8 -*-
+from shelve2 import lazy as open
+
+class MyObject:
+        def __init__(self):
+                self.a = None
+
+        def print_a(self):
+                print self.a
+
+d = open('test.fs', 'c')
+d['myobj'] = MyObject()
+d['myobj'].a = 'hello world!'
+d.close()
+
+# 注意, 在打开数据库时, 对象定义 class MyObject 必须存在
+# 否则会得到 AttributeError 的异常
+d2 = open('test.fs')
+d2['myobj'].print_a()
+\end{verbatim}
+
+\subsection{使用 Persistent 创建持久对象结点}
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+#-*- coding: utf-8 -*-
+from shelve2 import lazy as open
+from shelve2 import Persistent
+
+d = open('test.fs', 'c')
+obj = d.new(Persistent)() # 创建持久对象结点,
+                          # 显式指定持久对象归属于数据库 'd'
+
+obj.a = 'hello'
+obj.b = 'world'
+d['obj'] = obj
+d.close()
+
+d2 = open('test.fs')
+obj = d2['obj']
+print '%s %s!' %(obj.a, obj.b)
+\end{verbatim}
+
+在对象数据库中, Persistent 不同于一般的 Object。他们的区别在于在 Persistent 对象和普通 Object 同时作为父对象的属性时, 当父对象被展开、取出对象数据库时, 作为父对象属性的常规 Object 也会被自动展开读取到内存中; 而 Persistent 对象在父对象展开时仅以指针形式存在, 不会被展开到内存中。所以 Persistent 对象更节省内存并节约 IO, 这使得 Persistent 对象非常适合作为数据节点。
+
+你可能注意到于 ZODB 或者 Durus 数据库不同, shelve2.py 需要显式指定持久对象的数据库归属。这正是 shelve2.py 被设计出来的重要原因之一。ZODB 和 Durus 会为每一个线程隐含指定一个互相独立的连接 (Connection), 但是对于 Stackless Python 的 tasklet 线程来说, 这或许不大方便 (Eurasia3 正是基于 Stackless Python 的), 因为 tasklet 和常规意义上的线程还是有很大的不同。所以 shelve2.py 认为有必要把连接的选择权交还给用户。 
+
+\subsection{定制 Persistent 对象}
+
+自定义 Persistent 对象需从 Persistent 类继承。
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+#-*- coding: utf-8 -*-
+from shelve2 import lazy as open
+from shelve2 import Persistent
+
+class Foo(Persistent):
+	def __init__(self, a, b):
+		self.a = a
+		self.b = b
+
+	def print_ab(self):
+		print '%s %s!' %(self.a, self.b)
+
+d = open('test.fs', 'c')
+d['foo'] = d.new(Foo)('hello', 'world')
+d.close()
+
+d2 = open('test.fs')
+d2['foo'].print_ab()
+\end{verbatim}
+
+\subsection{使用 BTree 创建大容量数据结点}
+
+BTree 对象可以用以保存数以千万计的对象, 同时被保存的这些对象是按照 Key 排序的, 你可以以任何方式定位、遍历这些内容。
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+#-*- coding: utf-8 -*-
+from shelve2 import lazy as open
+from shelve2 import BTree
+
+d = open('test.fs', 'c')
+tr = d.new(BTree)()
+for i in xrange(1000):
+	tr[i] = `i`
+
+d['tr'] = tr
+d.close()
+
+d2 = open('test.fs')
+print d2['tr']
+\end{verbatim}
+
+BTree 除了支持所有类似于 dict 的方法外, 还支持各种遍历方法:
+
+\begin{tableii}{c|l}{}{ 说明 }{ 属性 }
+\lineii{ 正向遍历                 }{ BTree.iter() }
+\lineii{ 反向遍历                 }{ BTree.reversed() }
+\lineii{ 正向遍历返回键、值 }{ BTree.iteritems() }
+\lineii{ 反向遍历返回键、值 }{ BTree.items_backward() }
+\lineii{ 正向遍历返回键、值 }{ BTree.items_from(key, closed=True) }
+\lineii{ 反向遍历返回键、值 }{ BTree.items_backward_from(key, closed=True) }
+\lineii{ 遍历区域返回键、值 }{ BTree.items_range(start, end, closed_start=True, closed_end=False) }
+\end{tableii}
+
+BTree 对象可以以和 Persistent 对象类似的方法派生。
+
+shelve2 对象数据库的根对象就是一个 BTree 对象。 
+
+\subsection{Persistent 和 BTree}
+
+在 Zope/Plone 中, 不仅文件是 Persistent 对象, 连文件夹也是 Persistent 对象, 此时一个文件就是 Persistent 对象的一个属性。只有在文件夹过大的时候我们才会使用从 BTree 派生出来的 PloneLargeFolder。所以从本质上说, Persistent 和 BTree 都是容器对象, 他们的区别在于 Persistent 对象的内容在数据库里是连续存储, 而在内存中则变成 Hash Table, 在展开 Persistent 对象时其所有的属性也会随之一次性全部展开; 而 BTree 对象无论在数据库中还是内存中都是以平衡树的方式存储的, 读取 BTree 对象时 BTree 对象中的内容不会一次完全展开, 而是按需要分批展开。
+
+所以在需要频繁读取容器内容时、并且容器中放置的内容并不多的情况下 Persistent 会快于 BTree。而当保存的内容很多时 BTree 要更快。但是我们往往很难知道某个容器将来到底会扩充到何种规模, 所以可以在任何时候都使用 BTree 作为容器, 在性能上这其实并无大碍。
+
+\section{配置文件支持}
+
+Eurasia 的 pyetc 模块为配置文件的读取提供了支持。Eurasia 认为使用 Python 语法来编写配置文件是个好主意。
+
+pyetc 中的 load(filename, env={}) 函数能读取指定的 python 源码文件 (文件后缀并不需要一定是 ".py"), 并设定配置文件中的可见环境 env。load 函数能将指定源码文件转换成 Python 模块并返回。
+
+我们首先编写一个名为 \file{httpd.conf} 的配置文件。
+
+\begin{verbatim}
+Server(controller='Products.default.controller'
+	port=8080)
+
+user = 'nobody'
+\end{verbatim}
+
+下面是对于这个配置文件的解析
+
+\begin{verbatim}
+from eurasia import pyetc
+config = {}
+def Server(**args):
+	config.update(args)
+
+mod = pyetc.load('httpd.conf', env={Server:Server})
+print 'Server:', config
+print 'user', mod.user
+\end{verbatim}
+
+\section{虚拟主机}
+
+此前我们已经接触过 Eurasia 的 config 函数, 可以用于定义 HTTP 和 TCP 服务器。除此之外, 对于 HTTP 服务器, config 还可以进行更为深入细致的配置。
+
+\subsection{多 IP, 多端口}
+
+此前我们一直是将服务器绑定到本机的某个端口发布的。现在, 如果我们要将服务器发布到多个 IP 和端口上该怎么做呢?
+
+在这个例子里, 我们将一个服务器绑定到 192.168.0.1 地址的 80 端口和 192.168.0.2 地址的 8080 端口。
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+#-*- coding: utf-8 -*-
+from eurasia.web import config, mainloop
+def controller(request):
+	request.close()
+
+# 分别绑定到 192.168.0.1 的 80 端口, 和 192.168.0.2 的 8080 端口
+config(bind='192.168.0.1:80, 192.168.0.2:8080',
+	controller=controller)
+\end{verbatim}
+
+我们可以同时配置多个服务器。
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+#-*- coding: utf-8 -*-
+from eurasia.web import config, mainloop
+def controller1(request): request.close()
+def controller2(request): request.close()
+
+# 分别绑定到 192.168.0.1 的 80 端口, 和 192.168.0.2 的 8080 端口
+config(bind='192.168.0.1:80, 192.168.0.2:8080',
+	controller=controller1)
+
+# 分别绑定到 192.168.0.3 的 80 端口, 和 192.168.0.4 的 8080 端口
+config(bind='192.168.0.3:80, 192.168.0.4:8080',
+	controller=controller2)
+
+\end{verbatim}
+
+\note{TCP 服务器和 HTTP 服务器都可以使用多 IP 多端口绑定}
+
+\note{不可以将 TCP 服务器和 HTTP 服务器绑定到同一个地址的同一个端口}
+
+\note{只有在使用了虚拟主机的情况下多个 HTTP 服务器才可以重复绑定到同一个地址的同一个端口}
+
+\subsection{虚拟主机}
+
+config 支持虚拟主机的设定。比想像得还要简单。
+
+这里我们将绑定到 www.example.com 和 eurasia.example.com 这两个主机。
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+#-*- coding: utf-8 -*-
+from eurasia.web import config, mainloop
+def controller(request): request.close()
+
+# 分别绑定到 192.168.0.1 的 80 端口, 和 192.168.0.2 的 8080 端口
+# 仅处理指定主机为 *.www.example.com 和 *.euraisa.example.com 的请求
+config(
+	bind='192.168.0.1:80, 192.168.0.2:8080',
+	host='www.example.com, eurasia.example.com', # 指定虚拟主机
+
+	controller=controller)
+\end{verbatim}
+
+\note{虚拟主机功能不支持 TCP 服务器}
+
+\section{实用工具}
+
+这里将介绍一些 Eurasia 中自带的实用工具。
+
+\subsection{sleep}
+
+有时我们需要定时唤醒功能, 但 Eurasia 轻便线程 (micro thread) 中是不允许阻塞和 IO 操作的 (CPU 和内存操作是允许的), 因此 Eurasia 提供了一个非阻塞的 sleep 实现, 当轻便线程中执行 sleep 函数时, CPU 会跳出并执行其他线程, 直到 sleep 指定的时间结束以后再回到该线程继续执行。
+
+Eurasia 把 Python 标准库中阻塞实现的修改版都放在 eurasia.modules 包中。因为 sleep 在 Python 标准库的 time 模块下, 因此我们可以这样取出 sleep 函数
+
+\begin{verbatim}
+import eurasia
+sleep = eurasia.modules['time'].sleep
+\end{verbatim}
+
+\note{使用 sleep 会启动时间管理器, Eurasia 整体性能会略有下降}
+
+\subsection{urlopen}
+
+Eurasia 提供了标准库中 urlopen 的非阻版, 同时增加了设定 HTTP Headers 的功能。
+
+你可以这样取出 urllib。
+
+\begin{verbatim}
+import eurasia
+urlopen = eurasia.modules['urllib'].urlopen
+\end{verbatim}
+
+urlopen 的参数是:
+
+\begin{verbatim}
+response = urlopen(url, data='', headers={}, **args)
+\end{verbatim}
+
+其中, data 是发送的 POST 报文, 如果不指定 data 那么 urlopen 将发送 GET 请求。
+
+headers 可以指定 HTTP Headers, 也可以以 args 的方式指定 Headers。这里是一个例子:
+
+\begin{verbatim}
+fd = urlopen('http://www.example.com/', data='a=1&b=2',
+	{'Accept-Charset': 'iso-8859-5, unicode-1-1;q=0.8'},
+	Accept_Encoding= 'gzip;q=1.0, identity; q=0.5, *;q=0' # args 方式, 使用 "_" 代替 "-"
+	)
+
+# 输出响应状态
+print fd.version, fd.status, fd.message
+
+# 输出响应的头部
+for key, value in fd.items():
+	print key, ':', value
+
+print fd.readline() # 读取一行
+print fd.read()     # 读取全部
+\end{verbatim}
+
+可以发现, urlopen 返回的文件句柄 fd 的使用方式和 Eurasia HTTP 服务器的 request/response 都是一致的。
+
+\note{在 Eurasia 3.0.0 版本中, urlopen 仅支持 HTTP 协议}
+
+\note{因为可以处理 Headers, 所以可以直接通过 Set-Cookie 和 Cookie 头来处理 cookie}
+
+\note{urlopen 会原样返回远程 HTTP 服务器的响应报文, 而不会自动执行 gzip 等解码 (如果远程服务器确实使用了 gzip 等编码)}
+
+\subsection{磁盘文件}
+
+在 Unix 下文件操作同样可以使用异步 IO。这时你需要用 eurasia.web.File 替换系统的 open 函数来打开文件, 参数是一样的。 
+
+\begin{verbatim}
+from eurasia.web import File as open
+\end{verbatim}
+
+\note{Eurasia 异步文件只能在 Unix 中使用, Windows 用户请参考 google code 项目 stackless example 中的 \file{stacklessfile.py}}
+
+\section{mkeurinstance.py}
+
+Eurasia 中的 \file{mkeurinstance.py} 脚本可以帮你建立一个简单的 Eurasia 站点。\file{mkeurinstance.py} 脚本的使用很简单, 你只需要在控制台下输入
+
+\begin{verbatim}
+/PATH/TO/python2.5 /PATH/TO/mkeurinstance.py
+\end{verbatim}
+
+\file{mkeurinstance.py} 脚本会询问你在哪里建立 Eurasia 站点, 并在目标路径建立 Eurasia 站点。
+
+自动生成的 Eurasia 站点包含 \file{bin}、\file{etc}、\file{lib}、\file{var}、\file{tmp}、\file{Products} 这几个目录。
+
+\note{你用来执行 mkeurinstance.py 脚本的 python, 就是生成站点所用的 python。如果你机器上有多个 python, 执行 mkeurinstance.py 脚本的时候就是选择用哪个 python 来运行 Eurasia 站点的时机。}
+
+\subsection{配置服务器}
+
+Eurasia 站点的 etc 目录保存了站点的配置文件, 主要是 \file{eurasiad.conf}。下面简介一下配置文件格式。
+
+\begin{itemize}
+
+\item \strong{Daemon 块}
+
+\file{eurasiad.conf} 中的 Daemon 块指定了 Eurasia 服务器后台进程, 包括 address (pid 文件的位置) 和 program (服务器主程序)。
+
+\begin{verbatim}
+Daemon(
+	address = var('eurasiad.pid'),
+	program = bin('runeurasia' )
+)
+\end{verbatim}
+
+\note{配置文件中可以使用 bin、etc、lib、var、tmp 等预设函数, 函数返回分别返回文件在站点中的相关位置。}
+
+\item \strong{Server 块}
+
+\file{eurasiad.conf} 中的 Server 块相当于 config 函数, 可以有多个。
+
+\begin{verbatim}
+Server(
+	controller = Products.default.controller,
+	bind = '0.0.0.0:80, 0.0.0.0:8080',
+	host = 'www.example.com, eurasia.example.com'
+)
+\end{verbatim}
+
+Server 块和 config 函数不同的地方在于其 controller (或者 tcphandler) 设置。上面用到了 Products.default.controller, 意为 Products 目录下的 default 包中的 controller 函数。你也可以用字符串的方式来指定
+
+\begin{verbatim}
+controller = "Products.default.controller"
+\end{verbatim}
+
+\item \strong{multicore 参数}
+
+你可以通过 multicore 指定服务器进程数。默认为 True, Eurasia 会自动检测服务器 CPU 数量。如果设置为 False, 则使用单进程。也可以直接指定一个进程数。
+
+\begin{verbatim}
+multicore = 2 # CPU 或者 CPU 核心数量, 默认自动检测当前 CPU 数, 设置 False 为单核
+\end{verbatim}
+
+\note{需要注意的是一旦使用了多进程, 各个微进程之间将是进程间通信, 你将不能享受到无锁单线程的便利, 这是一个及其巨大的损失。因此在许多场合你需要把 multicore 设置成 False。我们只能期待 PyPy 将来能够解决这个问题。}
+
+\item \strong{user 参数}
+
+你可以设置服务器以哪个用户的身份来执行。默认是当前用户。
+
+\begin{verbatim}
+user = 'nobody'
+\end{verbatim}
+
+\note{如果设置了 user, 为了切换用户, 你需要以 root 身份来启动服务器。}
+
+\item \strong{verbose 参数}
+
+调试模式默认是关闭的, 你可以在配置文件中这样打开调试模式。
+
+\begin{verbatim}
+verbose = True
+\end{verbatim}
+
+\end{itemize}
+
+\subsection{启动服务器}
+
+\begin{itemize}
+
+\item \strong{runeurasia}
+
+\file{bin} 目录下的 \file{runeurasia} 脚本是服务器的主程序。你可以执行该脚本将服务器启动在控制台中。如果在配置文件中设定了 verbose = True, 那么可以看到错误输出。
+
+\begin{verbatim}
+$ cd /PATH/TO/bin
+$ ./runeurasia
+\end{verbatim}
+
+\note{我们通常在调试时使用 runeurasia}
+
+\item \strong{eurasiad}
+
+\file{eurasiad} 脚本可以以后台进程的方式启动服务器 (精灵进程)。
+
+\begin{verbatim}
+$ ./eurasiad start
+\end{verbatim}
+
+你可以使用 eurasiad stop 停止服务器, 并通过 eurasiad status 来检查服务器状态。
+
+eurasiad start 在启动服务器的同时还会启动 daemon 管理进程, 你可以通过 eurasia tiny [procname] 的形式仅启动服务器而不使用 daemon 管理器。这时你只能通过 killall procname 的形式来停止服务器。
+
+\begin{verbatim}
+$ ./eurasiad tiny hello
+$ killall hello
+\end{verbatim}
+
+\note{只有在 Unix 下才可以使用 eurasiad 脚本, Windows 下请使用 pywin32 将服务器注册为服务, 或者使用 taskbar 组件将服务器运行在托盘区}
+
+\end{itemize}
+
+\subsection{Products 目录}
+
+我们前面已经看到在配置文件中有专门指向 Products 的连接对象。我们编写的站点和第三方扩展都放置在 Products 下。
+
+对于 Eurasia 站点中的程序来说, Products 是一个可见的包, 我们可以在程序中这样得到 Products 下的内容。
+
+\begin{verbatim}
+import Products
+from Products import ...
+\end{verbatim}
+
+除了 Products 之外, 站点的 lib 目录也已经被加入了 Python 的库搜索路径, 你可以把需要用到的库放置在 Products 和 lib 目录下, 而无须把这些东西安装在 Python 上。
+
+\end{document}

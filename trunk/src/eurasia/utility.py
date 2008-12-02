@@ -1,3 +1,37 @@
+class nul:
+	write = staticmethod(lambda s: None)
+	flush = staticmethod(lambda  : None)
+	read  = staticmethod(lambda n: ''  )
+
+def base():
+	import os, sys
+	return os.path.abspath(os.path.dirname(
+		sys._getframe(1).f_globals['__file__']))
+
+def basejoin(*args):
+	import os, sys
+	return os.path.abspath(os.path.join(os.path.dirname(
+		sys_getframe(1).f_globals['__file__']), *args))
+
+def cpu_count():
+	import os, sys
+	if sys.platform == 'win32':
+		try:
+			return int(os.environ['NUMBER_OF_PROCESSORS'])
+		except (ValueError, KeyError):
+			return 0
+
+	elif sys.platform == 'darwin':
+		try:
+			return int(os.popen('sysctl -n hw.ncpu').read())
+		except ValueError:
+			return 0
+	else:
+		try:
+			return os.sysconf('SC_NPROCESSORS_ONLN')
+		except (ValueError, OSError, AttributeError):
+			return 0
+
 def setuid(user):
 	import os, pwd
 	try:
@@ -41,16 +75,21 @@ def setprocname(procname, libc='/lib/libc.so.6', env='__PROCNAME', format='%s:')
 
 def dummy():
 	import os, sys
-	devnull = hasattr(os, 'devnull') and os.devnull or '/dev/null'
-	stdin  = open(devnull, 'r')
-	stdout = open(devnull, 'a+')
-	stderr = open(devnull, 'a+', 0)
-	os.dup2(stdin.fileno() , sys.stdin.fileno() )
-	os.dup2(stdout.fileno(), sys.stdout.fileno())
-	os.dup2(stderr.fileno(), sys.stderr.fileno())
-	sys.stdin  = sys.__stdin__  = stdin
-	sys.stdout = sys.__stdout__ = stdout
-	sys.stderr = sys.__stderr__ = stderr
+	if hasattr(os, 'devnull') and os.devnull:
+		stdin  = open(os.devnull, 'r')
+		stdout = open(os.devnull, 'a+')
+		stderr = open(os.devnull, 'a+', 0)
+		os.dup2(stdin.fileno(), sys.stdin.fileno())
+		os.dup2(stdout.fileno(), sys.stdout.fileno())
+		os.dup2(stderr.fileno(), sys.stderr.fileno())
+		sys.stdin  = sys.__stdin__  = stdin
+		sys.stdout = sys.__stdout__ = stdout
+		sys.stderr = sys.__stderr__ = stderr
+
+	else:
+		sys.stdin  = sys.__stdin__  = nul
+		sys.stdout = sys.__stdout__ = nul
+		sys.stderr = sys.__stderr__ = nul
 
 def daemonize(program, *args):
 	import os, signal, sys
