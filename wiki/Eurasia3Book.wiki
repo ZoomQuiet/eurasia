@@ -7,7 +7,7 @@ _(当然了, 也是女人的最爱)_
 
 ===欢迎进入 Eurasia3 魔幻世界===
 
-_本文档尚在编写阶段, 关于 Eurasia3 技术的任何问题可以向 [http://groups.google.com/group/eurasia-users Eurasia 邮件列表]提出, 感谢您的支持 :) _
+_本文档尚在编写阶段, 关于 Eurasia3 技术的任何问题可以向 [http://groups.google.com/group/eurasia-users eurasia 邮件列表]提出, 感谢您的支持 :) _
 
 [http://code.google.com/p/eurasia/wiki/Eurasia3Demo Eurasia3 Demo] 是一份全面展示 Eurasia3 功能, 且颇为可读的范例文档。
 
@@ -38,8 +38,8 @@ Eurasia3 当然也照例实现了一些常规 Web 框架的功能, 不错, 重�
 很废柴, 其实这里不必贴过程出来的 ……
 
 {{{
-tar xzf Eurasia-3.x.x.tar.gz
-cd Eurasia-3.x.x
+tar xzf eurasia-3.x.x.tar.gz
+cd eurasia-3.x.x
 /PATH/TO/STACKLESS/bin/python2.5 setup.py install
 }}}
 
@@ -48,7 +48,7 @@ cd Eurasia-3.x.x
 现在, 是时候编写我们第一个 Web 服务器了。
 
 {{{
-from Eurasia.web import config, mainloop
+from eurasia.web import config, mainloop
 
 hello = '''\
 HTTP/1.1 200 OK
@@ -110,8 +110,8 @@ if __name__ == '__main__':
 ──── 只是 Response 更酷而已。
 
 {{{
-from Eurasia.web import config, mainloop
-from Eurasia.web import Response
+from eurasia.web import config, mainloop
+from eurasia.web import Response
 
 def controller(client):
 	resp = Response(client)
@@ -141,8 +141,8 @@ Form 来啦!
 Form 是这样的一个字典: `{'a': 1, 'b': 2}`。然后, POST 方法也是支持的。
 
 {{{
-from Eurasia.web import config, mainloop
-from Eurasia.web import Response, Form
+from eurasia.web import config, mainloop
+from eurasia.web import Response, Form
 
 def controller(client):
 	resp = Response(client)
@@ -236,7 +236,7 @@ Response 与 Request 基本上是一一对应的, 互为逆操作。
 {{{
 # cherrypy.py
 
-from Eurasia.web import config, mainloop, \
+from eurasia.web import config, mainloop, \
 	Form, Response
 from traceback import print_exc
 
@@ -307,7 +307,7 @@ then start the application at the command prompt:
 python hello.py
 }}}
 
-CherryPy 是一个可尊敬的框架, 早期特别是 Eurasia2 受 CherryPy 影响非常大,
+CherryPy 是一个可尊敬的框架, 早期特别是 eurasia2 受 CherryPy 影响非常大,
 
 所以这个例子只是用来说明让 Eurasia3 像 CherryPy 那样工作是非常容易的, 并没有轻视它的意思
 
@@ -321,7 +321,7 @@ _通常使用 Eurasia3 模仿的框架比起原框架会拥有[http://groups.goo
 
 {{{
 from re import compile
-from Eurasia.web import config, mainloop, Response
+from eurasia.web import config, mainloop, Response
 
 def hello(resp, *args, **kw):
 	print >> resp, 'hello:', args, kw
@@ -371,7 +371,7 @@ mainloop()
 ||pyetc.py||配置文件读取功能 _以后会讲到_||
 ||daemon.py||守护进程模块 _以后会讲到_||
 
-现在把 web.py 从 Eurasia 目录中拿出来, 我们就拥有了一个 "web.py"。
+现在把 web.py 从 eurasia 目录中拿出来, 我们就拥有了一个 "web.py"。
 
 {{{
 import web
@@ -462,13 +462,13 @@ channels  = {}
 ===Eurasia3 是基于 Stackless 的框架===
 
 这里的意思是, Eurasia3 永远不会害你:
-  * time.sleep(sec) 不会真正阻塞掉整个服务器 (Eurasia 会给 time.sleep 打上补丁)
+  * time.sleep(sec) 不会真正阻塞掉整个服务器 (eurasia 会给 time.sleep 打上补丁)
   * Eurasia3 中所有的 IO 操作都 "不是" IO 操作 ──── 他们会不停交出 CPU
 
 ──── 所以请放心使用, 您不必像下面的程序那样过度小心:
 
 {{{
-from Eurasia.web import schedule
+from eurasia.web import schedule
 from time import sleep
 
 def controller(client):
@@ -568,8 +568,8 @@ def controller(client):
 ===这里我向大家介绍一位 "新" 朋友 Response===
 
 {{{
-from Eurasia.web import config, mainloop
-from Eurasia.web import Response
+from eurasia.web import config, mainloop
+from eurasia.web import Response
 from time import sleep
 
 def controller(client):
@@ -611,8 +611,8 @@ _Hello, 小朋友, 我要调用你页面上的 JavaScript。 _
 不过非常遗憾, Eurasia3 就是被设计成用来做这些事情的。
 
 {{{
-from Eurasia.web import config, mainloop
-from Eurasia.web import Pushlet, Response
+from eurasia.web import config, mainloop
+from eurasia.web import Pushlet, Response
 from time import sleep
 
 page = '''\
@@ -661,7 +661,7 @@ if __name__ == '__main__':
 	mainloop()
 }}}
 
-(注意, 从 Eurasia-3.0.0alpha5 版本以后, 请使用 Comet 来代替 Pushlet)
+(注意, 从 eurasia-3.0.0alpha5 版本以后, 请使用 Comet 来代替 Pushlet)
 
 ===Pushlet vs AJAX===
 
@@ -685,7 +685,7 @@ http://www.adaptivepath.com/images/publications/essays/ajax-fig1.png
 
 下面请看传统模式 _AJAX_ 和 Eurasia3 工作模式的区别 _──── 感谢 CCTV, 感谢 [http://www.tuxpaint.cn/ tuxpaint]_ 。
 
-http://eurasia.googlecode.com/files/eurasia3vsajax.jpg [http://www.tuxpaint.org/ http://www.tuxpaint.org/tuxpaint/gfx/corner-penguin.png]
+http://eurasia.googlecode.com/files/Eurasia3vsajax.jpg [http://www.tuxpaint.org/ http://www.tuxpaint.org/tuxpaint/gfx/corner-penguin.png]
 
 ===这叫什么? 这叫全双工通信===
 
