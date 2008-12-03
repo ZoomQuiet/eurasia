@@ -2,6 +2,17 @@ __version__ = '3.0.0'
 
 def patch():
 	try:
+		from py.magic import greenlet
+	except ImportError:
+		pass
+	else:
+		class GWrap(greenlet):
+			def raise_exception(self, e):
+				self.throw(e)
+
+		__import__('stackless').GWrap = GWrap
+
+	try:
 		from select import poll
 	except ImportError:
 		select2poll()
