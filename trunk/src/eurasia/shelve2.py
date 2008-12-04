@@ -130,7 +130,7 @@ class Persistent(Base):
 			o._p_release()
 
 	def _p_dump(self):
-		return dumps(self._p_obj)
+		return dumps(self._p_obj, 2)
 
 	def _p_load(self, conn=None):
 		if conn:
@@ -605,7 +605,7 @@ class BNode(object):
 					yield self.get(item)
 
 	def _p_dump(self):
-		return dumps((self.items, self.nodes))
+		return dumps((self.items, self.nodes), 2)
 
 	def _p_load(self, conn=None):
 		if conn:
@@ -773,7 +773,7 @@ class GdbmConnection(object):
 		self.db = gdbm_open(filename, mode)
 		if not self.db.has_key(id0):
 			tr = self.new(self.roottype)()
-			self.db[id0] = dumps(tr)
+			self.db[id0] = dumps(tr, 2)
 
 	def __del__(self):
 		self.close()
@@ -804,7 +804,7 @@ class GdbmConnection(object):
 		if not root:
 			raise RuntimeError('db root not exists')
 
-		self.db[id0] = dumps(root)
+		self.db[id0] = dumps(root, 2)
 
 	def new(self, cls):
 		def whatever(*args, **kw):
@@ -835,7 +835,7 @@ class LazyGdbmConnection(GdbmConnection):
 		self.db = gdbm_open(filename, mode)
 		if not self.db.has_key(id0):
 			tr = self.new(self.roottype)()
-			self.db[id0] = dumps(tr)
+			self.db[id0] = dumps(tr, 2)
 
 	def __setitem__(self, key, o):
 		self.changed[key] = o
