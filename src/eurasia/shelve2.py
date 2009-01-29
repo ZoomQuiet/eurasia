@@ -908,10 +908,7 @@ else:
 
 __new__ = object.__new__
 
-dbmget = lambda db,   key: db[key]
-sync   = lambda loadpoint: loadpoint._p_conn_ref.sync()
-close  = lambda loadpoint: loadpoint._p_conn_ref.close()
-
+dbmget = lambda db, key: db[key]
 global_threadpool, environ = None, (allocate_lock(), {})
 ConflictError  = type('ConflictError', (Exception, ), {})
 ReadConflictError = type('ReadConflictError' , (ConflictError, ), {})
