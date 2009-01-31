@@ -329,7 +329,7 @@ class Client:
 class HttpClient(dict):
 	def __init__(self, conn, addr):
 		self.client = client = Client(conn, addr)
-		self.initialize(client)
+		self._initialize(client)
 
 		self.address = client.address
 		self.write   = client.write
@@ -349,7 +349,7 @@ class HttpClient(dict):
 		except KeyError:
 			return False
 
-	def initialize(self, client):
+	def _initialize(self, client):
 		first  = client.readline(8192)
 		try:
 			method, self.path, version = R_FIRST(first).groups()
@@ -410,7 +410,7 @@ class HttpClient(dict):
 		if shutdown:
 			return self.client.close()
 
-		self.initialize(self.client)
+		self._initialize(self.client)
 
 def HttpHandler(controller):
 	def handler(conn, addr):
