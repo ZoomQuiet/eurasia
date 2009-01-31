@@ -48,8 +48,6 @@ class Pool:
 			try:
 				result = func(*args, **kw)
 			except BaseException, e:
-				import traceback, sys
-				traceback.print_exc(file=sys.stderr)
 				rst.send((-1, e))
 			else:
 				rst.send((0, result))
