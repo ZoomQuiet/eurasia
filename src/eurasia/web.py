@@ -14,7 +14,6 @@ class Client:
 		self.socket = sock
 		self.address = addr
 		self.pid = sock.fileno()
-		self.tasklet = getcurrent()
 		self._rbuf = self._wbuf = ''
 		self.read_channel = channel()
 		self.write_channel = channel()
@@ -65,8 +64,10 @@ class Client:
 		if not hasattr(self, 'pid'):
 			raise Disconnect
 
-		self._wbuf = data
+		self._wbuf        = data
+		self.tasklet      = getcurrent()
 		self.handle_write = self.write4raw().next
+
 		pollster.register(self.pid, WE)
 		return self.write_channel.receive()
 
@@ -89,7 +90,8 @@ class Client:
 		data = self._rbuf
 		if size < 0:
 			buffers = data and [data] or []
-			self._rbuf = ''
+			self._rbuf   = ''
+			self.tasklet = getcurrent()
 			yield
 
 			while True:
@@ -130,8 +132,10 @@ class Client:
 				raise StopIteration
 
 			buffers = data and [data] or []
-			self._rbuf = ''
+			self._rbuf   = ''
+			self.tasklet = getcurrent()
 			yield
+
 			while True:
 				left = size - buf_len
 				try:
@@ -182,8 +186,10 @@ class Client:
 				raise StopIteration
 
 			buffers = data and [data] or []
-			self._rbuf = ''
+			self._rbuf   = ''
+			self.tasklet = getcurrent()
 			yield
+
 			while True:
 				try:
 					data = self.socket.recv(8192)
@@ -234,8 +240,10 @@ class Client:
 				raise StopIteration
 
 			buffers = data and [data] or []
-			self._rbuf = ''
+			self._rbuf   = ''
+			self.tasklet = getcurrent()
 			yield
+
 			while True:
 				try:
 					data = self.socket.recv(8192)
@@ -320,13 +328,34 @@ class Client:
 
 class HttpClient(dict):
 	def __init__(self, conn, addr):
-		client = Client(conn, addr)
-		first = client.readline(8192)
+		self.client = client = Client(conn, addr)
+		self.initialize(client)
+
+		self.address = client.address
+		self.write   = client.write
+		self.pid     = client.pid
+
+	@property
+	def uid(self):
+		try:
+			return R_UID(self['Cookie']).groups()[0]
+		except:
+			return None
+
+	@property
+	def keep_alive(self):
+		try:
+			return self['Connection'].lower() == 'keep-alive'
+		except KeyError:
+			return False
+
+	def initialize(self, client):
+		first  = client.readline(8192)
 		try:
 			method, self.path, version = R_FIRST(first).groups()
 		except AttributeError:
 			client.close()
-			raise IOError
+			raise Disconnect
 
 		self.version = version.upper()
 		line = client.readline(8192)
@@ -339,14 +368,14 @@ class HttpClient(dict):
 					break
 
 				client.close()
-				raise IOError
+				raise Disconnect
 
 			self['-'.join(i.capitalize() for i in key.split('-'))] = value
 			line = client.readline(8192)
 			counter += len(line)
 			if counter > 10240:
 				client.close()
-				raise IOError
+				raise Disconnect
 
 		self.method = method.upper()
 		if self.method == 'GET':
@@ -356,20 +385,7 @@ class HttpClient(dict):
 				self.left = int(self['Content-Length'])
 			except:
 				client.close()
-				raise IOError
-
-		self.address  = client.address
-		self.pid      = client.pid
-		self.write    = client.write
-		self.close    = client.close
-		self.client   = client
-
-	@property
-	def uid(self):
-		try:
-			return R_UID(self['Cookie']).groups()[0]
-		except:
-			return None
+				raise Disconnect
 
 	def read(self, size=-1):
 		if size == -1 or size >= self.left:
@@ -390,11 +406,17 @@ class HttpClient(dict):
 		self.left -= len(data)
 		return data
 
+	def close(self, shutdown=True):
+		if shutdown:
+			return self.client.close()
+
+		return self.initialize(self.client)
+
 def HttpHandler(controller):
 	def handler(conn, addr):
 		try:
 			client = HttpClient(conn, addr)
-		except IOError:
+		except Disconnect:
 			return
 
 		try:
