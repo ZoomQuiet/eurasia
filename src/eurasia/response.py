@@ -4,19 +4,15 @@ from time import gmtime, strftime, time
 from BaseHTTPServer import BaseHTTPRequestHandler
 
 class Response(dict):
+	uid = None
 	def __init__(self, client, **args):
 		dict.__init__(self, DEFAULTHEADERS)
-
-		self.client = client
-		self.uid = None
-		self.content = ''
-
+		self.content = []
+		self.client  = client
+		self.write   = self.content.append
 		self.version = args.get('version', 'HTTP/1.1')
 		self.status  = int(args.get('status' , 200))
 		self.message = args.get('message', RESPONSES[self.status])
-
-	def write(self, data):
-		self.content += data
 
 	def begin(self):
 		items = ['%s: %s' %(key, value) for key, value in self.items()]
@@ -36,8 +32,9 @@ class Response(dict):
 		self.close = self.end = client.close
 		delattr(self, 'content')
 
-	def close(self):
-		self['Content-Length'] = str(len(self.content))
+	def close(self, shutdown=True, **args):
+		data = ''.join(self.content)
+		self['Content-Length'] = str(len(data))
 		items = ['%s: %s' %(key, value) for key, value in self.items()]
 		if self.uid:
 			items.append(T_UID(uid=self.uid, expires=strftime(
@@ -47,9 +44,21 @@ class Response(dict):
 		items = '\r\n'.join(items)
 
 		self.client.write(T_RESPONSE(headers=items, version=self.version,
-			status=str(self.status), message=self.message) + self.content)
+			status=str(self.status), message=self.message) + data)
 
-		self.client.close()
+		if shutdown:
+			return self.client.close()
+
+		self.client.close(False)
+
+		self.clear()
+		dict.__init__(self, DEFAULTHEADERS)
+
+		self.content = []
+		self.write   = self.content.append
+		self.version = args.get('version', 'HTTP/1.1')
+		self.status  = int(args.get('status' , 200))
+		self.message = args.get('message', RESPONSES[self.status])
 
 class Comet(dict):
 	def __init__(self, client, **args):
