@@ -410,7 +410,7 @@ class HttpClient(dict):
 		if shutdown:
 			return self.client.close()
 
-		return self.initialize(self.client)
+		self.initialize(self.client)
 
 def HttpHandler(controller):
 	def handler(conn, addr):
