@@ -329,27 +329,6 @@ class Client:
 class HttpClient(dict):
 	def __init__(self, conn, addr):
 		self.client = client = Client(conn, addr)
-		self._initialize(client)
-
-		self.address = client.address
-		self.write   = client.write
-		self.pid     = client.pid
-
-	@property
-	def uid(self):
-		try:
-			return R_UID(self['Cookie']).groups()[0]
-		except:
-			return None
-
-	@property
-	def keep_alive(self):
-		try:
-			return self['Connection'].lower() == 'keep-alive'
-		except KeyError:
-			return False
-
-	def _initialize(self, client):
 		first  = client.readline(8192)
 		try:
 			method, self.path, version = R_FIRST(first).groups()
@@ -386,6 +365,18 @@ class HttpClient(dict):
 			except:
 				client.close()
 				raise Disconnect
+
+		self.address = client.address
+		self.write   = client.write
+		self.close   = client.close
+		self.pid     = client.pid
+
+	@property
+	def uid(self):
+		try:
+			return R_UID(self['Cookie']).groups()[0]
+		except:
+			return None
 
 	def read(self, size=-1):
 		if size == -1 or size >= self.left:

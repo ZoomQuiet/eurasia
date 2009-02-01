@@ -32,7 +32,7 @@ class Response(dict):
 		self.close = self.end = client.close
 		delattr(self, 'content')
 
-	def close(self, shutdown=True, **args):
+	def close(self):
 		data = ''.join(self.content)
 		self['Content-Length'] = str(len(data))
 		items = ['%s: %s' %(key, value) for key, value in self.items()]
@@ -46,19 +46,7 @@ class Response(dict):
 		self.client.write(T_RESPONSE(headers=items, version=self.version,
 			status=str(self.status), message=self.message) + data)
 
-		if shutdown:
-			return self.client.close()
-
-		self.client.close(False)
-
-		self.clear()
-		dict.__init__(self, DEFAULTHEADERS)
-
-		self.content = []
-		self.write   = self.content.append
-		self.version = args.get('version', 'HTTP/1.1')
-		self.status  = int(args.get('status' , 200))
-		self.message = args.get('message', RESPONSES[self.status])
+		self.client.close()
 
 class Comet(dict):
 	def __init__(self, client, **args):
