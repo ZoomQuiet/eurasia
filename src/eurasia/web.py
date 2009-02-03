@@ -1,6 +1,9 @@
-import re, stackless
+import re, sys, stackless
+from _weakref import proxy
+from string import Template
 from sys import stdout, stderr
 from traceback import print_exc
+from time import gmtime, strftime, time
 from stackless import channel, getcurrent, schedule, tasklet
 from select import poll as Poll, error as SelectError, \
 	POLLIN, POLLPRI, POLLOUT, POLLERR, POLLHUP, POLLNVAL
@@ -9,7 +12,11 @@ from errno import EALREADY, EINPROGRESS, EWOULDBLOCK, ECONNRESET, \
 from _socket import socket as Socket, error as SocketError, \
 	AF_INET, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR, SO_REUSEADDR
 
-class Client:
+from BaseHTTPServer import BaseHTTPRequestHandler
+RESPONSES = dict((key, value[0]) for key, value in BaseHTTPRequestHandler.responses.items())
+del BaseHTTPRequestHandler, sys.modules['BaseHTTPServer']
+
+class SocketFile:
 	def __init__(self, sock, addr):
 		self.socket = sock
 		self.address = addr
@@ -17,7 +24,7 @@ class Client:
 		self._rbuf = self._wbuf = ''
 		self.read_channel = channel()
 		self.write_channel = channel()
-		socket_map[self.pid] = self
+		socket_map[self.pid] = proxy(self)
 
 	def __del__(self):
 		if hasattr(self, 'pid'):
@@ -33,6 +40,9 @@ class Client:
 
 			self.socket.close()
 			del self.pid
+
+	def fileno(self):
+		return self.pid
 
 	def read(self, size=-1):
 		if not hasattr(self, 'pid'):
@@ -72,6 +82,21 @@ class Client:
 		return self.write_channel.receive()
 
 	def close(self):
+		if hasattr(self, 'pid'):
+			try:
+				pollster.unregister(self.pid)
+			except KeyError:
+				pass
+
+			try:
+				del socket_map[self.pid]
+			except KeyError:
+				pass
+
+			self.socket.close()
+			del self.pid
+
+	def shutdown(self):
 		if hasattr(self, 'pid'):
 			try:
 				pollster.unregister(self.pid)
@@ -326,18 +351,17 @@ class Client:
 		self.close()
 		self.tasklet.raise_exception(Disconnect)
 
-class HttpClient(dict):
-	def __init__(self, conn, addr):
-		self.client = client = Client(conn, addr)
-		first  = client.readline(8192)
+class HttpFile(dict):
+	def __init__(self, sockfile):
+		first  = sockfile.readline(8192)
 		try:
 			method, self.path, version = R_FIRST(first).groups()
 		except AttributeError:
-			client.close()
-			raise Disconnect
+			sockfile.close()
+			raise IOError
 
 		self.version = version.upper()
-		line = client.readline(8192)
+		line = sockfile.readline(8192)
 		counter = len(first) + len(line)
 		while True:
 			try:
@@ -346,15 +370,15 @@ class HttpClient(dict):
 				if line in ('\r\n', '\n'):
 					break
 
-				client.close()
-				raise Disconnect
+				sockfile.close()
+				raise IOError
 
-			self['-'.join(i.capitalize() for i in key.split('-'))] = value
-			line = client.readline(8192)
+			dict.__setitem__(self, '-'.join(i.capitalize() for i in key.split('-')), value)
+			line = sockfile.readline(8192)
 			counter += len(line)
 			if counter > 10240:
-				client.close()
-				raise Disconnect
+				sockfile.close()
+				raise IOError
 
 		self.method = method.upper()
 		if self.method == 'GET':
@@ -363,64 +387,150 @@ class HttpClient(dict):
 			try:
 				self.left = int(self['Content-Length'])
 			except:
-				client.close()
-				raise Disconnect
+				sockfile.close()
+				raise IOError
 
-		self.address = client.address
-		self.write   = client.write
-		self.close   = client.close
-		self.pid     = client.pid
+		self.content  = []
+		self.respader = {}
+		self.sockfile = sockfile
+		self.closing  = channel()
+		self.write = self.content.append
+
+	def __del__(self):
+		if hasattr(self, 'closing'):
+			self.sockfile.close()
+			self.closing.send(0)
+
+	def __setitem__(self, key, value):
+		self.respader['-'.join(i.capitalize() for i in key.split('-'))] = value
 
 	@property
-	def uid(self):
+	def pid(self):
+		return self.sockfile.pid
+
+	@property
+	def address(self):
+		return self.sockfile.address
+
+	def getuid(self):
 		try:
 			return R_UID(self['Cookie']).groups()[0]
 		except:
 			return None
 
-	def read(self, size=-1):
-		if size == -1 or size >= self.left:
-			data = self.client.read(self.left)
-			self.left = 0
-			return data
+	def setuid(self, uid):
+		self.respader['Set-Cookie'] = 'uid=%s; path=/; expires=%s' %(
+			uid, strftime('%a, %d-%b-%Y %H:%M:%S GMT', gmtime(time() + 157679616)))
+
+	uid = property(getuid, setuid)
+	del getuid, setuid
+
+	def getstatus(self):
+		return self._status
+
+	def setstatus(self, status):
+		self._status  = status
+		self._message = RESPONSES[status]
+
+	status, _status, _message = property(getstatus, setstatus), 200, RESPONSES[200]
+	del getstatus, setstatus
+
+	def fileno(self):
+		return self.sockfile.pid
+
+	def _write(self, data):
+		if hasattr(self, 'closing'):
+			try:
+				self.sockfile.write(data)
+			except Disconnect:
+				self.closing.send(0)
+				del self.closing
+				raise
 		else:
-			data = self.client.read(size)
-			self.left -= len(data)
-			return data
+			raise Disconnect
 
-	def readline(self, size=-1):
-		if size == -1 or size >= self.left:
-			data = self.client.readline(self.left)
+	def begin(self):
+		if not hasattr(self, 'closing'):
+			raise Disconnect
+
+		respader = ['%s: %s' %(key, value) for key, value in self.respader.items()]
+		respader.insert(0, '%s %s %s' %(self.version, self._status, self._message))
+		respader.append('\r\n')
+		respader = '\r\n'.join(respader)
+
+		self.write = self._write
+		self.close = self.end
+
+		try:
+			self.sockfile.write(respader)
+		except Disconnect:
+			self.closing.send(0)
+			del self.closing
+			raise
+
+	def end(self):
+		if hasattr(self, 'closing'):
+			self.sockfile.close()
+			self.closing.send(0)
+			del self.closing
+
+	def close(self):
+		if not hasattr(self, 'closing'):
+			raise Disconnect
+
+		data = ''.join(self.content)
+		self.respader['Content-Length'] = str(len(data))
+
+		respader = ['%s: %s' %(key, value) for key, value in self.respader.items()]
+		respader.insert(0, '%s %s %s' %(self.version, self._status, self._message))
+		respader.append('\r\n')
+		respader = '\r\n'.join(respader)
+
+		try:
+			self.sockfile.write(respader + data)
+		except Disconnect:
+			self.closing.send(0)
+			del self.closing
+			raise
+
+		if self.get('Connection', '').lower() == 'keep-alive':
+			self.closing.send(1)
+			del self.closing
 		else:
-			data = self.client.readline(size)
+			self.sockfile.close()
+			self.closing.send(0)
+			del self.closing
 
-		self.left -= len(data)
-		return data
-
-	def close(self, shutdown=True):
-		if shutdown:
-			return self.client.close()
-
-		self._initialize(self.client)
+	def shutdown(self):
+		if hasattr(self, 'closing'):
+			self.sockfile.close()
+			self.closing.send(0)
+			del self.closing
 
 def HttpHandler(controller):
-	def handler(conn, addr):
+	def handler(sock, addr):
+		sockfile = SocketFile(sock, addr)
 		try:
-			client = HttpClient(conn, addr)
-		except Disconnect:
+			httpfile = HttpFile(sockfile)
+		except IOError:
 			return
 
-		try:
-			controller(client)
-		except:
-			print_exc(file=stderr)
+		tasklet(controller)(httpfile)
+
+		while httpfile.closing.receive():
+			try:
+				httpfile = HttpFile(sockfile)
+			except IOError:
+				return
+
+			tasklet(controller)(httpfile)
 
 	return handler
 
 def TcpHandler(controller):
-	def handler(conn, addr):
+	def handler(sock, addr):
 		try:
-			controller(Client(conn, addr))
+			controller(SocketFile(sock, addr))
 		except:
 			print_exc(file=stderr)
 

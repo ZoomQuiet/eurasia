@@ -62,7 +62,7 @@ def stacklessfile():
 		return
 
 	classcode = ''.join(
-		i[1:] if i[:1] == '\t' else i for i in open(filename).readlines()[21:327]).replace(
+		i[1:] if i[:1] == '\t' else i for i in open(filename).readlines()[28:352]).replace(
 		'self.socket.recv('  , 'fread(self.pid, ' ).replace(
 		'self.socket.send('  , 'fwrite(self.pid, ').replace(
 		'self.socket.close()', 'file.close(self)' )
