@@ -1,13 +1,9 @@
 def controller(client):
-	client.write(template200(version=client.version))
+	client['Content-Type'] = 'text/html'
+	client.write(page)
 	client.close()
 
-template200 = __import__('string').Template(
-
-'''\
-${version} 200 OK
-Content-Type: text/html
-
+page = '''\
 <html>
 <head>
 <title>Eurasia3 Default Page</title>
@@ -15,4 +11,4 @@ Content-Type: text/html
 <body>
 <h1>It works!</h1>
 </body>
-</html>''' ).substitute
+</html>'''
