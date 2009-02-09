@@ -1,12 +1,12 @@
 import re, os, sys
+
 class error(Exception):
 	pass
 
-def install():
-	import web
+def install(web):
 	for address, node in startup.items():
 		if isinstance(node, dict):
-			web.Server(address, web.HttpHandler(getctrl(node)))
+			web.Server(address, web.HttpHandler(getcontroller(node)))
 		else:
 			web.Server(address, web.TcpHandler(node))
 
@@ -156,7 +156,7 @@ def getproduct(o):
 
 	return ctrl
 
-def getctrl(node):
+def getcontroller(node):
 	if len(node) == 1 and node.has_key(None):
 		return node[None]
 
