@@ -23,7 +23,7 @@ def patch():
 			cpus = utility.cpu_count() if cpus else 1
 
 		if cpus < 2:
-			routing.install()
+			routing.install(web)
 			web.mainloop0()
 			return
 
