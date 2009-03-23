@@ -12,14 +12,13 @@ def main():
 	from setuptools import setup
 	args = dict(
 		name = 'eurasia',
-		version = '3.0.0a5',
+		version = '3.0.0a6',
 		license = 'BSD license',
 		description = 'a low-level python web framework',
 		author = 'wilhelm shen',
 		author_email = 'http://groups.google.com/group/eurasia-users',
 		platforms = ['unix', 'linux', 'osx', 'cygwin', 'win32'],
-		packages = ['eurasia', 'eurasia.modules'],
-		scripts  = ['mkeurinstance.py'],
+		packages = ('eurasia', ),
 		zip_safe = False )
 
 	data_files = []
@@ -32,9 +31,7 @@ def main():
 		data_files.append(('', (os.path.join('3rd-party', 'pypy', 'lib', 'stackless.py'), )))
 
 	args['data_files']  = data_files
-	args['package_dir'] = {
-		'eurasia'        : os.path.join('src', 'eurasia'),
-		'eurasia.modules': os.path.join('src', 'eurasia' , 'modules')}
+	args['package_dir'] = {'eurasia': os.path.join('src', 'eurasia')}
 
 	args['classifiers'] = [
 		'Development Status :: 3 - Alpha',
