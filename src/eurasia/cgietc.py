@@ -22,8 +22,15 @@ class Browser(object):
 
 	pid     = property(lambda self: self.httpfile.pid)
 	address = property(lambda self: self.httpfile.address)
-	uid     = property(lambda self: self.httpfile.uid, \
-		lambda self, uid: setattr(self.httpfile, 'uid', uid))
+	uid     = property(lambda self: self.httpfile.uid,
+	                   lambda self, uid: setattr(self.httpfile, 'uid', uid))
+
+	script_name  = property(lambda self: self.httpfile.script_name )
+	request_uri  = property(lambda self: self.httpfile.request_uri )
+	query_string = property(lambda self: self.httpfile.query_string)
+
+	fileno  = lambda self: self.httpfile.pid
+	nocache = lambda self: self.httpfile.nocache()
 
 	def fileno(self):
 		return self.httpfile.sockfile.pid
@@ -59,39 +66,42 @@ class RemoteCall(object):
 
 def Form(httpfile, max_size=1048576):
 	if httpfile.method == 'POST':
-		length = httpfile['Content-Length']
+		length = int(httpfile.environ['CONTENT_LENGTH'])
 		if int(length) > max_size:
 			httpfile.close()
 			raise IOError('overload')
 
-		data = httpfile.read(length)
+		query = httpfile.environ['QUERY_STRING'].split('&') + \
+		        httpfile.read(length).split('&')
 	else:
-		data = ''
+		query = httpfile.environ['QUERY_STRING'].split('&')
 
-	p = httpfile.path.find('?')
-	if p != -1:
-		data = '%s&%s' %(httpfile.path[p+1:], data)
-
-	d = {}
-	for item in data.split('&'):
+	dct = {}
+	for item in query:
 		try:
 			key, value = item.split('=', 1)
 			value = unquote_plus(value)
 			try:
-				if isinstance(d[key], list):
-					d[key].append(value)
+				if isinstance(dct[key], list):
+					dct[key].append(value)
 				else:
-					d[key] = [d[key], value]
+					dct[key] = [dct[key], value]
+
 			except KeyError:
-				d[key] = value
+				dct[key] = value
+
 		except ValueError:
 			continue
-	return d
+
+	return dct
 
 class SimpleUpload(dict):
 	def __init__(self, httpfile):
-		try: next = '--' + parse_header(httpfile['Content-Type'])[1]['boundary']
-		except: raise IOError
+		try:
+			next = '--' + parse_header(httpfile.environ[
+			       'HTTP_CONTENT_TYPE'])[1]['boundary']
+		except:
+			raise IOError
 
 		last, c = next + '--', 0
 		while True:
@@ -117,13 +127,16 @@ class SimpleUpload(dict):
 				c += len(line)
 				line = line.strip()
 				if not line:
-					if not name: raise IOError
+					if not name:
+						raise IOError
+
 					if filename:
 						self.buff      = ''
 						self.httpfile  = httpfile
 						self.filename  = filename
 						self._readline = self._readline(next, last).next
-						try: size = int(httpfile['Content-Length'])
+						try:
+							size = int(httpfile.environ['CONTENT_LENGTH'])
 						except:
 							return
 
@@ -132,21 +145,37 @@ class SimpleUpload(dict):
 
 					data = self.read()
 					c += c_next + len(data)
-					try: self[name].append(data)
-					except KeyError: self[name] = data
-					except AttributeError: self[name] = [self[name], data]
+					try:
+						self[name].append(data)
+					except KeyError:
+						self[name] = data
+					except AttributeError:
+						self[name] = [self[name], data]
+
 					break
 
 				t1, t2 = line.split(':', 1)
-				if t1.lower() != 'content-disposition': continue
+				if t1.lower() != 'content-disposition':
+					continue
+
 	 			t1, t2 = parse_header(t2)
-				if t1.lower() != 'form-data': raise IOError
-				try: name = t2['name']
-				except KeyError: raise IOError
-				try: filename = t2['filename']
-				except KeyError: continue
+				if t1.lower() != 'form-data':
+					raise IOError
+
+				try:
+					name = t2['name']
+				except KeyError:
+					raise IOError
+
+				try:
+					filename = t2['filename']
+				except KeyError:
+					continue
+
 				m = R_UPLOAD(filename)
-				if not m: raise IOError
+				if not m:
+					raise IOError
+
 				filename = m.groups()[0]
 
 	def _readline(self, next, last):
@@ -163,7 +192,9 @@ class SimpleUpload(dict):
 		el = line[-2:] == '\r\n' and '\r\n' or (line[-1] == '\n' and '\n' or '')
 		while True:
 			line2 = httpfile.readline(65536)
-			if not line2: raise IOError
+			if not line2:
+				raise IOError
+
 			if line2[:2] == '--' and el:
 				strpln = line2.strip()
 				if strpln == next or strpln == last:
