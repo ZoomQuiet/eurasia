@@ -3,16 +3,6 @@ class nul:
 	flush = staticmethod(lambda  : None)
 	read  = staticmethod(lambda n: ''  )
 
-def base():
-	import os, sys
-	return os.path.abspath(os.path.dirname(
-		sys._getframe(1).f_globals['__file__']))
-
-def basejoin(*args):
-	import os, sys
-	return os.path.abspath(os.path.join(os.path.dirname(
-		sys_getframe(1).f_globals['__file__']), *args))
-
 def cpu_count():
 	import os, sys
 	if sys.platform == 'win32':
