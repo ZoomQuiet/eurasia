@@ -99,7 +99,7 @@ class HttpFile(object):
 		return self.environ['REQUEST_URI']
 
 	def set_request_uri(self, uri):
-		environ = self.envrion
+		environ = self.environ
 		environ['REQUEST_URI'] = uri
 
 		p = uri.find('?')
