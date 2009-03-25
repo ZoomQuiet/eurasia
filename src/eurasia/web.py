@@ -16,7 +16,7 @@ class HttpFile(object):
 	def __init__(self, sockfile):
 		first  = sockfile.readline(8192)
 		try:
-			method, path, version = R_FIRST(first).groups()
+			method, uri, version = R_FIRST(first).groups()
 		except AttributeError:
 			sockfile.close()
 			raise IOError
@@ -24,7 +24,7 @@ class HttpFile(object):
 		self.version = version.upper()
 		self.method  = method =  method.upper()
 		environ = dict(
-			REQUEST_URI     =  path,
+			REQUEST_URI     =  uri,
 			REQUEST_METHOD  =  method,
 			SERVER_PROTOCOL =  self.version)
 
@@ -57,14 +57,12 @@ class HttpFile(object):
 				sockfile.close()
 				raise IOError
 
-		self.uri = self.path = path
-
-		p = path.find('?')
+		p = uri.find('?')
 		if p != -1:
-			environ['SCRIPT_NAME' ] = path[:p]
-			environ['QUERY_STRING'] = path[p+1:]
+			environ['SCRIPT_NAME' ] = uri[:p]
+			environ['QUERY_STRING'] = uri[p+1:]
 		else:
-			environ['SCRIPT_NAME' ] = path
+			environ['SCRIPT_NAME' ] = uri
 			environ['QUERY_STRING'] = ''
 
 		environ['REMOTE_ADDR'] = sockfile.address[0]
@@ -75,6 +73,7 @@ class HttpFile(object):
 		self.headers_set = []
 		self.environ = environ
 		self.sockfile = sockfile
+		self.path = self.uri = uri
 		self.keep_alive = channel()
 		self.write = self.content.append
 
@@ -88,14 +87,57 @@ class HttpFile(object):
 	def __setitem__(self, key, value):
 		self.headers['-'.join(i.capitalize() for i in key.split('-'))] = value
 
-	pid          = property(lambda self: self.sockfile.pid)
-	address      = property(lambda self: self.sockfile.address)
-	script_name  = property(lambda self: self.environ['SCRIPT_NAME'])
-	request_uri  = property(lambda self: self.environ['REQUEST_URI'])
-	query_string = property(lambda self: self.environ['QUERY_STRING'])
+	@property
+	def pid(self):
+		return self.sockfile.pid
 
-	fileno  = lambda self: self.sockfile.pid
-	nocache = lambda self: self.headers.update(NOCACHEHEADERS)
+	@property
+	def address(self):
+		return self.sockfile.address
+
+	def get_request_uri(self):
+		return self.environ['REQUEST_URI']
+
+	def set_request_uri(self, uri):
+		environ = self.envrion
+		environ['REQUEST_URI'] = uri
+
+		p = uri.find('?')
+		if p != -1:
+			environ['SCRIPT_NAME' ] = uri[:p]
+			environ['QUERY_STRING'] = uri[p+1:]
+		else:
+			environ['SCRIPT_NAME' ] = uri
+			environ['QUERY_STRING'] = ''
+
+	request_uri = property(get_request_uri, set_request_uri)
+	del get_request_uri, set_request_uri
+
+	def get_script_name(self):
+		return self.environ['SCRIPT_NAME']
+
+	def set_script_name(self, name):
+		environ = self.environ
+		environ['SCRIPT_NAME'] = name
+
+		query = environ['QUERY_STRING']
+		environ['REQUEST_URI'] = '%s?%s' %(name, query) if query else name
+
+	script_name = property(get_script_name, set_script_name)
+	del get_script_name, set_script_name
+
+	def get_query_string(self):
+		return self.environ['QUERY_STRING']
+
+	def set_query_string(self, query):
+		environ = self.environ
+		environ['QUERY_STRING'] = query
+		environ['REQUEST_URI' ] = '%s?%s' %(environ['SCRIPT_NAME'], query) \
+		                    if   query \
+		                    else environ['SCRIPT_NAME']
+
+	query_string = property(get_query_string, set_query_string)
+	del get_query_string, set_query_string
 
 	def getuid(self):
 		try:
@@ -110,12 +152,20 @@ class HttpFile(object):
 	uid = property(getuid, setuid)
 	del getuid, setuid
 
+	def getstatus(self):
+		return self._status
+
 	def setstatus(self, status):
 		self._status = status if isinstance(status, basestring) else RESPONSES[status]
 
-	getstatus = lambda self: self._status
 	status, _status = property(getstatus, setstatus), RESPONSES[200]
 	del getstatus, setstatus
+
+	def fileno(self):
+		return self.sockfile.pid
+
+	def nocache(self):
+		self.headers.update(NOCACHEHEADERS)
 
 	def read(self, size=-1):
 		if size == -1 or size >= self.left:
