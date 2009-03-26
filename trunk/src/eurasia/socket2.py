@@ -23,12 +23,17 @@ else:
 try:
 	from select import poll as Poll, error as SelectError, \
 		POLLIN, POLLPRI, POLLOUT, POLLERR, POLLHUP, POLLNVAL
+
+	pollster = Poll()
+
 except ImportError:
 	from select import select, error as SelectError
+	@staticmethod
 	def poll(timeout):
 		a, b, c = select(r.keys(), w.keys(), e.keys(), 0.0001)
 		return [(i, R) for i in a] + [(i, W) for i in b] + [(i, E) for i in c]
 
+	@staticmethod
 	def register(pid, flag):
 		if flag & R:
 			e[pid] = r[pid] = None
@@ -56,6 +61,7 @@ except ImportError:
 			except KeyError:
 				pass
 
+	@staticmethod
 	def unregister(pid):
 		try: del r[pid]
 		except KeyError: pass
@@ -64,14 +70,12 @@ except ImportError:
 		try: del e[pid]
 		except KeyError: pass
 
-	Poll = lambda: type('poll', (), { 'poll': staticmethod(poll),
-			'register'  : staticmethod(register  ),
-			'unregister': staticmethod(unregister)})
-
-	del poll, register, unregister
+	pollster = type('poll', (), {'poll': poll, 'register': register,
+	                'unregister': unregister})()
 
 	r, w, e = {}, {}, {}
 	POLLIN, POLLPRI, POLLOUT, POLLERR, POLLHUP, POLLNVAL = 1, 2, 4, 8, 16, 32
+	del poll, register, unregister
 
 class SocketFile:
 	fileno = lambda self: self.pid
@@ -531,5 +535,5 @@ def cpu_count():
 R, W, E = POLLIN|POLLPRI, POLLOUT, POLLERR|POLLHUP|POLLNVAL
 RE, WE, RWE = R|E, W|E, R|W|E
 
-socket_map, pollster, Disconnect = {}, Poll(), type('Disconnect', (IOError, ), {})
+socket_map, Disconnect = {}, type('Disconnect', (IOError, ), {})
 tasklet(poll)()
