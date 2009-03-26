@@ -63,14 +63,15 @@ class HttpFile(object):
 
 		p = uri.find('?')
 		if p != -1:
-			environ['SCRIPT_NAME' ] = environ['PATH_INFO'] = uri[:p]
+			environ['SCRIPT_NAME' ] = uri[:p]
 			environ['QUERY_STRING'] = uri[p+1:]
 		else:
-			environ['SCRIPT_NAME' ] = environ['PATH_INFO'] = uri
+			environ['SCRIPT_NAME' ] = uri
 			environ['QUERY_STRING'] = ''
 
-		environ['REMOTE_ADDR' ] = sockfile.address[0]
-		environ['REMOTE_PORT' ] = sockfile.address[1]
+		environ[ 'PATH_INFO' ] = ''
+		environ['REMOTE_ADDR'] = sockfile.address[0]
+		environ['REMOTE_PORT'] = sockfile.address[1]
 
 		environ.setdefault('CONTENT_TYPE',
 		environ.setdefault('HTTP_CONTENT_TYPE', ''))
