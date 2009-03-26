@@ -678,7 +678,7 @@ config(app=app, port=8080)
 mainloop()
 \end{verbatim}
 
-\note{在 wsgi application 中, 我们仍然可以从 environ['eurasia.httpfile'] 中得到 httpfile 对象}
+\note{在 wsgi application 中, 我们仍然可以从 environ['wsgi.input'] 中得到 httpfile 对象}
 
 \subsection{启动 django}
 
@@ -793,11 +793,11 @@ mainloop()
 REQUEST_URI、SCRIPT_NAME、QUERY_STRING 这三个环境变量 (但 httpfile.uri 不受影响)。
 httpfile.environ 即是 WSGI 环境变量。}
 
-\note{更深层次的混用, 因为 httpfile 对象被设置在 WSGI 环境中 (envrion['eurasia.httpfile']),
+\note{更深层次的混用, 因为 httpfile 对象被设置在 WSGI 环境中 (envrion['wsgi.input']),
 你可以在任何支持 WSGI 的框架中取出 httpfile 对象。
 有了 httpfile 就有了 Form、SimpleUpload、Browser ... eurasia 的大部分功能,
 这意味着你可以在那些框架中直接获得 eurasia 的功能。
-至于如何从 WSGI 环境中得到 eurasia.httpfile, 请参考各框架的具体实现。}
+至于如何从 WSGI 环境中得到 wsgi.input, 请参考各框架的具体实现。}
 
 \section{TCP 服务器设计}
 
@@ -1542,7 +1542,7 @@ HttpFile 对象的属性如下。
 
 \note{在 read()/readline()/write()/close() 等 IO 操作中如果客户端已经断开连接则会抛出 IOError}
 
-\item \strong{HttpHandler(handler)}
+\item \strong{HttpHandler(handler, server_name='localhost', server_port='80')}
 
 声明 handler 为 httphandler。
 
@@ -1569,7 +1569,8 @@ def handler(httpfile):
 	httpfile.close()
 
 # config(httphandler=handler, port=8080)
-TcpServer(TcpServerSocket('0.0.0.0', 8080), HttpHandler(handler))
+TcpServer(TcpServerSocket('0.0.0.0', 8080),
+          HttpHandler(handler, server_name='localhost', server_port='80'))
 
 mainloop()
 \end{verbatim}
