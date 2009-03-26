@@ -13,7 +13,7 @@ RESPONSES = dict((key, '%d %s' %(key, value[0]))
 del BaseHTTPRequestHandler, sys.modules['BaseHTTPServer']
 
 class HttpFile(object):
-	def __init__(self, sockfile):
+	def __init__(self, sockfile, server_name, server_port):
 		first  = sockfile.readline(8192)
 		try:
 			method, uri, version = R_FIRST(first).groups()
@@ -26,6 +26,8 @@ class HttpFile(object):
 		environ = dict(
 			REQUEST_URI     =  uri,
 			REQUEST_METHOD  =  method,
+			SERVER_PORT     =  server_port,
+			SERVER_NAME     =  server_name,
 			SERVER_PROTOCOL =  self.version)
 
 		line = sockfile.readline(8192)
@@ -49,24 +51,29 @@ class HttpFile(object):
 
 		if method == 'GET':
 			self.left = 0
+			environ['CONTENT_LENGTH'] = environ['HTTP_CONTENT_LENGTH'] = '0'
 		else:
 			try:
-				self.left = environ['CONTENT_LENGTH'] = int(
-				            environ['HTTP_CONTENT_LENGTH'])
+				left = environ['CONTENT_LENGTH'] = environ['HTTP_CONTENT_LENGTH']
 			except:
 				sockfile.close()
 				raise IOError
+			else:
+				self.left = int(left)
 
 		p = uri.find('?')
 		if p != -1:
-			environ['SCRIPT_NAME' ] = uri[:p]
+			environ['SCRIPT_NAME' ] = environ['PATH_INFO'] = uri[:p]
 			environ['QUERY_STRING'] = uri[p+1:]
 		else:
-			environ['SCRIPT_NAME' ] = uri
+			environ['SCRIPT_NAME' ] = environ['PATH_INFO'] = uri
 			environ['QUERY_STRING'] = ''
 
-		environ['REMOTE_ADDR'] = sockfile.address[0]
-		environ['REMOTE_PORT'] = sockfile.address[1]
+		environ['REMOTE_ADDR' ] = sockfile.address[0]
+		environ['REMOTE_PORT' ] = sockfile.address[1]
+
+		environ.setdefault('CONTENT_TYPE',
+		environ.setdefault('HTTP_CONTENT_TYPE', ''))
 
 		self.content = []
 		self.headers = {}
@@ -76,6 +83,12 @@ class HttpFile(object):
 		self.path = self.uri = uri
 		self.keep_alive = channel()
 		self.write = self.content.append
+
+	def __iter__(self):
+		data = self.readline()
+		while data:
+			yield data
+			data = self.readline()
 
 	def __del__(self):
 		if hasattr(self, 'keep_alive'):
@@ -94,6 +107,15 @@ class HttpFile(object):
 	@property
 	def address(self):
 		return self.sockfile.address
+
+	def get_path_info(self):
+		return self.environ['PATH_INFO']
+
+	def set_path_info(self, path):
+		self.environ['PATH_INFO'] = path
+
+	path_info = property(get_path_info, set_path_info)
+	del get_path_info, set_path_info
 
 	def get_request_uri(self):
 		return self.environ['REQUEST_URI']
@@ -204,6 +226,13 @@ class HttpFile(object):
 		self.left -= len(data)
 		return data
 
+	def writelines(self, seq):
+		for line in seq:
+			self.write(line)
+
+	def flush(self):
+		pass
+
 	def begin(self):
 		self.keep_alive = self.keep_alive and self.keep_alive.send(0)
 		headers_set = ['%s: %s' %(key, value)
@@ -263,11 +292,17 @@ class HttpFile(object):
 		self.sockfile.close()
 		self.keep_alive = self.keep_alive and self.keep_alive.send(0)
 
-def HttpHandler(controller):
+def HttpHandler(controller, **args):
+	server_port = args.get('server_port', '80')
+	server_name = args.get('server_name', 'localhost')
+	server_name = 'localhost' if server_name == '0.0.0.0' else server_name
+
 	def handler(sock, addr):
 		sockfile = SocketFile(sock, addr)
 		try:
-			httpfile = HttpFile(sockfile)
+			httpfile = HttpFile(sockfile,
+			  server_name, server_port)
+
 		except IOError:
 			return
 
@@ -275,7 +310,9 @@ def HttpHandler(controller):
 
 		while httpfile.keep_alive.receive():
 			try:
-				httpfile = HttpFile(sockfile)
+				httpfile = HttpFile(sockfile,
+				  server_name, server_port)
+
 			except IOError:
 				return
 
@@ -323,13 +360,9 @@ def config(**args):
 	elif handler in ('wsgi', 'app', 'application', 'wsgihandler',
 	                 'wsgi_app'   , 'wsgi_application'):
 
-		handler = HttpHandler(wsgi(args[handler]))
-
-	elif handler in ('handler', 'httphandler', 'controller'):
-		handler = HttpHandler(args[handler])
-
+		handler = wsgi(args[handler])
 	else:
-		handler = TcpHandler(args['tcphandler'])
+		handler = args[handler]
 
 	if 'bind' in args:
 		if 'port' in args:
@@ -346,8 +379,16 @@ def config(**args):
 				except (ValueError, TypeError):
 					raise ValueError('can\' bind to address %s' %ip.strip())
 
+			handler = TcpHandler(handler) \
+				if 'tcphandler' in args \
+				else HttpHandler(handler, server_name=ip, server_port=str(port))
+
 			return TcpServer(TcpServerSocket((ip, port)), handler)
 	else:
+		handler = TcpHandler(handler) \
+			if 'tcphandler' in args \
+			else HttpHandler(handler, server_name=ip, server_port=str(port))
+
 		return TcpServer(TcpServerSocket(('0.0.0.0', args.get('port', 8080))), handler)
 
 WSGIServer = WsgiServer

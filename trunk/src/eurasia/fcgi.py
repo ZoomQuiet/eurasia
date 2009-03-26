@@ -36,19 +36,34 @@ class FcgiFile(object):
 		self.eof   = self.overflow = False
 		self.handle_read = self.read4cache
 
+	def __iter__(self):
+		data = self.readline()
+		while data:
+			yield data
+			data = self.readline()
+
+	def __del__(self):
+		if hasattr(self, 'pid'):
+			del self.requests[self.pid], self.pid
+
 	def __getitem__(self, key):
 		return self.environ['HTTP_' + key.upper().replace('-', '_')]
 
 	def __setitem__(self, key, value):
 		self.headers['-'.join(i.capitalize() for i in key.split('-'))] = value
 
-	def __del__(self):
-		if hasattr(self, 'pid'):
-			del self.requests[self.pid], self.pid
-
 	@property
 	def address(self):
 		return self.environ['REMOTE_ADDR'], int(self.environ['REMOTE_PORT'])
+
+	def get_path_info(self):
+		return self.environ['PATH_INFO']
+
+	def set_path_info(self, path):
+		self.environ['PATH_INFO'] = path
+
+	path_info = property(get_path_info, set_path_info)
+	del get_path_info, set_path_info
 
 	def get_request_uri(self):
 		return self.environ['REQUEST_URI']
@@ -151,6 +166,13 @@ class FcgiFile(object):
 
 		self.handle_read = self.read4cache
 		return data
+
+	def writelines(self, seq):
+		for line in seq:
+			self.write(line)
+
+	def flush(self):
+		pass
 
 	def begin(self):
 		headers_set = ['%s: %s' %(key, value)
@@ -430,11 +452,14 @@ def FcgiHandler(controller):
 						request.environ[name] = value
 				else:
 					environ         = request.environ
+					setdefault      = environ.setdefault
 					request.method  = environ['REQUEST_METHOD' ]
 					request.version = environ['SERVER_PROTOCOL']
 					request.uri     = request.path = environ['REQUEST_URI']
-					if request.method == 'POST':
-						environ['CONTENT_LENGTH'] = int(environ['CONTENT_LENGTH'])
+
+					setdefault('PATH_INFO', '')
+					setdefault('HTTP_CONTENT_TYPE'  , setdefault('CONTENT_TYPE'  , '' ))
+					setdefault('HTTP_CONTENT_LENGTH', setdefault('CONTENT_LENGTH', '0'))
 
 					request._run(controller)
 

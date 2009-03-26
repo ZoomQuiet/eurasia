@@ -3,6 +3,7 @@ from sys import stderr
 from weakref import proxy
 from cgi import parse_header
 from urllib import unquote_plus
+from traceback import print_exc
 
 class Browser(object):
 	def __init__(self, httpfile, domain=None):
@@ -269,9 +270,7 @@ def wsgi(application):
 	def controller(httpfile):
 		environ = httpfile.environ
 		environ.update(WSGI_DEFAULTS)
-		httpfile.wsgi_input = httpfile.read
-		environ['eurasia.httpfile'] = proxy(httpfile)
-		environ['wsgi.input'] = proxy(httpfile.wsgi_input)
+		environ['wsgi.input'] = proxy(httpfile)
 		environ['wsgi.url_scheme' ] = 'https' \
 			if environ.get('HTTPS') in ('on', '1') \
 			else 'http'
@@ -285,7 +284,13 @@ def wsgi(application):
 		try:
 			for line in application(environ, start_response):
 				line and write(line)
-		finally:
+
+			not hasattr(httpfile, 'end') and \
+				httpfile.close()
+		except:
+			print_exc(file=stderr)
+
+			httpfile._status = '500 Internal Server Error'
 			httpfile.close()
 
 	return controller
