@@ -17,7 +17,7 @@ def config(**args):
 		if 'port' in args:
 			raise TypeError('too many addresses')
 
-		bind = bind
+		bind = args['bind']
 
 	elif 'port' in args:
 		bind = '0.0.0.0:%d' %args['port']
