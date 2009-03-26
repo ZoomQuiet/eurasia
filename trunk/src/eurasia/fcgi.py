@@ -60,7 +60,13 @@ class FcgiFile(object):
 		return self.environ['PATH_INFO']
 
 	def set_path_info(self, path):
-		self.environ['PATH_INFO'] = path
+		environ = self.environ
+		environ['PATH_INFO'] = path
+
+		query = environ['QUERY_STRING']
+		environ['REQUEST_URI'] = \
+			'%s%s?%s' %(environ['SCRIPT_NAME'] , path, query) if query \
+			else        environ['SCRIPT_NAME'] + path
 
 	path_info = property(get_path_info, set_path_info)
 	del get_path_info, set_path_info
@@ -70,15 +76,27 @@ class FcgiFile(object):
 
 	def set_request_uri(self, uri):
 		environ = self.environ
-		environ['REQUEST_URI'] = uri
+		if isinstance(uri, basestring):
+			environ['REQUEST_URI'] = uri
+			p = uri.find('?')
+			if p != -1:
+				name_path = R_PATH(uri[:p])
+				environ['QUERY_STRING'] = uri[p+1:]
+			else:
+				name_path = R_PATH(uri)
+				environ['QUERY_STRING'] = ''
 
-		p = uri.find('?')
-		if p != -1:
-			environ['SCRIPT_NAME' ] = uri[:p]
-			environ['QUERY_STRING'] = uri[p+1:]
+			environ['SCRIPT_NAME'] = name_path[0]
+			environ[ 'PATH_INFO' ] = '/' if len(name_path) == 2 else ''
 		else:
-			environ['SCRIPT_NAME' ] = uri
-			environ['QUERY_STRING'] = ''
+			name, path, query = uri
+			environ['REQUEST_URI'] = \
+				'%s%s?%s' %(name , path, query) if query \
+				else        name + path
+
+			environ['PATH_INFO'   ] = path
+			environ['SCRIPT_NAME' ] = name
+			environ['QUERY_STRING'] = query
 
 	request_uri = property(get_request_uri, set_request_uri)
 	del get_request_uri, set_request_uri
@@ -91,7 +109,9 @@ class FcgiFile(object):
 		environ['SCRIPT_NAME'] = name
 
 		query = environ['QUERY_STRING']
-		environ['REQUEST_URI'] = '%s?%s' %(name, query) if query else name
+		environ['REQUEST_URI'] = \
+			'%s%s?%s' %(name , environ['PATH_INFO'], query) if query \
+			else        name + environ['PATH_INFO']
 
 	script_name = property(get_script_name, set_script_name)
 	del get_script_name, set_script_name
@@ -102,9 +122,9 @@ class FcgiFile(object):
 	def set_query_string(self, query):
 		environ = self.environ
 		environ['QUERY_STRING'] = query
-		environ['REQUEST_URI' ] = '%s?%s' %(environ['SCRIPT_NAME'], query) \
-		                    if   query \
-		                    else environ['SCRIPT_NAME']
+		environ['REQUEST_URI' ] = \
+			'%s%s?%s' %(environ['SCRIPT_NAME'] , environ['PATH_INFO'], query) if query \
+			else        environ['SCRIPT_NAME'] + environ['PATH_INFO']
 
 	query_string = property(get_query_string, set_query_string)
 	del get_query_string, set_query_string
@@ -597,6 +617,7 @@ FCGI_UNKNOWNTYPEBODY_LEN = calcsize('!B7x' )
 NOCACHEHEADERS = {'Pragma': 'no-cache', 'Cache-Control': 'no-cache, must-revalidate',
 	'Expires': 'Mon, 26 Jul 1997 05:00:00 GMT' }
 
+R_PATH   = re.compile(r'/+$').split
 R_UID    = re.compile(r'(?:[^;]+;)* *uid=([^;\r\n]+)').search
 R_FIRST  = re.compile(r'^(GET|POST)[\s\t]+([^\r\n]+)[\s\t]+(HTTP/1\.[0-9])\r?\n$', re.I).match
 R_HEADER = re.compile(r'^[\s\t]*([^\r\n:]+)[\s\t]*:[\s\t]*([^\r\n]+)[\s\t]*\r?\n$', re.I).match
