@@ -62,25 +62,23 @@ class FcgiFile(object):
 	def set_request_uri(self, uri):
 		environ = self.environ
 		if isinstance(uri, basestring):
+			environ['SCRIPT_NAME'] = ''
 			environ['REQUEST_URI'] = uri
 			p = uri.find('?')
 			if p != -1:
-				name_path = R_SCRPTH(uri[:p])
+				environ['PATH_INFO'] = uri[:p]
 				environ['QUERY_STRING'] = uri[p+1:]
 			else:
-				name_path = R_SCRPTH(uri)
+				environ['PATH_INFO'] = uri
 				environ['QUERY_STRING'] = ''
-
-			environ['SCRIPT_NAME'] = name_path[0]
-			environ[ 'PATH_INFO' ] = '/' if len(name_path) == 2 else ''
 		else:
-			name, path, query = uri
+			script_name, path_info, query = uri
 			environ['REQUEST_URI'] = \
-				'%s%s?%s' %(name , path, query) if query \
-				else        name + path
+				'%s%s?%s' %(script_name , path_info, query) if query \
+				else        script_name + path_info
 
-			environ['PATH_INFO'   ] = path
-			environ['SCRIPT_NAME' ] = name
+			environ['PATH_INFO'   ] = path_info
+			environ['SCRIPT_NAME' ] = script_name
 			environ['QUERY_STRING'] = query
 
 	request_uri = property(get_request_uri, set_request_uri)
