@@ -1,6 +1,6 @@
 from cgietc import wsgi, json, Form, SimpleUpload, Browser, Comet
-from socket2 import mainloop0, mainloop, Disconnect, \
-	SocketFile, TcpServerSocket, TcpServer
+from socket2 import mainloop0, mainloop, Disconnect, SocketFile, TcpHandler, \
+	TcpServerSocket, TcpServerUnixSocket, TcpServer
 
 import re, sys
 from _weakref import proxy
@@ -310,7 +310,6 @@ class HttpFile(object):
 def HttpHandler(controller, **args):
 	server_port = args.get('server_port', '80')
 	server_name = args.get('server_name', 'localhost')
-	server_name = 'localhost' if server_name == '0.0.0.0' else server_name
 
 	def handler(sock, addr):
 		sockfile = SocketFile(sock, addr)
@@ -360,8 +359,8 @@ def WsgiServer(application, bind=None, port=None, bindAddress=None):
 
 def config(**args):
 	handler = None
-	for name in ('httphandler', 'controller' , 'handler' , 'tcphandler', 'wsgihandler',
-	             'application', 'wsgi', 'app', 'wsgi_app', 'wsgi_application'):
+	for name in ('application', 'wsgi', 'app', 'wsgi_app', 'wsgi_application',
+	 'httphandler', 'controller' , 'handler' , 'tcphandler', 'wsgihandler'):
 
 		if name in args:
 			if handler:
@@ -373,38 +372,61 @@ def config(**args):
 		raise TypeError('web.config(): handler is required')
 
 	elif handler in ('wsgi', 'app', 'application', 'wsgihandler',
-	                 'wsgi_app'   , 'wsgi_application'):
+	                     'wsgi_app'   , 'wsgi_application'):
 
 		handler = wsgi(args[handler])
 	else:
 		handler = args[handler]
 
-	if 'bind' in args:
-		if 'port' in args:
-			raise TypeError('web.config(): conflict between \'port\' and \'bind\'')
+	if 'port' in args and 'bind' in args:
+		raise TypeError('too many addresses')
 
-		for ip in [i for i in args['bind'].split(',') if i.strip()]:
-			ip = ip.split(':')
-			if len(ip) == 1:
-				ip, port = ip[0].strip(), 80
+	if 'port' in args:
+		sockets = [(TcpServerSocket(('0.0.0.0', int(args['port']))),
+		               ('localhost', args['port']))]
 
-			elif len(ip) == 2:
-				try:
-					ip, port = ip[0].strip(), int(ip[1].strip())
-				except (ValueError, TypeError):
-					raise ValueError('can\' bind to address %s' %ip.strip())
+	elif isinstance(args['bind'], (list, tuple, set)):
+		bind = args['bind']
+		if len(bind) == 2 and isinstance(bind[1], (int, long)):
+			sockets = [(TcpServerSocket(tuple(bind)), (bind[0], str(bind[1])))]
+		else:
+			sockets = []
+			for addr in args['bind']:
+				if isinstance(addr, (list, tuple)):
+					sockets.append((TcpServerSocket(addr), addr))
+				elif isinstance(addr, str):
+					sockets.append((TcpServerUnixSocket(addr), (addr, 'UNIX SOCKET')))
+				else:
+					raise ValueError('bad address %r' %addr)
 
-			handler = TcpHandler(handler) \
-				if 'tcphandler' in args \
-				else HttpHandler(handler, server_name=ip, server_port=str(port))
+	elif isinstance(args['bind'], str):
+		sockets = []
+		for addr in args['bind'].split(','):
+			addr = addr.strip()
+			if not addr:
+				continue
 
-			return TcpServer(TcpServerSocket((ip, port)), handler)
+			if addr[:1] == '/':
+				sockets.append((TcpServerUnixSocket(addr), (addr, 'UNIX SOCKET')))
+
+			seq = addr.split(':')
+			if len(seq) == 2:
+				sockets.append((TcpServerSocket((seq[0], int(seq[1]))), seq))
+
+			elif len(seq) == 1:
+				sockets.append((TcpServerUnixSocket(addr), (addr, 'UNIX SOCKET')))
+			else:
+				raise ValueError('bad address %r' %addr)
 	else:
-		handler = TcpHandler(handler) \
-			if 'tcphandler' in args \
-			else HttpHandler(handler, server_name=ip, server_port=str(port))
+		raise ValueError('bad address %r' %args['bind'])
 
-		return TcpServer(TcpServerSocket(('0.0.0.0', args.get('port', 8080))), handler)
+	if 'tcphandler' in args:
+		for sock, addr in sockets:
+			TcpServer(sock, TcpHandler(handler))
+	else:
+		for sock, addr in sockets:
+			TcpServer(sock, HttpHandler(handler, server_name=addr[0],
+			            server_port=str(addr[1])))
 
 WSGIServer = WsgiServer
 
