@@ -133,7 +133,8 @@ httpfile 对象包含以下读相关的属性。
 \lineii{ httpfile.version        }{ "HTTP/1.0" 或 "HTTP/1.1" }
 \lineii{ httpfile[key]           }{ 即 __getitem__ 方法。用于获取 http 头, 比如 httpfile["User-Agent"] }
 \lineii{ httpfile.environ        }{ 类似于 cgi 的环境变量 }
-\lineii{ httpfile.script_name    }{ uri 的路径部分, 如果 uri 是 "/show?page=10" 那么 script_name 为 "/show" }
+\lineii{ httpfile.path_info      }{ 参见 cgi1.1 协议关于 SCRIPT_NAME 与 PATH_INFO 的说明, 如果 uri 是 "/show?page=10" 那么 path_info 为 "/show" }
+\lineii{ httpfile.script_name    }{ 参见 cgi1.1 协议关于 SCRIPT_NAME 与 PATH_INFO 的说明 }
 \lineii{ httpfile.query_string   }{ uri 在请求部分, 如果 uri 是 "/show?page=10" 那么 query_string 为 "page=10" }
 \lineii{ httpfile.address        }{ 客户端的 ip 与端口, 诸如 ('192.168.0.101', 4433) }
 \lineii{ httpfile.read(size)     }{ 对 "POST" 请求读取指定大小的请求报文, 如果不指定 size 则全部读取 }
@@ -166,7 +167,7 @@ import os.path
 from eurasia import config, mainloop
 
 def handler(httpfile):
-	filename = '/www' + httpfile.script_name
+	filename = '/www' + httpfile.path_info
 	if not os.uri.exists(filename): # 文件不存在  , 返回 404 (未找到)
 		httpfile.status = 404
 		httpfile.write('<h1>Not Found</h1>')
@@ -340,7 +341,7 @@ page = '''\
 '''
 
 def handler(httpfile):
-	if httpfile.script_name != '/simpleupload':
+	if httpfile.path_info != '/simpleupload':
 		httpfile.write(page) # 输出前面定义的上传表单
 		return httpfile.close()
 
@@ -608,7 +609,7 @@ function my_alert(stuff) { alert(stuff); };
 global_browsers = set()
 
 def handler(httpfile):
-	if httpfile.script_name != '/remotecall':
+	if httpfile.path_info != '/remotecall':
 		httpfile.write(page) # 输出前面定义的上传表单
 		return httpfile.close()
 
@@ -769,15 +770,15 @@ cherrypy_handler = wsgi(cherrypy_app)
 # eurasia + django + cherrypy
 
 def handler(httpfile):
-	script_name = httpfile.script_name
-	if   script_name[:8 ] == '/django/':
+	path_info = httpfile.path_info
+	if   path_info[:8 ] == '/django/':
 		# 去掉 uri 前面 '/django' 部分, 用新地址作为根路径调用 django
-		httpfile.script_name = script_name[7:]
+		httpfile.path_info = path_info[7:]
 		return django_handler(httpfile)
 
-	elif script_name[:10] == '/cherrypy/':
+	elif path_info[:10] == '/cherrypy/':
 		# 去掉 uri 前面 '/cherrypy' 部分, 用新地址作为根路径调用 cherrypy
-		httpfile.script_name = script_name[9:]
+		httpfile.path_info = path_info[9:]
 		return cherrypy_handler(httpfile)
 
 	else:
@@ -788,9 +789,9 @@ config(handler=handler, port=8080)
 mainloop()
 \end{verbatim}
 
-\note{修改 httpfile 对象的 request_uri、script_name、query_string
-这三个属性是联动的, 他们也会同时影响到 httpfile.environ 中的
-REQUEST_URI、SCRIPT_NAME、QUERY_STRING 这三个环境变量 (但 httpfile.uri 不受影响)。
+\note{修改 httpfile 对象的 request_uri、path_info、script_name、query_string
+这四个属性是联动的, 他们也会同时影响到 httpfile.environ 中的
+REQUEST_URI、PATH_INFO、SCRIPT_NAME、QUERY_STRING 这三个环境变量 (但 httpfile.uri 不受影响)。
 httpfile.environ 即是 WSGI 环境变量。}
 
 \note{更深层次的混用, 因为 httpfile 对象被设置在 WSGI 环境中 (envrion['wsgi.input']),
@@ -1526,7 +1527,8 @@ HttpFile 对象的属性如下。
 \lineii{ address    }{ socket 地址, 通常用于获取客户端地址, 取值为 (ip, port) }
 \lineii{ uid        }{ 读取和指定用户的持久 id }
 \lineii{ environ    }{ 一个 dict, 存放 cgi 环境变量, 也是 WSGI 环境变量 }
-\lineii{ request_uri  }{ 读取和设置 REQUEST_URI 环境变量 (存放于 httpfile.environ), 会影响到 script_name、query_string }
+\lineii{ request_uri  }{ 读取和设置 REQUEST_URI 环境变量 (存放于 httpfile.environ), 会影响到 path_info、script_name、query_string }
+\lineii{ path_info    }{ 读取和设置 PATH_INFO 环境变量 (存放于 httpfile.environ), 会影响到 path_info、query_string }
 \lineii{ script_name  }{ 读取和设置 SCRIPT_NAME 环境变量, 会影响到 request_uri }
 \lineii{ query_string }{ 读取和设置 QUERY_STRING 环境变量, 会影响到 request_uri }
 \lineii{ __getitem__(key) }{ 读取请求的头部 }
