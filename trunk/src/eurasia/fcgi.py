@@ -56,21 +56,6 @@ class FcgiFile(object):
 	def address(self):
 		return self.environ['REMOTE_ADDR'], int(self.environ['REMOTE_PORT'])
 
-	def get_path_info(self):
-		return self.environ['PATH_INFO']
-
-	def set_path_info(self, path):
-		environ = self.environ
-		environ['PATH_INFO'] = path
-
-		query = environ['QUERY_STRING']
-		environ['REQUEST_URI'] = \
-			'%s%s?%s' %(environ['SCRIPT_NAME'] , path, query) if query \
-			else        environ['SCRIPT_NAME'] + path
-
-	path_info = property(get_path_info, set_path_info)
-	del get_path_info, set_path_info
-
 	def get_request_uri(self):
 		return self.environ['REQUEST_URI']
 
@@ -80,10 +65,10 @@ class FcgiFile(object):
 			environ['REQUEST_URI'] = uri
 			p = uri.find('?')
 			if p != -1:
-				name_path = R_PATH(uri[:p])
+				name_path = R_SCRPTH(uri[:p])
 				environ['QUERY_STRING'] = uri[p+1:]
 			else:
-				name_path = R_PATH(uri)
+				name_path = R_SCRPTH(uri)
 				environ['QUERY_STRING'] = ''
 
 			environ['SCRIPT_NAME'] = name_path[0]
@@ -104,17 +89,32 @@ class FcgiFile(object):
 	def get_script_name(self):
 		return self.environ['SCRIPT_NAME']
 
-	def set_script_name(self, name):
+	def set_script_name(self, script_name):
 		environ = self.environ
-		environ['SCRIPT_NAME'] = name
+		environ['SCRIPT_NAME'] = script_name
 
 		query = environ['QUERY_STRING']
 		environ['REQUEST_URI'] = \
-			'%s%s?%s' %(name , environ['PATH_INFO'], query) if query \
-			else        name + environ['PATH_INFO']
+			'%s%s?%s' %(script_name , environ['PATH_INFO'], query) if query \
+			else        script_name + environ['PATH_INFO']
 
 	script_name = property(get_script_name, set_script_name)
 	del get_script_name, set_script_name
+
+	def get_path_info(self):
+		return self.environ['PATH_INFO']
+
+	def set_path_info(self, path_info):
+		environ = self.environ
+		environ['PATH_INFO'] = path_info
+
+		query = environ['QUERY_STRING']
+		environ['REQUEST_URI'] = \
+			'%s%s?%s' %(environ['SCRIPT_NAME'] , path_info, query) if query \
+			else        environ['SCRIPT_NAME'] + path_info
+
+	path_info = property(get_path_info, set_path_info)
+	del get_path_info, set_path_info
 
 	def get_query_string(self):
 		return self.environ['QUERY_STRING']
@@ -617,7 +617,7 @@ FCGI_UNKNOWNTYPEBODY_LEN = calcsize('!B7x' )
 NOCACHEHEADERS = {'Pragma': 'no-cache', 'Cache-Control': 'no-cache, must-revalidate',
 	'Expires': 'Mon, 26 Jul 1997 05:00:00 GMT' }
 
-R_PATH   = re.compile(r'/+$').split
+R_SCRPTH = re.compile(r'/+$').split
 R_UID    = re.compile(r'(?:[^;]+;)* *uid=([^;\r\n]+)').search
 R_FIRST  = re.compile(r'^(GET|POST)[\s\t]+([^\r\n]+)[\s\t]+(HTTP/1\.[0-9])\r?\n$', re.I).match
 R_HEADER = re.compile(r'^[\s\t]*([^\r\n:]+)[\s\t]*:[\s\t]*([^\r\n]+)[\s\t]*\r?\n$', re.I).match
