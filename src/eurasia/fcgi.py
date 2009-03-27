@@ -1,6 +1,6 @@
 from cgietc import wsgi, json, Form, SimpleUpload, Browser, Comet
-from socket2 import mainloop0, mainloop0 as mainloop, Disconnect, \
-	SocketFile, TcpHandler, TcpServerSocket, TcpServer
+from socket2 import mainloop0, mainloop as mainloop1, Disconnect, SocketFile, \
+	TcpHandler, TcpServerSocket, TcpServerUnixSocket, TcpServer
 
 import os, re, sys
 from sys import stderr
@@ -568,7 +568,56 @@ def config(**args):
 	else:
 		handler = FcgiHandler(args[handler])
 
-	return TcpServer(FcgiServerSocket(), handler)
+	if 'port' not in args and 'bind' not in args:
+		globals()['ignore_cpus'] = True
+		return TcpServer(FcgiServerSocket(), handler)
+
+	if 'port' in args:
+		sockets = [TcpServerSocket(('0.0.0.0', int(args['port'])))]
+
+	elif isinstance(args['bind'], (list, tuple, set)):
+		bind = args['bind']
+		if len(bind) == 2 and isinstance(bind[1], (int, long)):
+			sockets = [TcpServerSocket(tuple(bind))]
+		else:
+			sockets = []
+			for addr in bind:
+				if isinstance(addr, (list, tuple)):
+					sockets.append(TcpServerSocket(addr))
+				elif isinstance(addr, str):
+					sockets.append(TcpServerUnixSocket(addr))
+				else:
+					raise ValueError('bad address %r' %addr)
+
+	elif isinstance(args['bind'], str):
+		sockets = []
+		for addr in args['bind'].split(','):
+			addr = addr.strip()
+			if not addr:
+				continue
+
+			if addr[:1] == '/':
+				sockets.append(TcpServerUnixSocket(addr))
+
+			seq = addr.split(':')
+			if len(seq) == 2:
+				sockets.append(TcpServerSocket((seq[0], int(seq[1]))))
+
+			elif len(seq) == 1:
+				sockets.append(TcpServerUnixSocket(addr))
+			else:
+				raise ValueError('bad address %r' %addr)
+	else:
+		raise ValueError('bad address %r' %args['bind'])
+
+	for sock in sockets:
+		TcpServer(sock, handler)
+
+def mainloop(cpus=False):
+	if globals().get('ignore_cpus', False):
+		return mainloop0()
+
+	mainloop1(cpus)
 
 def decode_pair(s, pos=0):
 	name_length = ord(s[pos])

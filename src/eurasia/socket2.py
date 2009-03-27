@@ -5,8 +5,8 @@ from sys import stdout, stderr
 from traceback import print_exc
 from stackless import channel, getcurrent, schedule, tasklet
 from errno import EWOULDBLOCK, ECONNRESET, ENOTCONN, ESHUTDOWN, EINTR
-from _socket import socket as Socket, error as SocketError, \
-	AF_INET, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR, SO_REUSEADDR
+from _socket import socket as Socket, error as SocketError, AF_INET, AF_UNIX, \
+	SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR, SO_REUSEADDR
 
 try:
 	from py.magic import greenlet
@@ -399,6 +399,30 @@ def TcpServerSocket(address):
 	sock.listen(4194304)
 	return sock
 
+def TcpServerUnixSocket(filename):
+	sock = Socket(AF_UNIX, SOCK_STREAM)
+	sock.setblocking(0)
+	try:
+		sock.bind(filename)
+
+	except SocketError, address_already_in_use:
+		if address_already_in_use.args[0] != 98:
+			raise
+
+		test = Socket(AF_UNIX, SOCK_STREAM)
+		try:
+			test.connect(filename)
+		except SocketError, e:
+			if e.args[0] == 111:
+				os.unlink(filename)
+				sock.bind(filename)
+		else:
+			test.close()
+			raise address_already_in_use
+
+	sock.listen(4194304)
+	return sock
+
 class TcpServer:
 	def __init__(self, sock, handler):
 		self.socket  = sock
@@ -431,30 +455,54 @@ def config(**args):
 			if handler is not None:
 				raise TypeError('too many handlers')
 
-			handler = name
+			handler = TcpHandler(args[name])
 
 	if not handler:
 		raise TypeError('handler is required')
 
-	if 'bind' in args:
-		if 'port' in args:
-			raise TypeError('too many addresses')
+	if 'port' in args and 'bind' in args:
+		raise TypeError('too many addresses')
 
-		for ip in [i for i in args['bind'].split(',') if i.strip()]:
-			ip = ip.split(':')
-			if len(ip) == 1:
-				ip, port = ip[0].strip(), 80
+	if 'port' in args:
+		sockets = [TcpServerSocket(('0.0.0.0', int(args['port'])))]
 
-			elif len(ip) == 2:
-				try:
-					ip, port = ip[0].strip(), int(ip[1].strip())
-				except (ValueError, TypeError):
-					raise ValueError('can\' bind to address %s' %ip.strip())
+	elif isinstance(args['bind'], (list, tuple, set)):
+		bind = args['bind']
+		if len(bind) == 2 and isinstance(bind[1], (int, long)):
+			sockets = [TcpServerSocket(tuple(bind))]
+		else:
+			sockets = []
+			for addr in bind:
+				if isinstance(addr, (list, tuple)):
+					sockets.append(TcpServerSocket(addr))
+				elif isinstance(addr, str):
+					sockets.append(TcpServerUnixSocket(addr))
+				else:
+					raise ValueError('bad address %r' %addr)
 
-			return TcpServer(TcpServerSocket((ip, port)), TcpHandler(args[handler]))
+	elif isinstance(args['bind'], str):
+		sockets = []
+		for addr in args['bind'].split(','):
+			addr = addr.strip()
+			if not addr:
+				continue
+
+			if addr[:1] == '/':
+				sockets.append(TcpServerUnixSocket(addr))
+
+			seq = addr.split(':')
+			if len(seq) == 2:
+				sockets.append(TcpServerSocket((seq[0], int(seq[1]))))
+
+			elif len(seq) == 1:
+				sockets.append(TcpServerUnixSocket(addr))
+			else:
+				raise ValueError('bad address %r' %addr)
 	else:
-		return TcpServer(TcpServerSocket(('0.0.0.0', args.get('port', 8080))),
-		                 TcpHandler(args[handler]))
+		raise ValueError('bad address %r' %args['bind'])
+
+	for sock in sockets:
+		TcpServer(sock, handler)
 
 def mainloop(cpus=False):
 	if isinstance(cpus, bool):

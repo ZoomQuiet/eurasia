@@ -12,58 +12,25 @@ def config(**args):
 
 			handler = name
 
-	bind = None
-	if 'bind' in args:
-		if 'port' in args:
-			raise TypeError('too many addresses')
+	if 'fcgihandler' in args or args.get('fcgi', False) or (
+	          'port' not in args and 'bind' not in args):
 
-		bind = args['bind']
+		if handler in ('tcphandler', 'httphandler'):
+			raise ValueError('%s handler not support fcgi mode, need address' %handler)
 
-	elif 'port' in args:
-		bind = '0.0.0.0:%d' %args['port']
+		import fcgi
+		globals()['fcgi_mainloop'] = fcgi.mainloop
+		return fcgi.config(**args)
 
-	if handler is not None:
-		if handler in ('controller', 'handler'):
-			if bind is not None:
-				import web
-				web.config(handler=args[handler], bind=bind)
-			else:
-				import fcgi
-				fcgi.config(handler=args[handler])
-				globals()['fcgi_mainloop'] = fcgi.mainloop
+	if handler in ('handler', 'controller', 'httphandler', 'wsgihandler',
+	        'application', 'wsgi', 'app', 'wsgi_app', 'wsgi_application'):
 
-		elif handler in ('wsgihandler', 'application', 'wsgi', 'app',
-		                 'wsgi_app'   , 'wsgi_application'):
+		import web
+		return web.config(**args)
 
-			if bind is not None:
-				import web
-				web.config(wsgi=args[handler], bind=bind)
-			else:
-				import fcgi
-				fcgi.config(wsgi=args[handler])
-				globals()['fcgi_mainloop'] = fcgi.mainloop
-
-		elif handler == 'httphandler':
-			import web
-			if bind is None:
-				web.config(handler=args['httphandler'])
-			else:
-				web.config(handler=args['httphandler'], bind=bind)
-
-		elif handler == 'fcgihandler':
-			if bind is not None:
-				raise TypeError('fcgi can\' bind to address %r' %bind)
-
-			import fcgi
-			fcgi.config(handler=args['fcgihandler'])
-			globals()['fcgi_mainloop'] = fcgi.mainloop
-
-		elif handler == 'tcphandler':
-			import socket2
-			if bind is None:
-				socket2.config(handler=args['tcphandler'])
-			else:
-				socket2.config(handler=args['tcphandler'], bind=bind)
+	if handler == 'tcphandler':
+		import socket2
+		return socket2.config(**args)
 
 def mainloop(cpus=False):
 	gdct = globals()
@@ -96,37 +63,27 @@ def mainloop(cpus=False):
 	import socket2
 	socket2.mainloop(cpus)
 
-def WsgiServer(application, bind=None, port=None, bindAddress=None, verbose=True):
-	idx = None
-	for i, j in enumerate((bind, port, bindAddress)):
-		if j is not None:
-			if idx is not None:
-				raise TypeError('too many addresses')
+def WsgiServer(application, bind=None, port=None, bindAddress=None, fcgi=False, verbose=True):
+	addresses = len([i for i in bind, port, bindAddress if i is not None])
+	if addresses > 1:
+		raise TypeError('too many addresses')
 
-			idx = i
-
-	if idx is None:
-		import fcgi
-		server = fcgi.config(wsgi=application)
-		globals()['fcgi_mainloop'] = fcgi.mainloop
-
-	elif idx == 0:
-		import web
-		server = web.config(wsgi=application, bind=bind)
-
-	elif idx == 1:
-		import web
-		server = web.config(wsgi=application, port=port)
-
+	if   bind:
+		args = dict(app=application, fcgi=fcgi, bind=bind)
+	elif port:
+		args = dict(app=application, fcgi=fcgi, port=port)
+	elif bindAddress:
+		args = dict(app=application, fcgi=fcgi, bind=[bindAddress])
 	else:
-		import web
-		server = web.config(wsgi=application, bind='%s:%d' %bindAddress)
+		args = dict(app=application, fcgi=fcgi)
+
+	config(**args)
 
 	if not verbose:
 		import utility
 		utility.dummy()
 
-	server.serve_forever = server.run = mainloop
-	return server
+	return type('WsgiServer', (), dict(run=staticmethod(mainloop),
+	                         serve_forever=staticmethod(mainloop)))()
 
 WSGIServer = WsgiServer
