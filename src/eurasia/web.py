@@ -61,11 +61,17 @@ class HttpFile(object):
 			else:
 				self.left = int(left)
 
-		environ['SCRIPT_NAME' ] , path_info , query_string = R_SPQ(uri).groups()
-		environ['PATH_INFO'   ] = path_info    or ''
-		environ['QUERY_STRING'] = query_string or ''
-		environ['REMOTE_ADDR' ] = sockfile.address[0]
-		environ['REMOTE_PORT' ] = sockfile.address[1]
+		p = uri.find('?')
+		if p != -1:
+			environ['PATH_INFO'] = uri[:p]
+			environ['QUERY_STRING'] = uri[p+1:]
+		else:
+			environ['PATH_INFO'] = uri
+			environ['QUERY_STRING'] = ''
+
+		environ['SCRIPT_NAME'] = ''
+		environ['REMOTE_ADDR'] = sockfile.address[0]
+		environ['REMOTE_PORT'] = sockfile.address[1]
 
 		environ.setdefault('CONTENT_TYPE',
 		environ.setdefault('HTTP_CONTENT_TYPE', ''))
@@ -435,6 +441,5 @@ NOCACHEHEADERS = {'Pragma': 'no-cache', 'Cache-Control': 'no-cache, must-revalid
 
 R_SCRPTH = re.compile(r'/+$').split
 R_UID    = re.compile(r'(?:[^;]+;)* *uid=([^;\r\n]+)').search
-R_SPQ    = re.compile(r'^([^?/]*(?:/+[^?/]+)*)(?:(/)+)?(?:\?(.*))?$').match
 R_FIRST  = re.compile(r'^(GET|POST)[\s\t]+([^\r\n]+)[\s\t]+(HTTP/1\.[0-9])\r?\n$', re.I).match
 R_HEADER = re.compile(r'^[\s\t]*([^\r\n:]+)[\s\t]*:[\s\t]*([^\r\n]+)[\s\t]*\r?\n$', re.I).match
