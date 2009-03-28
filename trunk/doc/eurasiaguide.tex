@@ -167,8 +167,8 @@ import os.path
 from eurasia import config, mainloop
 
 def handler(httpfile):
-	filename = '/www' + httpfile.path_info
-	if not os.uri.exists(filename): # 文件不存在  , 返回 404 (未找到)
+	filename = '/var/www' + httpfile.path_info
+	if not os.path.exists(filename): # 文件不存在  , 返回 404 (未找到)
 		httpfile.status = 404
 		httpfile.write('<h1>Not Found</h1>')
 		return httpfile.close()
