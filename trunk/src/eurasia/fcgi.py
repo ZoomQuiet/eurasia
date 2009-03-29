@@ -1,6 +1,6 @@
 from cgietc import wsgi, json, Form, SimpleUpload, Browser, Comet
-from socket2 import mainloop0, mainloop as mainloop1, Disconnect, SocketFile, \
-	TcpHandler, TcpServerSocket, TcpServerUnixSocket, TcpServer
+from socket2 import mainloop0, mainloop as mainloop1, SSL, Disconnect, \
+	SocketFile, Sockets, TcpServer
 
 import os, re, sys
 from sys import stderr
@@ -8,8 +8,6 @@ from weakref import proxy
 from time import gmtime, strftime, time
 from struct import pack, unpack, calcsize
 from stackless import channel, tasklet, getcurrent
-from _socket import fromfd, error as SocketError, AF_INET, SOCK_STREAM, \
-	SOL_SOCKET, SO_REUSEADDR, SO_REUSEADDR
 
 import resource
 c = resource.getrlimit(resource.RLIMIT_NOFILE)[0]
@@ -432,7 +430,7 @@ class FcgiFile(object):
 			self.tasklet = None
 			self.read_channel.send(''.join(buffers))
 
-def FcgiHandler(controller):
+def FcgiHandler(controller, **args):
 	def handler(sock, addr):
 		sockfile = SocketFile(sock, addr)
 		requests = {}
@@ -527,23 +525,36 @@ def FcgiHandler(controller):
 			else:
 				print >> stderr, 'warning: fastcgi unknow record, ignore'
 
-	return handler
+	if args.get('HTTPS') != 'on':
+		return handler
 
-def FcgiServerSocket():
-	sock = fromfd(0, AF_INET, SOCK_STREAM)
-	sock.setblocking(0)
-	try:
-		sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, sock.getsockopt(
-		                SOL_SOCKET, SO_REUSEADDR)|1)
-	except SocketError:
-		pass
+	def ssl_handler(sock, addr):
+		return handler(SSL(sock), addr)
 
-	return sock
+	return ssl_handler
 
-def WsgiServer(application):
-	server = config(wsgi=application)
-	server.serve_forever = server.run = mainloop
-	return server
+def WsgiServer(application, bind=None, port=None, bindAddress=None):
+	idx = None
+	for i, j in enumerate((bind, port, bindAddress)):
+		if j is not None:
+			if idx is not None:
+				raise TypeError('too many addresses')
+
+			idx = i
+	if idx is None:
+		server = config(wsgi=application)
+
+	elif idx == 0:
+		server = config(wsgi=application, bind=bind)
+
+	elif idx == 1:
+		server = config(wsgi=application, port=int(port))
+
+	else:
+		server = config(wsgi=application, bind=[bindAddress])
+
+	return type('WsgiServer', (), dict(run=staticmethod(mainloop),
+	                         serve_forever=staticmethod(mainloop)))()
 
 def config(**args):
 	handler = None
@@ -562,54 +573,21 @@ def config(**args):
 	elif handler in ('wsgi', 'app', 'application', 'wsgihandler',
 	                 'wsgi_app'   , 'wsgi_application'):
 
-		handler = FcgiHandler(wsgi(args[handler]))
+		handler = wsgi(args[handler])
 	else:
-		handler = FcgiHandler(args[handler])
+		handler = args[handler]
 
 	if 'port' not in args and 'bind' not in args:
 		globals()['ignore_cpus'] = True
-		return TcpServer(FcgiServerSocket(), handler)
+		sockets = Sockets('fromfd:0')
 
-	if 'port' in args:
-		sockets = [TcpServerSocket(('0.0.0.0', int(args['port'])))]
-
-	elif isinstance(args['bind'], (list, tuple, set)):
-		bind = args['bind']
-		if len(bind) == 2 and isinstance(bind[1], (int, long)):
-			sockets = [TcpServerSocket(tuple(bind))]
-		else:
-			sockets = []
-			for addr in bind:
-				if isinstance(addr, (list, tuple)):
-					sockets.append(TcpServerSocket(addr))
-				elif isinstance(addr, str):
-					sockets.append(TcpServerUnixSocket(addr))
-				else:
-					raise ValueError('bad address %r' %addr)
-
-	elif isinstance(args['bind'], str):
-		sockets = []
-		for addr in args['bind'].split(','):
-			addr = addr.strip()
-			if not addr:
-				continue
-
-			if addr[:1] == '/':
-				sockets.append(TcpServerUnixSocket(addr))
-
-			seq = addr.split(':')
-			if len(seq) == 2:
-				sockets.append(TcpServerSocket((seq[0], int(seq[1]))))
-
-			elif len(seq) == 1:
-				sockets.append(TcpServerUnixSocket(addr))
-			else:
-				raise ValueError('bad address %r' %addr)
+	elif 'port' in args:
+		sockets = Sockets([('0.0.0.0', args['port'])])
 	else:
-		raise ValueError('bad address %r' %args['bind'])
+		sockets = Sockets(args['bind'])
 
-	for sock in sockets:
-		TcpServer(sock, handler)
+	for sock, environ in sockets:
+		TcpServer(sock, FcgiHandler(handler, **environ))
 
 def mainloop(cpus=False):
 	if globals().get('ignore_cpus', False):
