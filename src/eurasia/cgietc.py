@@ -98,13 +98,15 @@ def Form(httpfile, max_size=1048576):
 
 class SimpleUpload(dict):
 	def __init__(self, httpfile):
+		self.httpfile = httpfile
 		try:
-			next = '--' + parse_header(httpfile.environ[
-			       'HTTP_CONTENT_TYPE'])[1]['boundary']
+			self.next = next = '--' + parse_header(httpfile.environ[
+				'CONTENT_TYPE'])[1]['boundary']
 		except:
 			raise IOError
 
-		last, c = next + '--', 0
+		c = 0
+		self.last = last = self.next + '--'
 		while True:
 			line = httpfile.readline(65536)
 			c += len(line)
@@ -112,18 +114,19 @@ class SimpleUpload(dict):
 				raise IOError
 
 			if line[:2] == '--':
-				strpln = line.strip()
-				if strpln == next:
+				data = line.strip()
+				if data == next:
 					c1 = (line[-2:] == '\r\n' and 2 or 1) << 1
-					c_next = c1 + len(next)
+					cnext = c1 + len(next)
 					break
 
-				if strpln == last:
+				if data == last:
 					raise IOError
+
 		filename = None
 		while True:
 			name = None
-			for i in xrange(32):
+			for i in xrange(10):
 				line = httpfile.readline(65536)
 				c += len(line)
 				line = line.strip()
@@ -132,27 +135,23 @@ class SimpleUpload(dict):
 						raise IOError
 
 					if filename:
-						self.buff      = ''
-						self.httpfile  = httpfile
-						self.filename  = filename
-						self._readline = self._readline(next, last).next
+						fp = _upload_file_reader(self._reader().next)
+						self.filename = filename
 						try:
 							size = int(httpfile.environ['CONTENT_LENGTH'])
 						except:
+							self.read, self.readline = fp.read, fp.readline
 							return
 
 						self.size = size - c - c1 - len(last)
+						self.read, self.readline = fp.read, fp.readline
 						return
 
-					data = self.read()
-					c += c_next + len(data)
-					try:
-						self[name].append(data)
-					except KeyError:
-						self[name] = data
-					except AttributeError:
-						self[name] = [self[name], data]
-
+					s = _upload_file_reader(self._reader().next).read()
+					c += cnext + len(s)
+					try: self[name].append(s)
+					except KeyError: self[name] = s
+					except AttributeError: self[name] = [self[name], s]
 					break
 
 				t1, t2 = line.split(':', 1)
@@ -163,8 +162,7 @@ class SimpleUpload(dict):
 				if t1.lower() != 'form-data':
 					raise IOError
 
-				try:
-					name = t2['name']
+				try: name = t2['name']
 				except KeyError:
 					raise IOError
 
@@ -179,15 +177,16 @@ class SimpleUpload(dict):
 
 				filename = m.groups()[0]
 
-	def _readline(self, next, last):
+	def _reader(self):
 		httpfile = self.httpfile
 		line = httpfile.readline(65536)
 		if not line:
 			raise IOError
 
+		next, last = self.next, self.last
 		if line[:2] == '--':
-			strpln = line.strip()
-			if strpln == next or strpln == last:
+			data = line.strip()
+			if data == next or data == last:
 				raise IOError
 
 		el = line[-2:] == '\r\n' and '\r\n' or (line[-1] == '\n' and '\n' or '')
@@ -197,8 +196,8 @@ class SimpleUpload(dict):
 				raise IOError
 
 			if line2[:2] == '--' and el:
-				strpln = line2.strip()
-				if strpln == next or strpln == last:
+				data = line2.strip()
+				if data == next or data == last:
 					yield line[:-len(el)]
 					break
 			yield line
@@ -208,63 +207,72 @@ class SimpleUpload(dict):
 		while True:
 			yield None
 
-	def read(size=None):
+class _upload_file_reader:
+	def __init__(self, reader):
+		self.buff = ''
+		self._read = reader
+
+	def read(self, size=None):
 		buff = self.buff
 		if size:
 			while len(buff) < size:
-				line = self._readline()
-				if not line:
+				data = self._read()
+				if not data:
 					self.buff = ''
 					return buff
-
-				buff += line
+				buff += data
 
 			self.buff = buff[size:]
 			return buff[:size]
 
-		d, self.buff = [buff], ''
+		d = [buff]
+		self.buff = ''
 		while True:
-			line = self._readline()
-			if not line:
+			data = self._read()
+			if not data:
 				return ''.join(d)
 
-			d.append(line)
+			d.append(data)
 
-	def readline(size=None):
-		buff = self.buff
+	def readline(self, size=None):
+		s = self.buff
 		if size:
-			nl = buff.find('\n', 0, size)
-			if nl >= 0:
-				nl += 1
-				self.buff = buff[nl:]
-				return buff[:nl]
+			p = s.find('\n', 0, size)
+			if p >= 0:
+				p += 1
+				self.buff = s[p:]
+				return s[:p]
 
-			elif len(buff) > size:
-				self.buff = buff[size:]
-				return buff[:size]
+			elif len(s) > size:
+				self.buff = s[size:]
+				return s[:size]
 
-			t = self._readline()
+			t = self._read()
 			if not t:
 				self.buff = ''
-				return buff
+				return s
 
-			buff = buff + t
-			if len(buff) > size:
-				self.buff = buff[size:]
-				return buff[:size]
+			s = s + t
+			if len(s) > size:
+				self.buff = s[size:]
+				return s[:size]
 
 			self.buff = ''
-			return buff
+			return s
+		else:
+			p = s.find('\n')
+			if p >= 0:
+				p += 1
+				self.buff = s[p:]
+				return s[:p]
 
-		nl = buff.find('\n')
-		if nl >= 0:
-			nl += 1
-			self.buff = buff[nl:]
-			return buff[:nl]
-
-		t = self._readline()
-		self.buff = ''
-		return buff + t if t else buff
+			else:
+				t = self._read()
+				self.buff = ''
+				if not t:
+					return s
+				s += t
+				return s
 
 def wsgi(application):
 	def controller(httpfile):
