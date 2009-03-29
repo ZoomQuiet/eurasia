@@ -1,12 +1,14 @@
 import os, sys
 import stackless
+from time import time
 from _weakref import proxy
 from sys import stdout, stderr
 from traceback import print_exc
 from stackless import channel, getcurrent, schedule, tasklet
 from errno import EWOULDBLOCK, ECONNRESET, ENOTCONN, ESHUTDOWN, EINTR
-from _socket import socket as Socket, error as SocketError, AF_INET, AF_UNIX, \
-	SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR, SO_REUSEADDR
+from _socket import fromfd, socket as Socket, error as SocketError, \
+	timeout as SocketTimeout, AF_INET, AF_INET6, AF_UNIX, SOCK_STREAM, \
+	SOL_SOCKET, SO_REUSEADDR, SO_REUSEADDR, IPPROTO_IPV6, IPV6_V6ONLY
 
 try:
 	from py.magic import greenlet
@@ -76,6 +78,101 @@ except ImportError:
 	r, w, e = {}, {}, {}
 	POLLIN, POLLPRI, POLLOUT, POLLERR, POLLHUP, POLLNVAL = 1, 2, 4, 8, 16, 32
 	del poll, register, unregister
+
+try:
+	from OpenSSL.crypto import load_certificate, FILETYPE_PEM
+	from OpenSSL.SSL import SSLv23_METHOD, Context as SSLContext, Connection as SSLConnection, \
+		Error as SSLError, WantReadError, WantWriteError, ZeroReturnError, SysCallError
+except ImportError:
+	SSL = None
+else:
+	class SSL(object):
+		def __init__(self, sock):
+			self.ssl = sock
+
+		def recv(self, size):
+			start = time()
+			while True:
+				try:
+					return self.ssl.recv(size)
+
+				except (WantReadError, WantWriteError):
+					schedule()
+					if time() - start > 3:
+						raise SocketTimeout('time out')
+
+					continue
+
+				except SysCallError, e:
+					if e.args == (-1, 'Unexpected EOF'):
+						return ''
+
+					raise SocketError(e.args[0])
+
+				except SSLError, e:
+					try:
+						thirdarg = e.args[0][0][2]
+
+					except IndexError:
+						raise e
+					else:
+						if   thirdarg == 'http request':
+							raise NoSSLError()
+
+						elif thirdarg == 'first num too large':
+							schedule()
+							if time() - start > 3:
+								raise SocketTimeout('time out')
+
+							continue
+					raise
+
+				except ZeroReturnError:
+					return ''
+
+		code = '\n'.join(line[2:] for line in '''\
+		def %s(self, data):
+			start = time()
+			while True:
+				try:
+					return self.ssl.%s(data)
+
+				except (WantReadError, WantWriteError):
+					schedule()
+					if time() - start > 3:
+						raise SocketTimeout('time out')
+
+					continue
+
+				except SysCallError, e:
+					raise SocketError(e.args[0])
+
+				except SSLError, e:
+					try:
+						thirdarg = e.args[0][0][2]
+
+					except IndexError:
+						raise e
+					else:
+						if   thirdarg == 'http request':
+							raise NoSSLError()
+
+						elif thirdarg == 'first num too large':
+							return 0
+					raise'''.split('\n'))
+
+		for func in ('send', 'sendall'):
+			exec code %(func, func)
+
+		for func in ('accept,bind,close,connect,connect_ex,fileno,get_app_data,get_cipher'
+		             '_list,get_context,get_peer_certificate,getpeername,getsockname,gets'
+		             'ockopt,listen,makefile,pending,read,renegotiate,set_accept_state,se'
+		             't_app_data,set_connect_state,setblocking,setsockopt,settimeout,shut'
+		             'down,sock_shutdown,state_string,want_read,want_write,write').split(','):
+
+			exec 'def %s(self, *args):\n\treturn self.ssl.%s(*args)' % (func, func)
+
+		del code, func
 
 class SocketFile:
 	fileno = lambda self: self.pid
@@ -175,6 +272,13 @@ class SocketFile:
 						self.read_channel = channel()
 						self.tasklet.raise_exception(Disconnect)
 						raise StopIteration
+				except:
+					try: self.close()
+					except: pass
+
+					self.read_channel = channel()
+					self.tasklet.raise_exception(Disconnect)
+					raise StopIteration
 
 				if not data:
 					self.close()
@@ -216,6 +320,13 @@ class SocketFile:
 						self.read_channel = channel()
 						self.tasklet.raise_exception(Disconnect)
 						raise StopIteration
+				except:
+					try: self.close()
+					except: pass
+
+					self.read_channel = channel()
+					self.tasklet.raise_exception(Disconnect)
+					raise StopIteration
 
 				if not data:
 					self.close()
@@ -267,6 +378,14 @@ class SocketFile:
 						self.read_channel = channel()
 						self.tasklet.raise_exception(Disconnect)
 						raise StopIteration
+				except:
+					try: self.close()
+					except: pass
+
+					self.read_channel = channel()
+					self.tasklet.raise_exception(Disconnect)
+					raise StopIteration
+
 				if not data:
 					self.close()
 					break
@@ -319,6 +438,14 @@ class SocketFile:
 						self.read_channel = channel()
 						self.tasklet.raise_exception(Disconnect)
 						raise StopIteration
+				except:
+					try: self.close()
+					except: pass
+
+					self.read_channel = channel()
+					self.tasklet.raise_exception(Disconnect)
+					raise StopIteration
+
 				if not data:
 					self.close()
 					break
@@ -362,6 +489,14 @@ class SocketFile:
 					self.write_channel = channel()
 					self.tasklet.raise_exception(Disconnect)
 					raise StopIteration
+			except:
+				try: self.close()
+				except: pass
+
+				self.write_channel = channel()
+				self.tasklet.raise_exception(Disconnect)
+				raise StopIteration
+
 			if num_sent:
 				self._wbuf = self._wbuf[num_sent:]
 
@@ -377,7 +512,170 @@ class SocketFile:
 		self.close()
 		self.tasklet and self.tasklet.raise_exception(Disconnect)
 
-def TcpHandler(controller):
+def Sockets(addresses, **args):
+	ssl_certificate = args.get('ssl_certificate')
+	ssl_private_key = args.get('ssl_private_key', args.get('ssl_privatekey'))
+
+	ssl = ssl_certificate and ssl_private_key
+	if ssl:
+		if not SSL:
+			raise ImportError('you must install pyOpenSSL to use https')
+
+		ctx = SSLContext(SSLv23_METHOD)
+		ctx.use_privatekey_file(ssl_private_key)
+		ctx.use_certificate_file(ssl_certificate)
+
+		cert = load_certificate(FILETYPE_PEM, open(ssl_certificate, 'rb').read())
+		base_environ = dict(HTTPS='on', SSL_SERVER_M_SERIAL  = cert.get_serial_number(),
+		                                SSL_SERVER_M_VERSION = cert.get_version())
+
+		for prefix, dn in [("I", cert.get_issuer()), ("S", cert.get_subject())]:
+			dnstr = str(dn)[18:-2]
+			wsgikey = 'SSL_SERVER_%s_DN' %prefix
+			base_environ[wsgikey] = dnstr
+			while dnstr:
+				pos = dnstr.rfind('=')
+				dnstr, value = dnstr[:pos], dnstr[pos + 1:]
+				pos = dnstr.rfind('/')
+				dnstr, key = dnstr[:pos], dnstr[pos + 1:]
+				if key and value:
+					wsgikey = 'SSL_SERVER_%s_DN_%s' % (prefix, key)
+					base_environ[wsgikey] = value
+
+		socket_func = lambda family, socktype: SSL(SSLConnection(ctx, Socket(family, socktype)))
+		fromfd_func = lambda fileno, family, socktype: SSL(fromfd(fileno, family, socktype))
+	else:
+		fromfd_func, socket_func, base_environ = fromfd, Socket, {}
+
+	if isinstance(addresses, basestring):
+		addresses, addrs = [], [i for i in str(addresses).split(',') if i.strip()]
+		for addr in addrs:
+			is_ipv6 = R_IPV6(addr)
+			if is_ipv6:
+				addresses.append((AF_INET6, is_ipv6.groups()))
+				continue
+
+			seq = [i.strip() for i in addr.split(':')]
+			if len(seq) == 2:
+				if seq[0].lower() in ('fromfd', 'fileno'):
+					addresses.append((AF_INET, int(seq[1])))
+					continue
+
+				addresses.append((AF_INET, seq))
+				continue
+
+			if len(seq) == 3 and seq[0].lower() in ('fromfd', 'fileno'):
+				family = seq[1].lower()
+				if   family in ('inet', 'af_inet', 'ipv4'):
+					addresses.append((AF_INET, int(seq[2])))
+
+				elif family in ('inet6', 'af_inet6', 'ipv6', '6'):
+					addresses.append((AF_INET, int(seq[2])))
+
+				elif family in ('unix', 'af_unix', 's', 'socket',
+				           'unix_socket', 'unixsocket', 'unixsock'):
+
+					addresses.append((AF_UNIX, int(seq[2])))
+
+			addresses.append((AF_UNIX, addr.strip()))
+	else:
+		addresses, addrs = [], addresses
+		for addr in addrs:
+			if isinstance(addr, (int, long)):
+				addresses.append((AF_INET, addr))
+				continue
+
+			if isinstance(addr, (list, tuple)) and len(addr) == 2:
+				if isinstance(addr[0], (int, long)):
+					address.append(addr)
+					continue
+
+				if isinstance(addr[0], basestring):
+					addresses.append((AF_INET6, addr) if ':' in addr[0] \
+					            else (AF_INET , addr))
+					continue
+
+			if isinstance(addr, basestring):
+				addresses.append((AF_UNIX, addr))
+				continue
+
+			raise ValueError('bad address %r' %addr)
+
+	sockets = []
+	for family, addr in addresses:
+		if isinstance(addr, (int, long)):
+			sock = fromfd_func(addr, family, SOCK_STREAM)
+			sock.setblocking(0)
+
+			environ = dict(SERVER_NAME='fileno:%d' %addr, SERVER_PORT='')
+			environ.update(base_environ)
+
+			sockets.append((sock, environ))
+			continue
+
+		if family == AF_UNIX:
+			sock = socket_func(AF_UNIX, SOCK_STREAM)
+			sock.setblocking(0)
+			try:
+				sock.bind(addr)
+
+			except SocketError, address_already_in_use:
+				if address_already_in_use.args[0] != 98:
+					raise
+
+				ping = socket_func(AF_UNIX, SOCK_STREAM)
+				try:
+					ping.connect(addr)
+				except SocketError, e:
+					if e.args[0] == 111:
+						os.unlink(addr)
+						sock.bind(addr)
+				else:
+					ping.close()
+					raise address_already_in_use
+
+			sock.listen(4194304)
+
+			environ = dict(SERVER_NAME='s:%s' %addr, SERVER_PORT='')
+			environ.update(base_environ)
+
+			sockets.append((sock, environ))
+			continue
+
+		sock = socket_func(family, SOCK_STREAM)
+		sock.setblocking(0)
+		try:
+			sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, sock.getsockopt(
+			                SOL_SOCKET, SO_REUSEADDR)|1)
+		except SocketError:
+			pass
+
+		if family == AF_INET6 and addr[0] == '::':
+			try:
+				socket.setsockopt(IPPROTO_IPV6, IPV6_V6ONLY, 0)
+			except SocketError:
+				pass
+
+		sock.bind((addr[0], int(addr[1])))
+		sock.listen(4194304)
+
+		environ = dict(SERVER_NAME=addr[0], SERVER_PORT=str(addr[1]))
+		environ.update(base_environ)
+
+		sockets.append((sock, environ))
+
+	return sockets
+
+def TcpHandler(controller, **environ):
+	if environ.get('HTTPS') == 'on':
+		def handler(sock, addr):
+			try:
+				controller(SocketFile(SSL(sock), addr))
+			except:
+				print_exc(file=stderr)
+
+		return handler
+
 	def handler(sock, addr):
 		try:
 			controller(SocketFile(sock, addr))
@@ -385,43 +683,6 @@ def TcpHandler(controller):
 			print_exc(file=stderr)
 
 	return handler
-
-def TcpServerSocket(address):
-	sock = Socket(AF_INET, SOCK_STREAM)
-	sock.setblocking(0)
-	try:
-		sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, sock.getsockopt(
-		                SOL_SOCKET, SO_REUSEADDR)|1)
-	except SocketError:
-		pass
-
-	sock.bind(address)
-	sock.listen(4194304)
-	return sock
-
-def TcpServerUnixSocket(filename):
-	sock = Socket(AF_UNIX, SOCK_STREAM)
-	sock.setblocking(0)
-	try:
-		sock.bind(filename)
-
-	except SocketError, address_already_in_use:
-		if address_already_in_use.args[0] != 98:
-			raise
-
-		test = Socket(AF_UNIX, SOCK_STREAM)
-		try:
-			test.connect(filename)
-		except SocketError, e:
-			if e.args[0] == 111:
-				os.unlink(filename)
-				sock.bind(filename)
-		else:
-			test.close()
-			raise address_already_in_use
-
-	sock.listen(4194304)
-	return sock
 
 class TcpServer:
 	def __init__(self, sock, handler):
@@ -455,7 +716,7 @@ def config(**args):
 			if handler is not None:
 				raise TypeError('too many handlers')
 
-			handler = TcpHandler(args[name])
+			handler = args[name]
 
 	if not handler:
 		raise TypeError('handler is required')
@@ -464,45 +725,12 @@ def config(**args):
 		raise TypeError('too many addresses')
 
 	if 'port' in args:
-		sockets = [TcpServerSocket(('0.0.0.0', int(args['port'])))]
-
-	elif isinstance(args['bind'], (list, tuple, set)):
-		bind = args['bind']
-		if len(bind) == 2 and isinstance(bind[1], (int, long)):
-			sockets = [TcpServerSocket(tuple(bind))]
-		else:
-			sockets = []
-			for addr in bind:
-				if isinstance(addr, (list, tuple)):
-					sockets.append(TcpServerSocket(addr))
-				elif isinstance(addr, str):
-					sockets.append(TcpServerUnixSocket(addr))
-				else:
-					raise ValueError('bad address %r' %addr)
-
-	elif isinstance(args['bind'], str):
-		sockets = []
-		for addr in args['bind'].split(','):
-			addr = addr.strip()
-			if not addr:
-				continue
-
-			if addr[:1] == '/':
-				sockets.append(TcpServerUnixSocket(addr))
-
-			seq = addr.split(':')
-			if len(seq) == 2:
-				sockets.append(TcpServerSocket((seq[0], int(seq[1]))))
-
-			elif len(seq) == 1:
-				sockets.append(TcpServerUnixSocket(addr))
-			else:
-				raise ValueError('bad address %r' %addr)
+		sockets = Sockets([('0.0.0.0', int(args['port']))])
 	else:
-		raise ValueError('bad address %r' %args['bind'])
+		sockets = Sockets(args['bind'], **args)
 
-	for sock in sockets:
-		TcpServer(sock, handler)
+	for sock, environ in sockets:
+		TcpServer(sock, TcpHandler(handler, environ))
 
 def mainloop(cpus=False):
 	if isinstance(cpus, bool):
@@ -583,5 +811,9 @@ def cpu_count():
 R, W, E = POLLIN|POLLPRI, POLLOUT, POLLERR|POLLHUP|POLLNVAL
 RE, WE, RWE = R|E, W|E, R|W|E
 
-socket_map, Disconnect = {}, type('Disconnect', (IOError, ), {})
+R_IPV6 = __import__('re').compile(r'^\s*\[([a-fA-F0-9:\s]+)]\s*:\s*([0-9]+)\s*$').match
+
+socket_map, Disconnect, NoSSLError = {}, type('Disconnect', (IOError, ), {}), \
+	type('NoSSLError', (IOError, ), {})
+
 tasklet(poll)()

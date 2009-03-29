@@ -1,6 +1,6 @@
 from cgietc import wsgi, json, Form, SimpleUpload, Browser, Comet
-from socket2 import mainloop0, mainloop, Disconnect, SocketFile, TcpHandler, \
-	TcpServerSocket, TcpServerUnixSocket, TcpServer
+from socket2 import mainloop0, mainloop, SSL, Disconnect, SocketFile, \
+	Sockets, TcpHandler, TcpServer
 
 import re, sys
 from _weakref import proxy
@@ -13,7 +13,7 @@ RESPONSES = dict((key, '%d %s' %(key, value[0]))
 del BaseHTTPRequestHandler, sys.modules['BaseHTTPServer']
 
 class HttpFile(object):
-	def __init__(self, sockfile, server_name, server_port):
+	def __init__(self, sockfile, **environ):
 		first  = sockfile.readline(8192)
 		try:
 			method, uri, version = R_FIRST(first).groups()
@@ -23,12 +23,6 @@ class HttpFile(object):
 
 		self.version = version.upper()
 		self.method  = method =  method.upper()
-		environ = dict(
-			REQUEST_URI     =  uri,
-			REQUEST_METHOD  =  method,
-			SERVER_PORT     =  server_port,
-			SERVER_NAME     =  server_name,
-			SERVER_PROTOCOL =  self.version)
 
 		line = sockfile.readline(8192)
 		counter = len(first) + len(line)
@@ -69,7 +63,11 @@ class HttpFile(object):
 			environ['PATH_INFO'] = uri
 			environ['QUERY_STRING'] = ''
 
+		environ['REQUEST_METHOD' ] = method
+		environ['SERVER_PROTOCOL'] = self.version
+
 		environ['SCRIPT_NAME'] = ''
+		environ['REQUEST_URI'] = uri
 		environ['REMOTE_ADDR'] = sockfile.address[0]
 		environ['REMOTE_PORT'] = sockfile.address[1]
 
@@ -311,15 +309,32 @@ class HttpFile(object):
 		self.sockfile.close()
 		self.keep_alive = self.keep_alive and self.keep_alive.send(0)
 
-def HttpHandler(controller, **args):
-	server_port = args.get('server_port', '80')
-	server_name = args.get('server_name', 'localhost')
+def HttpHandler(controller, **environ):
+	if environ.get('HTTPS') == 'on':
+		def handler(sock, addr):
+			sockfile = SocketFile(SSL(sock), addr)
+			try:
+				httpfile = HttpFile(sockfile, **environ)
+
+			except IOError:
+				return
+
+			tasklet(controller)(httpfile)
+
+			while httpfile.keep_alive.receive():
+				try:
+					httpfile = HttpFile(sockfile, **environ)
+
+				except IOError:
+					return
+
+				tasklet(controller)(httpfile)
+		return handler
 
 	def handler(sock, addr):
 		sockfile = SocketFile(sock, addr)
 		try:
-			httpfile = HttpFile(sockfile,
-			  server_name, server_port)
+			httpfile = HttpFile(sockfile, **environ)
 
 		except IOError:
 			return
@@ -328,8 +343,7 @@ def HttpHandler(controller, **args):
 
 		while httpfile.keep_alive.receive():
 			try:
-				httpfile = HttpFile(sockfile,
-				  server_name, server_port)
+				httpfile = HttpFile(sockfile, **environ)
 
 			except IOError:
 				return
@@ -347,19 +361,19 @@ def WsgiServer(application, bind=None, port=None, bindAddress=None):
 
 			idx = i
 	if idx is None:
-		raise TypeError('\'bind\' is required')
+		server = config(wsgi=application, port=8080)
 
 	elif idx == 0:
 		server = config(wsgi=application, bind=bind)
 
 	elif idx == 1:
-		server = config(wsgi=application, port=port)
+		server = config(wsgi=application, port=int(port))
 
 	else:
-		server = config(wsgi=application, bind='%s:%d' %bindAddress)
+		server = config(wsgi=application, bind=[bindAddress])
 
-	server.serve_forever = server.run = mainloop
-	return server
+	return type('WsgiServer', (), dict(run=staticmethod(mainloop),
+	                         serve_forever=staticmethod(mainloop)))()
 
 def config(**args):
 	handler = None
@@ -385,52 +399,19 @@ def config(**args):
 	if 'port' in args and 'bind' in args:
 		raise TypeError('too many addresses')
 
-	if 'port' in args:
-		sockets = [(TcpServerSocket(('0.0.0.0', int(args['port']))),
-		               ('localhost', args['port']))]
-
-	elif isinstance(args['bind'], (list, tuple, set)):
-		bind = args['bind']
-		if len(bind) == 2 and isinstance(bind[1], (int, long)):
-			sockets = [(TcpServerSocket(tuple(bind)), (bind[0], str(bind[1])))]
-		else:
-			sockets = []
-			for addr in args['bind']:
-				if isinstance(addr, (list, tuple)):
-					sockets.append((TcpServerSocket(addr), addr))
-				elif isinstance(addr, str):
-					sockets.append((TcpServerUnixSocket(addr), (addr, 'UNIX SOCKET')))
-				else:
-					raise ValueError('bad address %r' %addr)
-
-	elif isinstance(args['bind'], str):
-		sockets = []
-		for addr in args['bind'].split(','):
-			addr = addr.strip()
-			if not addr:
-				continue
-
-			if addr[:1] == '/':
-				sockets.append((TcpServerUnixSocket(addr), (addr, 'UNIX SOCKET')))
-
-			seq = addr.split(':')
-			if len(seq) == 2:
-				sockets.append((TcpServerSocket((seq[0], int(seq[1]))), seq))
-
-			elif len(seq) == 1:
-				sockets.append((TcpServerUnixSocket(addr), (addr, 'UNIX SOCKET')))
-			else:
-				raise ValueError('bad address %r' %addr)
+	if   'port' in args:
+		sockets = Sockets([('0.0.0.0', int(args['port']))], **args)
+	elif 'bind' in args:
+		sockets = Sockets(args['bind'], **args)
 	else:
-		raise ValueError('bad address %r' %args['bind'])
+		sockets = Sockets([('0.0.0.0', 8080)], **args)
 
 	if 'tcphandler' in args:
-		for sock, addr in sockets:
-			TcpServer(sock, TcpHandler(handler))
+		for sock, environ in sockets:
+			TcpServer(sock,  TcpHandler(handler, **environ))
 	else:
-		for sock, addr in sockets:
-			TcpServer(sock, HttpHandler(handler, server_name=addr[0],
-			            server_port=str(addr[1])))
+		for sock, environ in sockets:
+			TcpServer(sock, HttpHandler(handler, **environ))
 
 WSGIServer = WsgiServer
 
