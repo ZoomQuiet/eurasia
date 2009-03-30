@@ -11,7 +11,7 @@
 
 \date{2009 年 3 月 23 日}
 
-\release{3.0.0a6}
+\release{3.0.0a6.2}
 
 \makeindex
 
@@ -23,8 +23,8 @@
 
 \noindent
 
-eurasia 高性能应用服务器, 自带 shelve2 对象数据库、编译型模板、fastcgi 支持及 wsgi 服务器。
-可以用于面向高并发的长连接 http 服务器, 和 tcp 服务器的设计。
+Eurasia 高性能应用服务器和开发框架, 可以用于面向长连接和高并发的 tcp/http 服务器设计。
+自带 shelve2 对象数据库、编译型模板、fastcgi 及 ssl/https 支持, 也可以作为 wsgi 服务器。
 
 \end{abstract}
 
@@ -76,7 +76,8 @@ eurasia 目前不支持 python 3。
 
 \section{开始安装}
 
-Eurasia 的官方网站是 \url{http://eurasia.pyforce.com}, 可以在这里下载到 eurasia 的最新版本。
+Eurasia 的官方网站是 \url{http://eurasia.pyforce.com} (目前正在使用 eurasia 建设),
+可以在这里下载到 eurasia 的最新版本。
 
 你可以通过解压目录中的安装脚本 \file{setup.py} 来安装 eurasia 库:
 
@@ -85,7 +86,13 @@ Eurasia 的官方网站是 \url{http://eurasia.pyforce.com}, 可以在这里下�
 \end{verbatim}
 
 对于非 stackless 的 python 2.5, eurasia 需要 py (\url{http://codespeak.net/py}) 包的支持。
-如果没有检查到 py 包, 安装程序会尝试通过 setuptools 自动下载并安装 py 包 (推荐手工安装)。
+如果没有检查到 py 包, 安装程序会尝试通过 setuptools 自动下载并安装 py 包。
+
+\note{因为 py 包在自动安装时, 索引会比较耗时, 所以强烈推荐在安装 eurasia 之前手工下载 py 包并进行安装。
+具体请访问 py 项目网站 http://codespeak.net/py 。}
+
+\note{如果需要用到 ssl/https 支持, 你需要安装有 pyOpenSSL, eurasia 并不会自动安装 pyOpenSSL,
+请访问 pyOpenSSL 项目网站 http://pyopenssl.sourceforge.net/ 。}
 
 \chapter{教程}
 
@@ -133,9 +140,9 @@ httpfile 对象包含以下读相关的属性。
 \lineii{ httpfile.version        }{ "HTTP/1.0" 或 "HTTP/1.1" }
 \lineii{ httpfile[key]           }{ 即 __getitem__ 方法。用于获取 http 头, 比如 httpfile["User-Agent"] }
 \lineii{ httpfile.environ        }{ 类似于 cgi 的环境变量 }
-\lineii{ httpfile.path_info      }{ 参见 cgi1.1 协议关于 SCRIPT_NAME 与 PATH_INFO 的说明, 如果 uri 是 "/show?page=10" 那么 path_info 为 "/show" }
-\lineii{ httpfile.script_name    }{ 参见 cgi1.1 协议关于 SCRIPT_NAME 与 PATH_INFO 的说明 }
-\lineii{ httpfile.query_string   }{ uri 在请求部分, 如果 uri 是 "/show?page=10" 那么 query_string 为 "page=10" }
+\lineii{ httpfile.path_info      }{ 参见 cgi1.1 协议关于 PATH_INFO 的说明, 如果 uri 是 "/show?page=10" 那么 path_info 为 "/show" }
+\lineii{ httpfile.script_name    }{ 参见 cgi1.1 协议关于 SCRIPT_NAME 的说明, 通常情况下仅对 fcgi 有效, 对应用服务器无效 }
+\lineii{ httpfile.query_string   }{ uri 的请求部分, 如果 uri 是 "/show?page=10" 那么 query_string 为 "page=10" }
 \lineii{ httpfile.address        }{ 客户端的 ip 与端口, 诸如 ('192.168.0.101', 4433) }
 \lineii{ httpfile.read(size)     }{ 对 "POST" 请求读取指定大小的请求报文, 如果不指定 size 则全部读取 }
 \lineii{ httpfile.readline(size) }{ 读取一行或指定大小的报文, 如果不指定 size 则到完成读取一行为止 (直至文件结尾) }
@@ -195,9 +202,9 @@ config(handler=handler, port=8080)
 mainloop()
 \end{verbatim}
 
-\subsection{服务器配置}
+\section{服务器配置}
 
-我们不仅可以启动一个服务器, 还可以配置出多个服务器。
+我们不仅可以启动一个服务器, 还可以配置出多个服务器:
 
 \begin{verbatim}
 config(handler=handler1, port=8080)
@@ -206,13 +213,14 @@ mainloop()
 \end{verbatim}
 
 除了把服务器配置到端口上, 我们还可以详细指定绑定的端口。
-而且服务器不仅可以绑定到一个 ip 和端口上, 还可以绑定到多个。
+而且服务器不仅可以绑定到一个 ip 和端口上, 还可以绑定到多个:
 
 \begin{verbatim}
 config(handler=handler, bind='192.168.0.1:8080, 192.168.0.2:80')
 \end{verbatim}
 
-如果既不指定 "port" 也不指定 "bind", 那么服务器将会以 fastcgi 模式启动。
+如果既不指定 "port" 也不指定 "bind", 那么服务器将会以 fastcgi 模式启动,
+下面是一个完整的 fcgi 范例:
 
 \begin{verbatim}
 #!/usr/bin/python2.5
@@ -230,6 +238,78 @@ config(handler=handler)
 mainloop()
 \end{verbatim}
 
+下面是关于服务器配置更为详细的说明。
+
+\subsection{FCGI 配置}
+
+如果既不指定 "bind" 也不指定 "port", 那么服务器将会以 fastcgi 模式启动:
+
+\begin{verbatim}
+config(handler=handler)
+\end{verbatim}
+
+如果你正在使用带有 mod_fcgid 或者 mod_fastcgi 的 apache,
+那么将可以直接启动该服务器程序。
+
+对于 lighttpd 和 nginx 可以使用 lighttpd 项目的 spawn-fcgi 程序。
+
+eurasia 同时支持以外部服务器模式启动 fcgi 服务器,
+这时候你需要通过 "bind" 或 "port" 指定地址,
+并设定 "fcgi" 参数为 True:
+
+\begin{verbatim}
+config(handler=handler, bind="127.0.0.1:8080", fcgi=True)
+\end{verbatim}
+
+\subsection{绑定到 IPv6 及 Unix Socket}
+
+eurasia 支持绑定到 IPv6, 你需要将 IPv6 地址放在 "[xx:xx:...:xx]" 中:
+
+\begin{verbatim}
+config(handler=handler, bind="[::]:8080")
+\end{verbatim}
+
+eurasia 支持绑定到 Unix Socket, 你仅需给出 Unix Socket 域文件路径:
+
+\begin{verbatim}
+config(handler=handler, bind="/var/example/test.sock")
+\end{verbatim}
+
+除了字符串参数外 "bind", 还可以接受一个地址列表:
+
+\begin{verbatim}
+config(handler=handler, bind=[
+	('0.0.0.0', 8080), # IPv4 地址, 绑定到 8080 端口
+	('::'     , 9080), # IPv6 地址, 绑定到 9080 端口
+	('/var/example/test.sock') # Unix Socket
+	])
+\end{verbatim}
+
+等价于:
+
+\begin{verbatim}
+config(handler=handler, bind='0.0.0.0:8080, [::]:9080, /var/example/test.sock')
+\end{verbatim}
+
+对 Unix Socket 的配置而言,
+使用地址列表比起使用字符串参数的优势是可以指定各种字符及编码的路径和文件名。
+
+\subsection{使用 SSL/HTTPS}
+
+让服务器支持 ssl 和 https, 你只需要指定 ssl private key 和 ssl certificate 文件即可:
+
+\begin{verbatim}
+config(handler=handler, bind='0.0.0.0:443',
+	ssl_private_key='/PATH/TO/server.key', # private key 文件
+	ssl_certificate='/PATH/TO/server.crt'  # certificate 文件
+	)
+\end{verbatim}
+
+unix/linux 用户可以方便地通过 openssl 命令生成 private key 和 certificate 文件。
+
+\note{ssl/https 支持依赖于 pyOpenSSL 包, eurasia 并不会自动安装 pyOpenSSL,
+请访问 pyOpenSSL 项目网站 http://pyopenssl.sourceforge.net/ 。}
+
 \subsection{其他配置}
 
 我们还可以指定调试模式、用户名等参数。
@@ -240,8 +320,7 @@ eurasia.verbose =  False   # 禁止输出调试信息, 默认为 True
 eurasia.user    = 'nobody' # 以 'nobody' 的身份执行程序
 \end{verbatim}
 
-
-\section{表单、文件上传及 session 处理}
+\section{表单、文件上传及 Session 处理}
 
 你可以在 eurasia 里方便地处理表单和文件上传。
 
@@ -258,7 +337,9 @@ from eurasia.web  import Form, SimpleUpload
 from eurasia.fcgi import Form, SimpleUpload
 \end{verbatim}
 
-\subsection{form}
+\note{cgietc 模块包括 Form, SimpleUpload、Browser、json、wsgi 这几个实用接口。}
+
+\subsection{Form}
 
 Form 函数将用户提交的表单解析成一个 dict 对象。
 
@@ -384,12 +465,15 @@ SimpleUpload 能够猜测出用户上传内容的大小, 对于标准的浏览�
 
 \note{在读取文件时如果用户已经断开连接, read 会抛出 IOError。}
 
-\subsection{手工获取 post 报文}
+\subsection{手工获取 POST 报文}
 
 你可以通过 Form 和 SimpleUpload 读取用户通过 post 方法提交的表单和文件。
 
 如果用户通过 post 方法提交了一个 xml 报文或者 json 等类型的报文,
-那么你就需要手工读取整个 post 报文进行处理了。httpfile.read()/httpfile.readline() 即是这样的工具。
+那么你就需要手工读取整个 post 报文进行处理了。
+
+httpfile.read()/httpfile.readline() 即是这样的工具,
+下面是一个 echo 服务器, 将用户 post 过来的数据重新返回:
 
 \begin{verbatim}
 #!/usr/bin/python2.5
@@ -417,7 +501,7 @@ mainloop()
 \note{Form 和 SimpleUpload 即是基于 httpfile.read 实现的,
 Form、SimpleUpload 和 httpfile.read 会同时读取 post 报文, 他们是不能混用的。}
 
-\subsection{cookie \& session}
+\subsection{Cookie \& Session}
 
 你可以通过 httpfile['Set-Cookie'] 和 httpfile['Cookie'] 这两个接口直接操作 cookie, 去实现一个自己喜欢的 session 机制。
 
@@ -455,7 +539,7 @@ mainloop()
 
 基于持久 id 可以做出各种 session 实现。这里是一个内存 session,
 我们将用户提交的表单保存在字典中, 在下一次访问时取出。
-使用 dbm、bsddb、memcached 以及 MySQL 的原理相同。
+使用 dbm、gdbm、bsddb、memcached 以及 MySQL 的原理相同。
 
 \begin{verbatim}
 #!/usr/bin/python2.5
@@ -489,7 +573,6 @@ config(handler=handler, port=8080)
 mainloop()
 \end{verbatim}
 
-
 \section{长连接}
 
 首先只要请求头部指定了 "Connection: keep-alive", eurasia 在请求结束后不会立即断开连接,
@@ -502,12 +585,7 @@ mainloop()
 在通常情况下, httpfile.write() 的内容会在调用 httpfile.close() 时一次性地发送给浏览器客户端。
 通过 httpfile.begin() 调用, 我们可以使 httpfile.write() 的内容即时发送给客户端。
 
-在下面这个例子中, 每当有新用户访问站点, 所有在线用户都将收到一条提醒。
-
-\note{需要注意的是因为 firefox 浏览器的缓存策略, 无法同时打开两个 html 长连接页面
-(但是下面将要提到的 javascript 远程调用不受影响), 这不是 eurasia 引起的。
-如果你正在使用 firefox , 除了 firefox 之外你还要多打开一个浏览器才能看到效果。
-或者使用 telnet 发送 "GET / HTTP/1.0" 来进行测试}
+在下面这个例子中, 每当有新用户访问站点, 所有在线用户都将收到一条提醒:
 
 \begin{verbatim}
 #!/usr/bin/python2.5
@@ -556,6 +634,12 @@ httpfile.write() 函数会一直处于 "阻塞" 状态, 直至所有内容发送
 
 同样使用 httpfile.close() 结束本次请求。
 
+\note{需要注意的是在这个例子中, 因为 firefox 浏览器的缓存策略,
+无法同时打开两个 html 长连接页面
+(但是下面将要提到的 javascript 远程调用不受影响), 这不是 eurasia 引起的。
+如果你正在使用 firefox , 除了 firefox 之外你还要多打开一个浏览器才能看到效果。
+或者使用 telnet 发送 "GET / HTTP/1.0" 来进行测试。}
+
 \note{响应头部和 httpfile.status 必须在调用 httpfile.begin() 之前设置好。}
 
 \subsection{javascript rpc}
@@ -566,7 +650,7 @@ eurasia.cgietc 提供的 Browser 对象是一种更为强大的长连接工具�
 在下面这个例子中, 每当有新用户访问站点,所有在线用户都将收到一条 javascript 的提醒。
 
 我们首先定义一个包含有 javascript 的 html 页面, 并与服务器建立一条长连接。
-其中的 "my_alert" 函数就是我们即将要用到的。
+其中的 "my_alert" 函数就是我们即将要用到的:
 
 \begin{verbatim}
 <html>
@@ -582,7 +666,7 @@ function my_alert(stuff) { alert(stuff); };
 </html>
 \end{verbatim}
 
-下面是完整的处理脚本。
+下面是完整的处理脚本:
 
 \begin{verbatim}
 #!/usr/bin/python2.5
@@ -640,7 +724,7 @@ mainloop()
 \end{verbatim}
 
 我们可以在 Brwoser 对象创建时指定 javascript 域 (document.domain),
-方便 javascript 的跨子域调用。
+方便 javascript 的跨子域调用:
 
 \begin{verbatim}
 browser = Browser(httpfile, domain=DOMAIN)
@@ -698,7 +782,7 @@ os.environ['DJANGO_SETTINGS_MODULE'] = 'SITE.settings'
 
 from eurasia import WSGIServer
 from django.core.handlers.wsgi import WSGIHandler
-server = WSGIServer(wsgiHandler()) # 启动为 fcgi
+server = WSGIServer(wsgiHandler(), port=8080)
 server.run()
 \end{verbatim}
 
@@ -728,7 +812,7 @@ server.run()
 
 eurasia.cgietc 提供的 wsgi 函数可以将任意 WSGI application 转换成普通的 handler。
 
-handler 可以用于 config 函数。
+handler 可以用于 config 函数:
 
 \begin{verbatim}
 from eurasia.cgietc import wsgi
@@ -737,7 +821,7 @@ config(handler=wsgi(app), port=8080)
 
 既然 handler 本质上是一个接受一个 httpfile 参数的处理函数, 也可以用于多框架混用。
 
-在这个例子中, 我们将混合使用 django 和 cherrypy (以及 eurasia)。
+在这个例子中, 我们将混合使用 django 和 cherrypy (以及 eurasia):
 
 \begin{verbatim}
 #!/usr/bin/python2.5
@@ -782,23 +866,27 @@ def handler(httpfile):
 		return cherrypy_handler(httpfile)
 
 	else:
-		httpfile.write('I AM EURASIA!')
+		httpfile.write('this is eurasia!')
 		return httpfile.close()
 
 config(handler=handler, port=8080)
 mainloop()
 \end{verbatim}
 
-\note{修改 httpfile 对象的 request_uri、path_info、script_name、query_string
-这四个属性是联动的, 他们也会同时影响到 httpfile.environ 中的
-REQUEST_URI、PATH_INFO、SCRIPT_NAME、QUERY_STRING 这三个环境变量 (但 httpfile.uri 不受影响)。
-httpfile.environ 即是 WSGI 环境变量。}
+\note{修改 httpfile 对象的 path_info、script_name、query_string 三个属性,
+会重新生成 request_uri 属性。他们也会同时影响到 httpfile.environ 中的
+REQUEST_URI、PATH_INFO、SCRIPT_NAME、QUERY_STRING 这四个环境变量。
+httpfile.environ 即是 WSGI 环境变量。httpfile.uri 不受他们影响, 不发生变化。}
 
 \note{更深层次的混用, 因为 httpfile 对象被设置在 WSGI 环境中 (envrion['wsgi.input']),
 你可以在任何支持 WSGI 的框架中取出 httpfile 对象。
 有了 httpfile 就有了 Form、SimpleUpload、Browser ... eurasia 的大部分功能,
 这意味着你可以在那些框架中直接获得 eurasia 的功能。
 至于如何从 WSGI 环境中得到 wsgi.input, 请参考各框架的具体实现。}
+
+\note{在其他框架中取出 httpfile, 并调用了诸如 httpfile.begin() 之类的长连接接口,
+在单个 wsgi application 请求函数结束以后, httpfile 不会自动关闭,
+需要显式调用 httpfile.close()。}
 
 \section{TCP 服务器设计}
 
@@ -860,7 +948,7 @@ template 包涵以下标签语法。
 this is x: ${x}
 \end{verbatim}
 
-进一步, 取值表达式可以嵌入 python 代码, 并替换为 python 表达式的运算结果。
+进一步, 取值表达式可以嵌入 python 代码, 并替换为 python 表达式的运算结果:
 
 \begin{verbatim}
 ${int(a) + int(b)}
@@ -870,7 +958,7 @@ ${int(a) + int(b)}
 
 我们可以在模板中使用条件表达式及叠代循环表达式。
 
-这里是条件表达式。
+这里是条件表达式:
 
 \begin{verbatim}
 %if x==1:
@@ -882,7 +970,7 @@ ${int(a) + int(b)}
 %endif
 \end{verbatim}
 
-这里是循环。
+这里是循环:
 
 \begin{verbatim}
 %for a in ['one', 'two', 'three', 'four', 'five']:
@@ -898,7 +986,7 @@ ${int(a) + int(b)}
 
 \item \strong{python 代码}
 
-可以在模板中运行 python 代码。
+可以在模板中运行 python 代码:
 
 \begin{verbatim}
 <% # 这里是 Python 代码
@@ -915,7 +1003,7 @@ b = 2
 
 \item \strong{函数标签 <\%def name="..." \%>}
 
-函数是模板中最基本的调用单位, 类似于 Python 中的函数。
+函数是模板中最基本的调用单位, 类似于 Python 中的函数:
 
 \begin{verbatim}
 <%def name="myfunc(x)">
@@ -937,7 +1025,7 @@ call 标签用于调用 <\%def\%> 标签，可传递额外的内嵌内容。稍�
 
 在这个例子里, 我们首先将编写一个字符串模板, 带有 test1 和 test2 两个函数。
 然后使用 template 模块中的 Template 函数将字符串模板编译成可执行的 python 模块,
-并对模板中的 test1、test2 函数进行调用。
+并对模板中的 test1、test2 函数进行调用:
 
 \begin{verbatim}
 #!/usr/bin/python2.5
@@ -959,7 +1047,7 @@ print tmpl.test1('hello') # 调用模板中的 "test1" 函数
 print tmpl.test2('world') # 调用模板中的 "test2" 函数
 \end{verbatim}
 
-结果是
+结果是:
 
 \begin{verbatim}
 test1, a is hello
@@ -970,11 +1058,11 @@ test2, b is world
 
 \note{我们已经确认 CPython 中存在的一个 bug 将导致 Template(s).test1('hello') 这种写法报错。
 因此, 在 CPython 中需要分开来写成 tmpl = Template(s); tmpl.test1('hello')。
-也就是上面这个例子中的写法。}
+也就是上面这个例子中的写法。非 C 实现的 Python 没有这个问题。}
 
 \subsection{一个更为复杂的例子}
 
-本例中, 将用到大量模板常用语法。包括有条件判断, 循环等。
+本例中, 将用到大量模板常用语法。包括有条件判断, 循环等:
 
 \begin{verbatim}
 #!/usr/bin/python2.5
@@ -1026,7 +1114,7 @@ print tmpl.main([1, 2, 3, 4, 5])
 
 \subsection{使用 <\%call> 标签定义宏}
 
-<\%call> 标签提供了一种较为高级的功能, 也就是模板宏。
+<\%call> 标签提供了一种较为高级的功能, 也就是模板宏:
 
 \begin{verbatim}
 <%def name="macros(a, b)">
@@ -1054,7 +1142,7 @@ ${caller.slot2(b)}
 然后在 main 函数中使用 <\%call> 调用 macros, 其中定义了 slot1 和 slot2,
 在 macros 中可以通过 caller 取出。
 
-该模板的入口函数是 main()。调用结果是
+该模板的入口函数是 main()。调用结果是:
 
 \begin{verbatim}
 slot1, 1
@@ -1265,14 +1353,14 @@ print d2['tr']
 
 BTree 除了支持所有类似于 dict 的方法外, 还支持各种遍历方法:
 
-\begin{tableii}{c|l}{}{ 说明 }{ 属性 }
-\lineii{ 正向遍历                 }{ BTree.iter() }
-\lineii{ 反向遍历                 }{ BTree.reversed() }
-\lineii{ 正向遍历返回键、值 }{ BTree.iteritems() }
-\lineii{ 反向遍历返回键、值 }{ BTree.items_backward() }
-\lineii{ 正向遍历返回键、值 }{ BTree.items_from(key, closed=True) }
-\lineii{ 反向遍历返回键、值 }{ BTree.items_backward_from(key, closed=True) }
-\lineii{ 遍历区域返回键、值 }{ BTree.items_range(start, end, closed_start=True, closed_end=False) }
+\begin{tableii}{c|l}{}{ 属性 }{ 说明 }
+\lineii{ BTree.iter()      }{ 正向遍历 }
+\lineii{ BTree.reversed()  }{ 反向遍历 }
+\lineii{ BTree.iteritems() }{ 正向遍历返回键、值 }
+\lineii{ BTree.items_backward() }{ 反向遍历返回键、值 }
+\lineii{ BTree.items_from(key, closed=True) }{ 正向遍历返回键、值 }
+\lineii{ BTree.items_backward_from(key, closed=True) }{ 反向遍历返回键、值 }
+\lineii{ BTree.items_range(start, end, closed_start=True, closed_end=False) }{ 遍历区域返回键、值 }
 \end{tableii}
 
 BTree 对象可以以和 Persistent 对象类似的方法派生。
@@ -1300,7 +1388,7 @@ eurasia.pyetc 模块为配置文件的读取提供了支持。eurasia 认为使�
 
 pyetc 中的 load(filename, env={}) 函数能读取指定的 python 源码文件 (文件后缀并不需要一定是 ".py"), 并设定配置文件中的可见环境 env。load 函数能将指定源码文件转换成 python 模块并返回。
 
-我们首先编写一个名为 \file{httpd.conf} 的配置文件。
+我们首先编写一个名为 \file{httpd.conf} 的配置文件:
 
 \begin{verbatim}
 Server(controller='Products.default.controller'
@@ -1309,7 +1397,7 @@ Server(controller='Products.default.controller'
 user = 'nobody'
 \end{verbatim}
 
-下面是对于这个配置文件的解析
+下面是对于这个配置文件的解析:
 
 \begin{verbatim}
 from eurasia import pyetc
@@ -1338,14 +1426,20 @@ config() 参数可以接受如下参数
 \begin{tableii}{c|l}{}{ 参数 }{ 说明 }
 \lineii{ handler     }{ 指定一个服务器 handler, 如果指定地址, 则为  http 服务器, 否则即为 fcgi 服务器 }
 \lineii{ controller  }{ 同 handler }
-\lineii{ httphandler }{ 指定一个 http 服务器的 handler, 如果没有指定地址, 默认使用 0.0.0.0:8080 }
-\lineii{ fcgihandler }{ 指定一个 fcgi 服务器的 handler, 忽略地址设定 }
-\lineii{ tcphandler  }{ 指定一个 tcp 服务器的 handler, 需要设定地址 }
+\lineii{ httphandler }{ 指定一个 http 服务器的 handler }
+\lineii{ fcgihandler }{ 指定一个 fcgi 服务器的 handler }
+\lineii{ tcphandler  }{ 指定一个 tcp 服务器的 handler }
+\lineii{ application }{ 指定一个 wsgi 服务器的 aplication }
+\lineii{ app  }{ 同 application }
+\lineii{ wsgi }{ 同 application }
 \lineii{ port }{ 指定服务器 port, 比如 8080 }
 \lineii{ bind }{ 指定多个服务器地址, 比如 '192.168.0.1:8080, 192.168.0.2:80' }
+\lineii{ fcgi }{ True 或者 False, 指定是否以 fcgi 模式启动 }
+\lineii{ ssl_certificate }{ 指定 ssl cert 文件 }
+\lineii{ ssl_private_key }{ 指定 ssl key 文件 }
 \end{tableii}
 
-\note{只能指定一个 handler, port 和 bind 不能同时指定}
+\note{只能指定一个 handler (包括 wsgi application), port 和 bind 不能同时指定}
 
 \item \strong{mainloop(cpus=False)}
 
@@ -1359,7 +1453,7 @@ config() 参数可以接受如下参数
 \note{fcgi 服务器会忽略 cpus 设定, 总是使用单进程。
 事实上, 诸如 apache 这类 http 服务器会启动多个 fcgi 服务器进程, 亦即 fcgi 服务器总是多进程的。}
 
-\item \strong{WSGIServer(application, port=None, bind=None, bindAddress=None)}
+\item \strong{WSGIServer(application, port=None, bind=None, bindAddress=None, verbose=True)}
 
 返回一个 WSGIServer 对象。
 
@@ -1421,6 +1515,8 @@ config() 参数可以接受如下参数
 \lineii{ tcphandler  }{ 同 handler }
 \lineii{ port }{ 指定服务器 port, 比如 8080 }
 \lineii{ bind }{ 指定多个服务器地址, 比如 '192.168.0.1:8080, 192.168.0.2:80' }
+\lineii{ ssl_certificate }{ 指定 ssl cert 文件 }
+\lineii{ ssl_private_key }{ 指定 ssl key 文件 }
 \end{tableii}
 
 \note{只能指定一个 handler, port 和 bind 不能同时指定}
@@ -1500,8 +1596,13 @@ config() 参数可以接受如下参数
 \lineii{ controller  }{ 同 handler }
 \lineii{ httphandler }{ 同 handler }
 \lineii{ tcphandler  }{ 指定一个 tcp 服务器 handler }
+\lineii{ application }{ 指定一个 wsgi 服务器的 aplication }
+\lineii{ app  }{ 同 application }
+\lineii{ wsgi }{ 同 application }
 \lineii{ port }{ 指定服务器 port, 比如 8080 }
 \lineii{ bind }{ 指定多个服务器地址, 比如 '192.168.0.1:8080, 192.168.0.2:80' }
+\lineii{ ssl_certificate }{ 指定 ssl cert 文件 }
+\lineii{ ssl_private_key }{ 指定 ssl key 文件 }
 \end{tableii}
 
 \note{只能指定一个 handler, port 和 bind 不能同时指定}
@@ -1615,8 +1716,13 @@ config() 参数可以接受如下参数
 \lineii{ handler     }{ 指定一个 fcgi 服务器 handler }
 \lineii{ controller  }{ 同 handler }
 \lineii{ fcgihandler }{ 同 handler }
+\lineii{ application }{ 指定一个 wsgi 服务器的 aplication }
+\lineii{ app  }{ 同 application }
+\lineii{ wsgi }{ 同 application }
 \lineii{ port }{ 指定服务器 port, 比如 8080 }
 \lineii{ bind }{ 指定多个服务器地址, 比如 '192.168.0.1:8080, 192.168.0.2:80' }
+\lineii{ ssl_certificate }{ 指定 ssl cert 文件 }
+\lineii{ ssl_private_key }{ 指定 ssl key 文件 }
 \end{tableii}
 
 \note{只能指定一个 handler, port 和 bind 不能同时指定}
@@ -1790,20 +1896,20 @@ BTree 定义了对象数据库的持久 btree (类似于 python 字典) 对象�
 BTree 支持的方法有
 
 \begin{tableii}{c|l}{}{ 属性 }{ 说明 }
-\lineii{ __getitem__(key) }{ 取值  }
-\lineii{ __setitem__(key, value) }{ 设置 key 的值  }
-\lineii{ get(key, default=None) }{ 取值, 如果  key 不存在返回  default }
-\lineii{ update(dict) }{ 批量赋值 }
-\lineii{ keys() }{ 返回所有键 }
-\lineii{ values() }{ 返回所有值 }
-\lineii{ items() }{ 以  [(key, value), ...] 形式返回所有键值对 }
-\lineii{ iter() }{ 正向遍历  }
-\lineii{ reversed() }{ 反向遍历 }
-\lineii{ iteritems() }{ 正向遍历返回键、值 }
-\lineii{ items_backward() }{ 反向遍历返回键、值 }
-\lineii{ items_from(key, closed=True) }{ 正向遍历返回键、值 }
-\lineii{ items_backward_from(key, closed=True) }{ 反向遍历返回键、值 }
-\lineii{ items_range(start, end, closed_start=True, closed_end=False) }{ 遍历区域返回键、值 }
+\lineii{ BTree[key] }{ 取值  }
+\lineii{ BTree[key] = value) }{ 设置 key 的值  }
+\lineii{ BTree.get(key, default=None) }{ 取值, 如果  key 不存在返回  default }
+\lineii{ BTree.update(dict) }{ 批量赋值 }
+\lineii{ BTree.keys() }{ 返回所有键 }
+\lineii{ BTree.values() }{ 返回所有值 }
+\lineii{ BTree.items() }{ 以  [(key, value), ...] 形式返回所有键值对 }
+\lineii{ BTree.iter() }{ 正向遍历  }
+\lineii{ BTree.reversed() }{ 反向遍历 }
+\lineii{ BTree.iteritems() }{ 正向遍历返回键、值 }
+\lineii{ BTree.items_backward() }{ 反向遍历返回键、值 }
+\lineii{ BTree.items_from(key, closed=True) }{ 正向遍历返回键、值 }
+\lineii{ BTree.items_backward_from(key, closed=True) }{ 反向遍历返回键、值 }
+\lineii{ BTree.items_range(start, end, closed_start=True, closed_end=False) }{ 遍历区域返回键、值 }
 \end{tableii}
 
 \end{itemize}
@@ -1866,6 +1972,10 @@ BTree 支持的方法有
 
 将 stdin、stdout 以及 stderr 重定向到 /dev/null, 禁止标准输入输出。通常用于后台服务器进程。
 
+\note{dummy() 会关闭系统 socket 句柄, 这意味着如果要使用 mod_fcgid、mod_fastcgi 来启动服务器,
+服务器 socket 从 fileno=0 的 socket 句柄中取出, 必须在调用 config() 以后再执行 dummy(),
+否则将取不到 apache 提供的 socket。 }
+
 \item \strong{daemonize(program, *args)}
 
 在后台执行 program, 使用指定的命令行参数 args。
@@ -1878,7 +1988,7 @@ BTree 支持的方法有
 
 \note{eurasia.daemon 模块仅限于 unix/linux 系统。}
 
-\note{eurasia.daemon 模块依赖于 python2.5。}
+\note{eurasia.daemon 模块目前仅在 python2.5 中测试过, python2.6 兼容性未知。}
 
 \begin{itemize}
 
