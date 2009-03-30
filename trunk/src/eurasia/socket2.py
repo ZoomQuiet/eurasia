@@ -90,6 +90,10 @@ else:
 		def __init__(self, sock):
 			self.ssl = sock
 
+		def accept(self):
+			conn, addr = self.ssl.accept()
+			return SSL(conn), addr
+
 		def recv(self, size):
 			start = time()
 			while True:
@@ -116,10 +120,7 @@ else:
 					except IndexError:
 						raise e
 					else:
-						if   thirdarg == 'http request':
-							raise NoSSLError()
-
-						elif thirdarg == 'first num too large':
+						if thirdarg == 'first num too large':
 							schedule()
 							if time() - start > 3:
 								raise SocketTimeout('time out')
@@ -137,7 +138,7 @@ else:
 				try:
 					return self.ssl.%s(data)
 
-				except (WantReadError, WantWriteError):
+				except (WantWriteError, WantReadError):
 					schedule()
 					if time() - start > 3:
 						raise SocketTimeout('time out')
@@ -154,21 +155,18 @@ else:
 					except IndexError:
 						raise e
 					else:
-						if   thirdarg == 'http request':
-							raise NoSSLError()
-
-						elif thirdarg == 'first num too large':
+						if thirdarg == 'first num too large':
 							return 0
 					raise'''.split('\n'))
 
 		for func in ('send', 'sendall'):
 			exec code %(func, func)
 
-		for func in ('accept,bind,close,connect,connect_ex,fileno,get_app_data,get_cipher'
-		             '_list,get_context,get_peer_certificate,getpeername,getsockname,gets'
-		             'ockopt,listen,makefile,pending,read,renegotiate,set_accept_state,se'
-		             't_app_data,set_connect_state,setblocking,setsockopt,settimeout,shut'
-		             'down,sock_shutdown,state_string,want_read,want_write,write').split(','):
+		for func in ('bind,close,connect,connect_ex,fileno,get_app_data,get_cipher_list,get_'
+		             'context,get_peer_certificate,getpeername,getsockname,getsockopt,listen'
+		             ',makefile,pending,read,renegotiate,set_accept_state,set_app_data,set_c'
+		             'onnect_state,setblocking,setsockopt,settimeout,shutdown,sock_shutdown,'
+		             'state_string,want_read,want_write,write').split(','):
 
 			exec 'def %s(self, *args):\n\treturn self.ssl.%s(*args)' % (func, func)
 
@@ -666,16 +664,7 @@ def Sockets(addresses, **args):
 
 	return sockets
 
-def TcpHandler(controller, **environ):
-	if environ.get('HTTPS') == 'on':
-		def handler(sock, addr):
-			try:
-				controller(SocketFile(SSL(sock), addr))
-			except:
-				print_exc(file=stderr)
-
-		return handler
-
+def TcpHandler(controller):
 	def handler(sock, addr):
 		try:
 			controller(SocketFile(sock, addr))
@@ -696,12 +685,7 @@ class TcpServer:
 	def handle_read(self):
 		try:
 			conn, addr = self.socket.accept()
-
-		except SocketError, why:
-			if why[0] == EWOULDBLOCK:
-				return
-
-		except TypeError:
+		except:
 			pass
 		else:
 			tasklet(self.handler)(conn, addr)
@@ -730,7 +714,7 @@ def config(**args):
 		sockets = Sockets(args['bind'], **args)
 
 	for sock, environ in sockets:
-		TcpServer(sock, TcpHandler(handler, environ))
+		TcpServer(sock, TcpHandler(handler))
 
 def mainloop(cpus=False):
 	if isinstance(cpus, bool):
@@ -810,10 +794,6 @@ def cpu_count():
 
 R, W, E = POLLIN|POLLPRI, POLLOUT, POLLERR|POLLHUP|POLLNVAL
 RE, WE, RWE = R|E, W|E, R|W|E
-
 R_IPV6 = __import__('re').compile(r'^\s*\[([a-fA-F0-9:\s]+)]\s*:\s*([0-9]+)\s*$').match
-
-socket_map, Disconnect, NoSSLError = {}, type('Disconnect', (IOError, ), {}), \
-	type('NoSSLError', (IOError, ), {})
-
+socket_map, Disconnect = {}, type('Disconnect', (IOError, ), {})
 tasklet(poll)()

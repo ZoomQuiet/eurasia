@@ -310,27 +310,6 @@ class HttpFile(object):
 		self.keep_alive = self.keep_alive and self.keep_alive.send(0)
 
 def HttpHandler(controller, **environ):
-	if environ.get('HTTPS') == 'on':
-		def handler(sock, addr):
-			sockfile = SocketFile(SSL(sock), addr)
-			try:
-				httpfile = HttpFile(sockfile, **environ)
-
-			except IOError:
-				return
-
-			tasklet(controller)(httpfile)
-
-			while httpfile.keep_alive.receive():
-				try:
-					httpfile = HttpFile(sockfile, **environ)
-
-				except IOError:
-					return
-
-				tasklet(controller)(httpfile)
-		return handler
-
 	def handler(sock, addr):
 		sockfile = SocketFile(sock, addr)
 		try:
@@ -408,7 +387,7 @@ def config(**args):
 
 	if 'tcphandler' in args:
 		for sock, environ in sockets:
-			TcpServer(sock,  TcpHandler(handler, **environ))
+			TcpServer(sock,  TcpHandler(handler))
 	else:
 		for sock, environ in sockets:
 			TcpServer(sock, HttpHandler(handler, **environ))
