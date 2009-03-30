@@ -9,16 +9,20 @@ from time import gmtime, strftime, time
 from struct import pack, unpack, calcsize
 from stackless import channel, tasklet, getcurrent
 
-import resource
-c = resource.getrlimit(resource.RLIMIT_NOFILE)[0]
-capability = {'FCGI_MAX_CONNS': c, 'FCGI_MAX_REQS': c, 'FCGI_MPXS_CONNS': 1 }
-del c, sys.modules['resource']
-
 from BaseHTTPServer import BaseHTTPRequestHandler
 RESPONSES = dict((key, '%d %s' %(key, value[0]))
               for key, value in BaseHTTPRequestHandler.responses.items())
 
 del BaseHTTPRequestHandler, sys.modules['BaseHTTPServer']
+
+try:
+	import resource
+	c = resource.getrlimit(resource.RLIMIT_NOFILE)[0]
+	capability = {'FCGI_MAX_CONNS': c, 'FCGI_MAX_REQS': c, 'FCGI_MPXS_CONNS': 1 }
+	del c, sys.modules['resource']
+
+except ImportError:
+	capability = {'FCGI_MAX_CONNS': 100, 'FCGI_MAX_REQS': 500, 'FCGI_MPXS_CONNS': 1 }
 
 class FcgiFile(object):
 	def __init__(self):
