@@ -6,9 +6,18 @@ from sys import stdout, stderr
 from traceback import print_exc
 from stackless import channel, getcurrent, schedule, tasklet
 from errno import EWOULDBLOCK, ECONNRESET, ENOTCONN, ESHUTDOWN, EINTR
-from _socket import fromfd, socket as Socket, error as SocketError, \
-	timeout as SocketTimeout, AF_INET, AF_INET6, AF_UNIX, SOCK_STREAM, \
-	SOL_SOCKET, SO_REUSEADDR, SO_REUSEADDR, IPPROTO_IPV6, IPV6_V6ONLY
+from _socket import socket as Socket, error as SocketError, timeout as SocketTimeout, \
+	AF_INET, AF_INET6, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR, IPPROTO_IPV6
+
+import _socket
+AF_UNIX, IPV6_V6ONLY = _socket.__dict__.get('AF_UNIX', -1), \
+	_socket.__dict__.get('IPV6_V6ONLY', -1)
+
+try:
+	from _socket import fromfd
+except ImportError:
+	def fromfd(fileno, family, socktype):
+		raise NotImplementedError('socket.fromfd not implemented')
 
 try:
 	from py.magic import greenlet
@@ -573,9 +582,9 @@ def Sockets(addresses, **args):
 				elif family in ('unix', 'af_unix', 's', 'socket',
 				           'unix_socket', 'unixsocket', 'unixsock'):
 
-					addresses.append((AF_UNIX, int(seq[2])))
+					addresses.append((_socket.AF_UNIX, int(seq[2])))
 
-			addresses.append((AF_UNIX, addr.strip()))
+			addresses.append((_socket.AF_UNIX, addr.strip()))
 	else:
 		addresses, addrs = [], addresses
 		for addr in addrs:
@@ -594,7 +603,7 @@ def Sockets(addresses, **args):
 					continue
 
 			if isinstance(addr, basestring):
-				addresses.append((AF_UNIX, addr))
+				addresses.append((_socket.AF_UNIX, addr))
 				continue
 
 			raise ValueError('bad address %r' %addr)
@@ -612,7 +621,7 @@ def Sockets(addresses, **args):
 			continue
 
 		if family == AF_UNIX:
-			sock = socket_func(AF_UNIX, SOCK_STREAM)
+			sock = socket_func(_socket.AF_UNIX, SOCK_STREAM)
 			sock.setblocking(0)
 			try:
 				sock.bind(addr)
@@ -621,7 +630,7 @@ def Sockets(addresses, **args):
 				if address_already_in_use.args[0] != 98:
 					raise
 
-				ping = socket_func(AF_UNIX, SOCK_STREAM)
+				ping = socket_func(_socket.AF_UNIX, SOCK_STREAM)
 				try:
 					ping.connect(addr)
 				except SocketError, e:
@@ -650,7 +659,7 @@ def Sockets(addresses, **args):
 
 		if family == AF_INET6 and addr[0] == '::':
 			try:
-				socket.setsockopt(IPPROTO_IPV6, IPV6_V6ONLY, 0)
+				socket.setsockopt(IPPROTO_IPV6, _socket.IPV6_V6ONLY, 0)
 			except SocketError:
 				pass
 
