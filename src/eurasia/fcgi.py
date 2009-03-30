@@ -430,7 +430,7 @@ class FcgiFile(object):
 			self.tasklet = None
 			self.read_channel.send(''.join(buffers))
 
-def FcgiHandler(controller, **args):
+def FcgiHandler(controller):
 	def handler(sock, addr):
 		sockfile = SocketFile(sock, addr)
 		requests = {}
@@ -525,13 +525,7 @@ def FcgiHandler(controller, **args):
 			else:
 				print >> stderr, 'warning: fastcgi unknow record, ignore'
 
-	if args.get('HTTPS') != 'on':
-		return handler
-
-	def ssl_handler(sock, addr):
-		return handler(SSL(sock), addr)
-
-	return ssl_handler
+	return handler
 
 def WsgiServer(application, bind=None, port=None, bindAddress=None):
 	idx = None
@@ -587,7 +581,7 @@ def config(**args):
 		sockets = Sockets(args['bind'])
 
 	for sock, environ in sockets:
-		TcpServer(sock, FcgiHandler(handler, **environ))
+		TcpServer(sock, FcgiHandler(handler))
 
 def mainloop(cpus=False):
 	if globals().get('ignore_cpus', False):
