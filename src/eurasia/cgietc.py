@@ -285,6 +285,16 @@ def wsgi(application):
 
 		write = httpfile.write
 		def start_response(status, response_headers, exc_info=None):
+			if exc_info:
+				try:
+					if hasattr(httpfile, 'end'):
+						raise exc_info[0], exc_info[1], exc_info[2]
+				finally:
+					exc_info = None
+
+			elif hasattr(httpfile, 'end'):
+				raise AssertionError('headers already set')
+
 			httpfile._status = status
 			httpfile.headers_set += response_headers
 			return write

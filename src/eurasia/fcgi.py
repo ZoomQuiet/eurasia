@@ -30,8 +30,8 @@ class FcgiFile(object):
 		self.headers = {}
 		self.environ = {}
 		self.content = []
-		self.tasklet = None
 		self.headers_set = []
+		self.working_channel = None
 		self.read_channel  = channel()
 		self.write_channel = channel()
 		self.write = self.content.append
@@ -246,7 +246,7 @@ class FcgiFile(object):
 				r += '\x00' * p
 
 			self.sockfile.write(r)
-			self.tasklet and self.tasklet.raise_exception(Disconnect)
+			self.working_channel and self.working_channel.send_exception(Disconnect, Disconnect())
 			del self.requests[self.pid], self.pid
 
 			if not (self.flags & 1) and not self.requests:
@@ -257,7 +257,7 @@ class FcgiFile(object):
 
 	def _shutdown(self):
 		if hasattr(self, 'pid'):
-			self.tasklet and self.tasklet.raise_exception(Disconnect)
+			self.working_channel and self.working_channel.send_exception(Disconnect, Disconnect())
 			del self.requests[self.pid], self.pid
 
 	def _write(self, data):
@@ -298,7 +298,7 @@ class FcgiFile(object):
 				raise StopIteration
 
 			buffers = data and [data] or []
-			self.tasklet = getcurrent()
+			self.working_channel = self.read_channel
 			data = yield
 
 			while True:
@@ -309,7 +309,7 @@ class FcgiFile(object):
 				buffers.append(data)
 				data = yield
 
-			self.tasklet = None
+			self.working_channel = None
 			self.read_channel.send(''.join(buffers))
 		else:
 			buf_len = len(data)
@@ -325,7 +325,7 @@ class FcgiFile(object):
 
 			buffers = data and [data] or []
 			self._rbuf = ''
-			self.tasklet = getcurrent()
+			self.working_channel = self.read_channel
 			data = yield
 
 			while True:
@@ -344,7 +344,7 @@ class FcgiFile(object):
 				buf_len += n
 				data = yield
 
-			self.tasklet = None
+			self.working_channel = None
 			self.read_channel.send(''.join(buffers))
 
 	def read4line(self, size=-1):
@@ -364,7 +364,7 @@ class FcgiFile(object):
 
 			buffers = data and [data] or []
 			self._rbuf = ''
-			self.tasklet = getcurrent()
+			self.working_channel = self.read_channel
 			data = yield
 
 			while True:
@@ -382,7 +382,7 @@ class FcgiFile(object):
 
 				data = yield
 
-			self.tasklet = None
+			self.working_channel = None
 			self.read_channel.send(''.join(buffers))
 		else:
 			nl = data.find('\n', 0, size)
@@ -405,7 +405,7 @@ class FcgiFile(object):
 
 			buffers = data and [data] or []
 			self._rbuf = ''
-			self.tasklet = getcurrent()
+			self.working_channel = self.read_channel
 			data = yield
 
 			while True:
@@ -431,7 +431,7 @@ class FcgiFile(object):
 				buf_len += n
 				data = yield
 
-			self.tasklet = None
+			self.working_channel = None
 			self.read_channel.send(''.join(buffers))
 
 def FcgiHandler(controller):
