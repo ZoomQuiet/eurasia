@@ -1,4 +1,4 @@
-#labels Featured,Phase-Implementation,Phase-Support
+#labels Deprecated,Phase-Implementation,Phase-Support
 {{{
 # -*- coding: utf-8 -*-
 from traceback import print_exc
