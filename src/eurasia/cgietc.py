@@ -303,13 +303,18 @@ def wsgi(application):
 			for line in application(environ, start_response):
 				line and write(line)
 
-			not hasattr(httpfile, 'end') and \
-				httpfile.close()
+			if not hasattr(httpfile, 'end'):
+				try:
+					httpfile.close()
+				except IOError:
+					pass
 		except:
 			print_exc(file=stderr)
-
 			httpfile._status = '500 Internal Server Error'
-			httpfile.close()
+			try:
+				httpfile.close()
+			except IOError:
+				pass
 
 	return controller
 
