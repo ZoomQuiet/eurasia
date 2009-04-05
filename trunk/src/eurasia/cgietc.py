@@ -359,20 +359,15 @@ T_COMET_BEGIN = (
 	'<meta http-equiv="Pragma" content="no-cache">\r\n'
 	'<meta http-equiv="Content-Type" content="text/html">\r\n'
 	'<body>\r\n'
-	'<script language="JavaScript">\r\n<!--\r\n'
-	'%s\r\n'
-	'if(!window.__comet__) window.__comet__ = window.parent?'
-	'(window.parent.__comet__?parent.__comet__:parent):window;\r\n'
-	'if(document.all) __comet__.escape("FUCK IE");\r\n'
+	'<script language="JavaScript">\r\n<!--\r\n%s'
+	'window.__comet__=window.parent?(parent.__comet__?parent.__comet__:parent):window;\r\n'
+	'__comet__.escape&&__comet__.escape("FUCK IE");\r\n'
 	'//-->\r\n</script>\r\n<!--COMET BEGIN-->\r\n')
 
-COMET_BEGIN = T_COMET_BEGIN %(
-	'var dmlst = document.domain.split(\'.\'), dmlen = dmlst.length;\r\n'
-	'if(dmlen > 1) document.domain = [dmlst[dmlen-2], dmlst[dmlen-1]].join(\'.\');\r\n'
-	'delete dmlst, dmlen;\r\n')
+COMET_BEGIN = T_COMET_BEGIN %''
 
 COMET_BEGIN_WITH_DOMAIN = string.Template(
-	T_COMET_BEGIN %'document.domain = "${domain}";').safe_substitute
+	T_COMET_BEGIN %'document.domain="${domain}";\r\n').safe_substitute
 
 COMET_END = '<!--COMET END-->\r\n</body>\r\n</html>'
 
