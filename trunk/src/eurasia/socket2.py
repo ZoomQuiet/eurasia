@@ -754,22 +754,34 @@ def poll():
 			r = []
 
 		for fd, flags in r:
-			try: obj = socket_map[fd]
-			except KeyError: continue
+			try:
+				obj = socket_map[fd]
+			except KeyError:
+				continue
 
 			if flags & R:
-				try: obj.handle_read()
-				except StopIteration: pass
-				except: print_exc(file=stderr)
+				try:
+					obj.handle_read()
+				except (ReferenceError, StopIteration):
+					pass
+				except:
+					print_exc(file=stderr)
 
 			if flags & W:
-				try: obj.handle_write()
-				except StopIteration: pass
-				except: print_exc(file=stderr)
+				try:
+					obj.handle_write()
+				except (ReferenceError, StopIteration):
+					pass
+				except:
+					print_exc(file=stderr)
 
 			if flags & E:
-				try: obj.handle_error()
-				except: print_exc(file=stderr)
+				try:
+					obj.handle_error()
+				except (ReferenceError, StopIteration):
+					pass
+				except:
+					print_exc(file=stderr)
 
 		schedule()
 
