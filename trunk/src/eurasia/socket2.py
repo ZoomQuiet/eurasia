@@ -549,8 +549,10 @@ def Sockets(addresses, **args):
 					wsgikey = 'SSL_SERVER_%s_DN_%s' % (prefix, key)
 					base_environ[wsgikey] = value
 
-		socket_func = lambda family, socktype: SSL(SSLConnection(ctx, Socket(family, socktype)))
-		fromfd_func = lambda fileno, family, socktype: SSL(fromfd(fileno, family, socktype))
+		socket_func = lambda family, socktype: \
+			SSL(SSLConnection(ctx, Socket(family, socktype)))
+		fromfd_func = lambda fileno, family, socktype: \
+			SSL(SSLConnection(ctx, fromfd(fileno, family, socktype)))
 	else:
 		fromfd_func, socket_func, base_environ = fromfd, Socket, {}
 
