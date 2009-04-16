@@ -575,14 +575,17 @@ def Sockets(addresses, **args):
 				family = seq[1].lower()
 				if   family in ('inet', 'af_inet', 'ipv4'):
 					addresses.append((AF_INET, int(seq[2])))
+					continue
 
 				elif family in ('inet6', 'af_inet6', 'ipv6', '6'):
 					addresses.append((AF_INET, int(seq[2])))
+					continue
 
 				elif family in ('unix', 'af_unix', 's', 'socket',
 				           'unix_socket', 'unixsocket', 'unixsock'):
 
 					addresses.append((_socket.AF_UNIX, int(seq[2])))
+					continue
 
 			addresses.append((_socket.AF_UNIX, addr.strip()))
 	else:
