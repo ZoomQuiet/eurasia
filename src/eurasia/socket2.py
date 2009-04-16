@@ -520,8 +520,8 @@ class SocketFile:
 		self.working_channel and self.working_channel.send_exception(Disconnect, Disconnect())
 
 def Sockets(addresses, **args):
+	ssl_private_key = args.get('ssl_private_key', args.get('key_file' ))
 	ssl_certificate = args.get('ssl_certificate', args.get('cert_file'))
-	ssl_private_key = args.get('ssl_private_key', args.get('ssl_privatekey', args.get('key_file')))
 
 	ssl = ssl_certificate and ssl_private_key
 	if ssl:
