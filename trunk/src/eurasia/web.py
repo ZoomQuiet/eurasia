@@ -68,8 +68,12 @@ class HttpFile(object):
 
 		environ['SCRIPT_NAME'] = ''
 		environ['REQUEST_URI'] = uri
-		environ['REMOTE_ADDR'] = sockfile.address[0]
-		environ['REMOTE_PORT'] = sockfile.address[1]
+
+		try:
+			environ['REMOTE_ADDR'] = sockfile.address[0]
+			environ['REMOTE_PORT'] = sockfile.address[1]
+		except:
+			pass
 
 		environ.setdefault('CONTENT_TYPE',
 		environ.setdefault('HTTP_CONTENT_TYPE', ''))
