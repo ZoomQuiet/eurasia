@@ -276,7 +276,6 @@ class SocketFile:
 						try: self.close()
 						except: pass
 
-						self.working_channel = None
 						self.read_channel.send_exception(Disconnect, Disconnect())
 						self.read_channel = channel()
 						raise StopIteration
@@ -284,7 +283,6 @@ class SocketFile:
 					try: self.close()
 					except: pass
 
-					self.working_channel = None
 					self.read_channel.send_exception(Disconnect, Disconnect())
 					self.read_channel = channel()
 					raise StopIteration
@@ -326,7 +324,6 @@ class SocketFile:
 						try: self.close()
 						except: pass
 
-						self.working_channel = None
 						self.read_channel.send_exception(Disconnect, Disconnect())
 						self.read_channel = channel()
 						raise StopIteration
@@ -334,7 +331,6 @@ class SocketFile:
 					try: self.close()
 					except: pass
 
-					self.working_channel = None
 					self.read_channel.send_exception(Disconnect, Disconnect())
 					self.read_channel = channel()
 					raise StopIteration
@@ -386,7 +382,6 @@ class SocketFile:
 						try: self.close()
 						except: pass
 
-						self.working_channel = None
 						self.read_channel.send_exception(Disconnect, Disconnect())
 						self.read_channel = channel()
 						raise StopIteration
@@ -394,7 +389,6 @@ class SocketFile:
 					try: self.close()
 					except: pass
 
-					self.working_channel = None
 					self.read_channel.send_exception(Disconnect, Disconnect())
 					self.read_channel = channel()
 					raise StopIteration
@@ -448,7 +442,6 @@ class SocketFile:
 						try: self.close()
 						except: pass
 
-						self.working_channel = None
 						self.read_channel.send_exception(Disconnect, Disconnect())
 						self.read_channel = channel()
 						raise StopIteration
@@ -456,7 +449,6 @@ class SocketFile:
 					try: self.close()
 					except: pass
 
-					self.working_channel = None
 					self.read_channel.send_exception(Disconnect, Disconnect())
 					self.read_channel = channel()
 					raise StopIteration
@@ -501,7 +493,6 @@ class SocketFile:
 					try: self.close()
 					except: pass
 
-					self.working_channel = None
 					self.write_channel.send_exception(Disconnect, Disconnect())
 					self.write_channel = channel()
 					raise StopIteration
@@ -509,7 +500,6 @@ class SocketFile:
 				try: self.close()
 				except: pass
 
-				self.working_channel = None
 				self.write_channel.send_exception(Disconnect, Disconnect())
 				self.write_channel = channel()
 				raise StopIteration
@@ -526,16 +516,8 @@ class SocketFile:
 		self.write_channel.send(None)
 
 	def handle_error(self):
-		if self.working_channel:
-			if self.working_channel == self.read_channel:
-				return
-
-			try: self.close()
-			except: pass
-
-			self.working_channel = None
-			self.write_channel = channel()
-			self.write_channel.send_exception(Disconnect, Disconnect())
+		self.close()
+		self.working_channel and self.working_channel.send_exception(Disconnect, Disconnect())
 
 def Sockets(addresses, **args):
 	ssl_private_key = args.get('ssl_private_key', args.get('key_file' ))
@@ -841,3 +823,4 @@ RE, WE, RWE = R|E, W|E, R|W|E
 R_IPV6 = __import__('re').compile(r'^\s*\[([a-fA-F0-9:\s]+)]\s*:\s*([0-9]+)\s*$').match
 socket_map, Disconnect = {}, type('Disconnect', (IOError, ), {})
 tasklet(poll)()
+
