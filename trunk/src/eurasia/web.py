@@ -53,7 +53,15 @@ class HttpFile(object):
 				sockfile.close()
 				raise IOError
 			else:
-				self.left = int(left)
+				n = left.strip()
+				if len(n) > 16:
+					raise IOError
+
+				n = int(n)
+				if n < 0:
+					raise IOError
+
+				self.left = n
 
 		p = uri.find('?')
 		if p != -1:
