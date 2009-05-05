@@ -1336,7 +1336,7 @@ BTree 对象可以用以保存数以千万计的对象, 同时被保存的这些
 \begin{verbatim}
 #!/usr/bin/python2.5
 #-*- coding: utf-8 -*-
-from shelve2 import lazy as open
+from shelve2 import open
 from shelve2 import BTree
 
 d = open('test.fs')
@@ -1355,7 +1355,7 @@ BTree 除了支持所有类似于 dict 的方法外, 还支持各种遍历方法
 
 \begin{tableii}{c|l}{}{ 属性 }{ 说明 }
 \lineii{ BTree.iter()      }{ 正向遍历 }
-\lineii{ BTree.reversed()  }{ 反向遍历 }
+\lineii{ reversed(BTree)   }{ 反向遍历 }
 \lineii{ BTree.iteritems() }{ 正向遍历返回键、值 }
 \lineii{ BTree.items_backward() }{ 反向遍历返回键、值 }
 \lineii{ BTree.items_from(key, closed=True) }{ 正向遍历返回键、值 }
