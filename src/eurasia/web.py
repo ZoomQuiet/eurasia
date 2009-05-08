@@ -220,6 +220,17 @@ class HttpFile(object):
 	def nocache(self):
 		self.headers.update(NOCACHEHEADERS)
 
+	def items(self):
+		return [('-'.join(i.capitalize() for i in key[5:].split('_')), value) \
+		   for key, value in self.environ.items() if key[:5] == 'HTTP_']
+
+	def keys(self):
+		return ['-'.join(i.capitalize() for i in key[5:].split('_')) \
+		   for key, value in self.environ.items() if key[:5] == 'HTTP_']
+
+	def values(self):
+		return [value for key, value in self.environ.items() if key[:5] == 'HTTP_']
+
 	def read(self, size=-1):
 		if size == -1 or size >= self.left:
 			try:
