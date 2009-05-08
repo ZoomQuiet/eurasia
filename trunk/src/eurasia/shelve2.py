@@ -29,6 +29,7 @@ class Pool:
 		self.queue = Queue()
 		for i in xrange(n):
 			start_new_thread(self.pipe, ())
+			sleep(0.001)
 
 	def __call__(self, func):
 		def wrapper(*args, **kw):
