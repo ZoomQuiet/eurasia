@@ -191,6 +191,7 @@ class SocketFile:
 		self._rbuf = self._wbuf = ''
 		self.read_channel = channel()
 		self.write_channel = channel()
+		self.writing = self.reading = None
 		socket_map[self.pid] = proxy(self)
 
 	def __del__(self):
@@ -206,6 +207,9 @@ class SocketFile:
 		if not hasattr(self, 'pid'):
 			raise Disconnect
 
+		if self.reading:
+			raise ConflictError
+
 		read = self.read4raw(size).next
 		data = read()
 		if data is None:
@@ -218,6 +222,9 @@ class SocketFile:
 	def readline(self, size=-1):
 		if not hasattr(self, 'pid'):
 			raise Disconnect
+
+		if self.reading:
+			raise ConflictError
 
 		read = self.read4line(size).next
 		data = read()
@@ -232,8 +239,11 @@ class SocketFile:
 		if not hasattr(self, 'pid'):
 			raise Disconnect
 
+		if self.writing:
+			raise ConflictError
+
 		self._wbuf = data
-		self.working_channel = self.write_channel
+		self.writing = self.write_channel
 		self.handle_write = self.write4raw().next
 		pollster.register(self.pid, WE)
 		return self.write_channel.receive()
@@ -261,7 +271,7 @@ class SocketFile:
 		if size < 0:
 			buffers = data and [data] or []
 			self._rbuf   = ''
-			self.working_channel = self.read_channel
+			self.reading = self.read_channel
 			yield
 
 			while True:
@@ -276,7 +286,7 @@ class SocketFile:
 						try: self.close()
 						except: pass
 
-						self.working_channel = None
+						self.reading = None
 						self.read_channel.send_exception(Disconnect, Disconnect())
 						self.read_channel = channel()
 						raise StopIteration
@@ -284,7 +294,7 @@ class SocketFile:
 					try: self.close()
 					except: pass
 
-					self.working_channel = None
+					self.reading = None
 					self.read_channel.send_exception(Disconnect, Disconnect())
 					self.read_channel = channel()
 					raise StopIteration
@@ -298,8 +308,9 @@ class SocketFile:
 
 			try: pollster.unregister(self.pid)
 			except (KeyError, AttributeError): pass
+			self.writing and pollster.register(self.pid, WE)
 
-			self.working_channel = None
+			self.reading = None
 			self.read_channel.send(''.join(buffers))
 		else:
 			buf_len = len(data)
@@ -310,7 +321,7 @@ class SocketFile:
 
 			buffers = data and [data] or []
 			self._rbuf   = ''
-			self.working_channel = self.read_channel
+			self.reading = self.read_channel
 			yield
 
 			while True:
@@ -326,7 +337,7 @@ class SocketFile:
 						try: self.close()
 						except: pass
 
-						self.working_channel = None
+						self.reading = None
 						self.read_channel.send_exception(Disconnect, Disconnect())
 						self.read_channel = channel()
 						raise StopIteration
@@ -334,7 +345,7 @@ class SocketFile:
 					try: self.close()
 					except: pass
 
-					self.working_channel = None
+					self.reading = None
 					self.read_channel.send_exception(Disconnect, Disconnect())
 					self.read_channel = channel()
 					raise StopIteration
@@ -355,8 +366,9 @@ class SocketFile:
 
 			try: pollster.unregister(self.pid)
 			except (KeyError, AttributeError): pass
+			self.writing and pollster.register(self.pid, WE)
 
-			self.working_channel = None
+			self.reading = None
 			self.read_channel.send(''.join(buffers))
 
 	def read4line(self, size=-1):
@@ -371,7 +383,7 @@ class SocketFile:
 
 			buffers = data and [data] or []
 			self._rbuf   = ''
-			self.working_channel = self.read_channel
+			self.reading = self.read_channel
 			yield
 
 			while True:
@@ -386,7 +398,7 @@ class SocketFile:
 						try: self.close()
 						except: pass
 
-						self.working_channel = None
+						self.reading = None
 						self.read_channel.send_exception(Disconnect, Disconnect())
 						self.read_channel = channel()
 						raise StopIteration
@@ -394,7 +406,7 @@ class SocketFile:
 					try: self.close()
 					except: pass
 
-					self.working_channel = None
+					self.reading = None
 					self.read_channel.send_exception(Disconnect, Disconnect())
 					self.read_channel = channel()
 					raise StopIteration
@@ -414,8 +426,9 @@ class SocketFile:
 
 			try: pollster.unregister(self.pid)
 			except (KeyError, AttributeError): pass
+			self.writing and pollster.register(self.pid, WE)
 
-			self.working_channel = None
+			self.reading = None
 			self.read_channel.send(''.join(buffers))
 		else:
 			nl = data.find('\n', 0, size)
@@ -433,7 +446,7 @@ class SocketFile:
 
 			buffers = data and [data] or []
 			self._rbuf   = ''
-			self.working_channel = self.read_channel
+			self.reading = self.read_channel
 			yield
 
 			while True:
@@ -448,7 +461,7 @@ class SocketFile:
 						try: self.close()
 						except: pass
 
-						self.working_channel = None
+						self.reading = None
 						self.read_channel.send_exception(Disconnect, Disconnect())
 						self.read_channel = channel()
 						raise StopIteration
@@ -456,7 +469,7 @@ class SocketFile:
 					try: self.close()
 					except: pass
 
-					self.working_channel = None
+					self.reading = None
 					self.read_channel.send_exception(Disconnect, Disconnect())
 					self.read_channel = channel()
 					raise StopIteration
@@ -485,8 +498,9 @@ class SocketFile:
 
 			try: pollster.unregister(self.pid)
 			except (KeyError, AttributeError): pass
+			self.writing and pollster.register(self.pid, WE)
 
-			self.working_channel = None
+			self.reading = None
 			self.read_channel.send(''.join(buffers))
 
 	def write4raw(self):
@@ -501,7 +515,7 @@ class SocketFile:
 					try: self.close()
 					except: pass
 
-					self.working_channel = None
+					self.writing = None
 					self.write_channel.send_exception(Disconnect, Disconnect())
 					self.write_channel = channel()
 					raise StopIteration
@@ -509,7 +523,7 @@ class SocketFile:
 				try: self.close()
 				except: pass
 
-				self.working_channel = None
+				self.writing = None
 				self.write_channel.send_exception(Disconnect, Disconnect())
 				self.write_channel = channel()
 				raise StopIteration
@@ -521,19 +535,17 @@ class SocketFile:
 
 		try: pollster.unregister(self.pid)
 		except (KeyError, AttributeError): pass
+		self.reading and pollster.register(self.pid, RE)
 
-		self.working_channel = None
+		self.writing = None
 		self.write_channel.send(None)
 
 	def handle_error(self):
-		if self.working_channel:
-			if self.working_channel == self.read_channel:
-				return
-
+		if not self.reading and self.writing:
 			try: self.close()
 			except: pass
 
-			self.working_channel = None
+			self.writing = None
 			self.write_channel.send_exception(Disconnect, Disconnect())
 			self.write_channel = channel()
 
@@ -839,5 +851,6 @@ def cpu_count():
 R, W, E = POLLIN|POLLPRI, POLLOUT, POLLERR|POLLHUP|POLLNVAL
 RE, WE, RWE = R|E, W|E, R|W|E
 R_IPV6 = __import__('re').compile(r'^\s*\[([a-fA-F0-9:\s]+)]\s*:\s*([0-9]+)\s*$').match
-socket_map, Disconnect = {}, type('Disconnect', (IOError, ), {})
+socket_map, Disconnect, ConflictError = {}, type('Disconnect', (IOError, ), {}), \
+		type('ConflictError', (IOError, ), {})
 tasklet(poll)()
