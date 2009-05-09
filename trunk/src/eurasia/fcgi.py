@@ -48,6 +48,9 @@ class FcgiFile(object):
 		if hasattr(self, 'pid'):
 			del self.requests[self.pid], self.pid
 
+	def __len__(self):
+		return int(self.environ['HTTP_CONTENT_LENGTH'])
+
 	def __getitem__(self, key):
 		return self.environ['HTTP_' + key.upper().replace('-', '_')]
 

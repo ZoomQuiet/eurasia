@@ -107,6 +107,9 @@ class HttpFile(object):
 		if hasattr(self, 'keep_alive'):
 			return self.keep_alive and self.keep_alive.send(0)
 
+	def __len__(self):
+		return int(self.environ['HTTP_CONTENT_LENGTH'])
+
 	def __getitem__(self, key):
 		return self.environ['HTTP_' + key.upper().replace('-', '_')]
 
