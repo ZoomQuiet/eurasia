@@ -113,6 +113,9 @@ class HttpFile(object):
 	def __setitem__(self, key, value):
 		self.headers['-'.join(i.capitalize() for i in key.split('-'))] = value
 
+	def __contains__(self, key):
+		return 'HTTP_' + key.upper().replace('-', '_') in self.environ
+
 	@property
 	def pid(self):
 		return self.sockfile.pid
@@ -259,6 +262,9 @@ class HttpFile(object):
 		for key, value in kwargs.items():
 			key = '-'.join(i.capitalize() for i in key.split('-'))
 			self.headers[key] = value
+
+	def has_key(self, key):
+		return 'HTTP_' + key.upper().replace('-', '_') in self.environ
 
 	def read(self, size=-1):
 		if size == -1 or size >= self.left:
