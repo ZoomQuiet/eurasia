@@ -239,9 +239,9 @@ class HttpFile(object):
 		return default
 
 	def setdefault(self, key, value):
-		key = 'HTTP_' + key.upper().replace('-', '_')
-		if key not in self.environ:
-			self.environ[key] = value
+		key = '-'.join(i.capitalize() for i in key.split('-'))
+		if key not in self.headers:
+			self.headers[key] = value
 
 	def update(self, *args, **kwargs):
 		if args:
@@ -253,12 +253,12 @@ class HttpFile(object):
 				items = items.items()
 
 			for key, value in items:
-				key = 'HTTP_' + key.upper().replace('-', '_')
-				self.environ[key] = value
+				key = '-'.join(i.capitalize() for i in key.split('-'))
+				self.headers[key] = value
 
 		for key, value in kwargs.items():
-			key = 'HTTP_' + key.upper().replace('-', '_')
-			self.environ[key] = value
+			key = '-'.join(i.capitalize() for i in key.split('-'))
+			self.headers[key] = value
 
 	def read(self, size=-1):
 		if size == -1 or size >= self.left:
