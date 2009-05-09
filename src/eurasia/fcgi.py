@@ -54,6 +54,9 @@ class FcgiFile(object):
 	def __setitem__(self, key, value):
 		self.headers['-'.join(i.capitalize() for i in key.split('-'))] = value
 
+	def __contains__(self, key):
+		return 'HTTP_' + key.upper().replace('-', '_') in self.environ
+
 	@property
 	def address(self):
 		return self.environ['REMOTE_ADDR'], int(self.environ['REMOTE_PORT'])
@@ -196,6 +199,9 @@ class FcgiFile(object):
 		for key, value in kwargs.items():
 			key = '-'.join(i.capitalize() for i in key.split('-'))
 			self.headers[key] = value
+
+	def has_key(self, key):
+		return 'HTTP_' + key.upper().replace('-', '_') in self.environ
 
 	def read(self, size=-1):
 		if not hasattr(self, 'pid'):
