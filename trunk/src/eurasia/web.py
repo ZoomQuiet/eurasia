@@ -231,6 +231,35 @@ class HttpFile(object):
 	def values(self):
 		return [value for key, value in self.environ.items() if key[:5] == 'HTTP_']
 
+	def get(self, key, default=None):
+		key = 'HTTP_' + key.upper().replace('-', '_')
+		if key in self.environ:
+			return self.environ[key]
+
+		return default
+
+	def setdefault(self, key, value):
+		key = 'HTTP_' + key.upper().replace('-', '_')
+		if key not in self.environ:
+			self.environ[key] = value
+
+	def update(self, *args, **kwargs):
+		if args:
+			if len(args) > 1:
+				raise TypeError('update expected at most 1 argument, got %s' %len(args))
+
+			items = args[0]
+			if hasattr(items, 'items'):
+				items = items.items()
+
+			for key, value in items:
+				key = 'HTTP_' + key.upper().replace('-', '_')
+				self.environ[key] = value
+
+		for key, value in kwargs.items():
+			key = 'HTTP_' + key.upper().replace('-', '_')
+			self.environ[key] = value
+
 	def read(self, size=-1):
 		if size == -1 or size >= self.left:
 			try:
