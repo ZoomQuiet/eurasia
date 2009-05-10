@@ -368,9 +368,6 @@ class HttpFile(object):
 			if self.environ.get('HTTP_CONNECTION', '').lower() == 'keep-alive' \
 			else self.sockfile.close() or self.keep_alive.send(0)
 
-	def keep(self):
-		self.keep_alive = self.keep_alive and self.keep_alive.send(1)
-
 	def shutdown(self):
 		self.sockfile.close()
 		self.keep_alive = self.keep_alive and self.keep_alive.send(0)
