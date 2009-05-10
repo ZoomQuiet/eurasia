@@ -208,7 +208,7 @@ class SocketFile:
 			raise Disconnect
 
 		if self.reading:
-			raise ConflictError
+			raise ReadConflictError
 
 		read = self.read4raw(size).next
 		data = read()
@@ -224,7 +224,7 @@ class SocketFile:
 			raise Disconnect
 
 		if self.reading:
-			raise ConflictError
+			raise ReadConflictError
 
 		read = self.read4line(size).next
 		data = read()
@@ -240,7 +240,7 @@ class SocketFile:
 			raise Disconnect
 
 		if self.writing:
-			raise ConflictError
+			raise WriteConflictError
 
 		self._wbuf = data
 		self.writing = self.write_channel
@@ -848,9 +848,13 @@ def cpu_count():
 		except (ValueError, OSError, AttributeError):
 			return 0
 
+ConflictError      = type('ConflictError', (IOError, ), {})
+ReadConflictError  = type('ReadConflictError' , (ConflictError, ), {})
+WriteConflictError = type('WriteConflictError', (ConflictError, ), {})
+
 R, W, E = POLLIN|POLLPRI, POLLOUT, POLLERR|POLLHUP|POLLNVAL
 RE, WE, RWE = R|E, W|E, R|W|E
 R_IPV6 = __import__('re').compile(r'^\s*\[([a-fA-F0-9:\s]+)]\s*:\s*([0-9]+)\s*$').match
-socket_map, Disconnect, ConflictError = {}, type('Disconnect', (IOError, ), {}), \
-		type('ConflictError', (IOError, ), {})
+socket_map, Disconnect = {}, type('Disconnect', (IOError, ), {})
+
 tasklet(poll)()
