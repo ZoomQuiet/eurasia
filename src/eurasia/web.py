@@ -382,8 +382,10 @@ def HttpHandler(controller, **environ):
 			return
 
 		tasklet(controller)(httpfile)
+		receive = httpfile.keep_alive.receive
+		del httpfile
 
-		while httpfile.keep_alive.receive():
+		while receive():
 			try:
 				httpfile = HttpFile(sockfile, **environ)
 
@@ -391,6 +393,8 @@ def HttpHandler(controller, **environ):
 				return
 
 			tasklet(controller)(httpfile)
+			receive = httpfile.keep_alive.receive
+			del httpfile
 
 	return handler
 
