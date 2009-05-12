@@ -34,7 +34,7 @@ def main():
 	args['package_dir'] = {'eurasia': os.path.join('src', 'eurasia')}
 
 	args['classifiers'] = [
-		'Development Status :: 3 - Alpha',
+		'Development Status :: 4 - Beta',
 		'Intended Audience :: Developers',
 		'License :: OSI Approved :: BSD License',
 		'Programming Language :: Python',
