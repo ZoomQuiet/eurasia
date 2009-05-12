@@ -11,7 +11,7 @@
 
 \date{2009 年 3 月 23 日}
 
-\release{3.0.0a6.2}
+\release{3.0.0b}
 
 \makeindex
 
@@ -76,7 +76,7 @@ eurasia 目前不支持 python 3。
 
 \section{开始安装}
 
-Eurasia 的官方网站是 \url{http://eurasia.pyforce.com} (目前正在使用 eurasia 建设),
+Eurasia 的官方网站是 \url{http://code.google.com/p/eurasia}
 可以在这里下载到 eurasia 的最新版本。
 
 你可以通过解压目录中的安装脚本 \file{setup.py} 来安装 eurasia 库:
@@ -139,6 +139,10 @@ httpfile 对象包含以下读相关的属性。
 \lineii{ httpfile.method         }{ 请求方法, "GET" 或 "POST" }
 \lineii{ httpfile.version        }{ "HTTP/1.0" 或 "HTTP/1.1" }
 \lineii{ httpfile[key]           }{ 即 __getitem__ 方法。用于获取 http 头, 比如 httpfile["User-Agent"] }
+\lineii{ httpfile.get(key, default=None) }{ 用于获取 http 头 }
+\lineii{ httpfile.items() }{ 以键值对 key value 的形式获取所有 http 头 }
+\lineii{ httpfile.keys() }{ 获取所有 http 头的键 }
+\lineii{ httpfile.values() }{ 获取所有 http 头的值 }
 \lineii{ httpfile.environ        }{ 类似于 cgi 的环境变量 }
 \lineii{ httpfile.path_info      }{ 参见 cgi1.1 协议关于 PATH_INFO 的说明, 如果 uri 是 "/show?page=10" 那么 path_info 为 "/show" }
 \lineii{ httpfile.script_name    }{ 参见 cgi1.1 协议关于 SCRIPT_NAME 的说明, 通常情况下仅对 fcgi 有效, 对应用服务器无效 }
@@ -151,7 +155,9 @@ httpfile 对象包含以下读相关的属性。
 httpfile 对象包含以下写相关的属性。
 
 \begin{tableii}{c|l}{}{ 属性 }{ 信息 }
-\lineii{ httpfile[key]        }{ 即 __setitem__ 方法。用于设置 http 头, 比如 httpfile['Content-Type']='text/html'}
+\lineii{ httpfile[key]        }{ 即 __setitem__ 方法。用于设置响应的 http 头, 比如 httpfile['Content-Type']='text/html'}
+\lineii{ httpfile.update(*args, **kwargs) }{ 使用类似 dict.update 的方式设置响应的 http 头 }
+\lineii{ httpfile.setdefault(key, value) }{ 如果 key 指定的响应头没有设置, 设置为 value }
 \lineii{ httpfile.status      }{ 设置响应状态, 正常响应是 200 (200 是默认值, 常见的还有 404 "未找到" 等) }
 \lineii{ httpfile.write(data) }{ 发送文本 data 到客户端 }
 \lineii{ httpfile.close()     }{ 完成本次请求 }
@@ -769,7 +775,7 @@ mainloop()
 
 首先我们通过 django-admin.py startproject SITE 命令创建一个站点。
 
-我们可以编写如下服务器启动脚本。
+我们可以编写如下服务器启动脚本, 使 django 架设在 eurasia 上。
 
 \begin{verbatim}
 #!/usr/bin/python2.5
@@ -785,6 +791,8 @@ from django.core.handlers.wsgi import WSGIHandler
 server = WSGIServer(wsgiHandler(), port=8080)
 server.run()
 \end{verbatim}
+
+\note{此种模式执行 django 会有一定限制, 欲完全兼容 django 请看下面 "全栈支持 django 一节"}
 
 \subsection{启动 cherrypy}
 
@@ -887,6 +895,36 @@ httpfile.environ 即是 WSGI 环境变量。httpfile.uri 不受他们影响, 不
 \note{在其他框架中取出 httpfile, 并调用了诸如 httpfile.begin() 之类的长连接接口,
 在单个 wsgi application 请求函数结束以后, httpfile 不会自动关闭,
 需要显式调用 httpfile.close()。}
+
+\subsection{全栈支持 django}
+
+在上面的例子里, 我们已经将 django 架设在 eurasia 上运行了。
+这使得 django 能够工作在 stackless 模式下, 每个请求都使用 tasklet 处理。
+此时 django 能够响应很高的并发, 但 django 的磁盘和数据库 IO 将不能正常工作。
+如果你有很高的并发需求, 并且不带磁盘 IO, 这是最好的选择。
+
+完全 (全栈) 支持 django 包括 IO 在内的所有功能, 需要使其工作在传统线程模式下,
+这需要用到线程池 (shelve2.Pool)。
+
+\begin{verbatim}
+#!/usr/bin/python2.5
+#-*- coding: utf-8 -*-
+# django 全栈服务器启动脚本
+
+import sys, os
+sys.path.insert(0, '/PATH/TO/DJANGO/PROJECTS')
+os.environ['DJANGO_SETTINGS_MODULE'] = 'SITE.settings'
+
+from eurasia.cgietc import wsgi
+from eurasia.shelve2 import Pool
+from eurasia import config, mainloop
+from django.core.handlers.wsgi import WSGIHandler
+
+threading = Pool(32) # 线程池预启动 32 个线程
+
+config(handler=threading(wsgi(WSGIHandler())), port=8080)
+mainloop() 
+\end{verbatim}
 
 \section{TCP 服务器设计}
 
@@ -1411,6 +1449,51 @@ print 'user', mod.user
 \end{verbatim}
 
 \note{pyetc 模块可以被用于导入执行任意指定路径和文件后缀的 python 模块}
+
+\section{启动为 daemon}
+
+以 daemon 方式运行程序最简单的方法是使用 utility 模块的 daemonize 方法:
+
+\begin{verbatim}
+from eurasia import utility
+utility.dummy()
+utility.daemonize(PROGRAM, ARG1, ARG2, ...)
+\end{verbatim}
+
+daemon 模块略复杂一些:
+
+\begin{verbatim}
+from socket import error as SocketError
+from eurasia import Daemon, ServerProxy,Fault
+
+# 启动 daemon 管理器, start daemon
+from os import fork
+daemon = Daemon( # daemon 管理器
+        address='/PATH/TO/pidfile',
+        program=PROGRAM,
+        verbose=False)
+
+pid = fork()
+if pid != 0:
+        daemon(ARG1, ARG2, ...) # 启动 daemon 程序
+
+# 获取 daemon 状态
+daemon = ServerProxy('/PATH/TO/pidfile')
+try:
+        status = daemon.status() # 取到 'running' 或 'stopped'
+except SocketError:
+        raise # daemon 管理器未启动, 启动相应处理
+
+# 停止 daemon
+# 获取 daemon 状态
+daemon = ServerProxy('/PATH/TO/pidfile')
+try:
+        status = daemon.stop() # 取到 'running' 或 'stopped'
+except SocketError:
+        raise # daemon 管理器未启动, 启动相应处理
+except Fault:
+        raise # 停止失败, 启动相应处理
+\end{verbatim}
 
 
 \chapter{API 文档}
@@ -2031,5 +2114,7 @@ args 参数类似 xmlrpclib.ServerProxy 的设定。
 Daemon 相关的异常。
 
 \end{itemize}
+
+
 
 \end{document}
