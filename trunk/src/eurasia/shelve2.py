@@ -5,13 +5,16 @@ from copy import deepcopy
 from os.path import abspath
 from random import randrange
 from stackless import channel
-from gdbm import open as dbm
 from thread import allocate_lock
 from cPickle import dumps, loads
 from sys import _getframe, modules
 from exceptions import BaseException
 from _weakref import proxy, ref as weakref
 from thread import allocate_lock, start_new_thread
+try:
+	from gdbm import open as dbm
+except ImportError:
+	from shelve import open as dbm
 
 def open(filename, pool=None):
 	pool = get_global_threadpool() if pool is None else pool
