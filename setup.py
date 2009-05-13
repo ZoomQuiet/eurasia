@@ -12,7 +12,7 @@ def main():
 	from setuptools import setup
 	args = dict(
 		name = 'eurasia',
-		version = '3.0.0a6',
+		version = '3.0.0b1',
 		license = 'BSD license',
 		description = 'a low-level python web framework',
 		author = 'wilhelm shen',
