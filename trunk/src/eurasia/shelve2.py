@@ -647,12 +647,6 @@ class Connection:
 			errno, e = e.receive()
 			if errno != 0:
 				raise e
-		else:
-			e = channel()
-			self.queue.put((e, self.unregister_connection, (), {}))
-			errno, e = e.receive()
-			if errno != 0:
-				raise e
 
 	def __lshift__(self, o):
 		oid = uuid4()
@@ -738,12 +732,6 @@ class Connection:
 				errno, e = e.receive()
 				if errno != 0:
 					raise e
-		else:
-			e = channel()
-			self.queue.put((e, self.unregister_connection, (), {}))
-			errno, e = e.receive()
-			if errno != 0:
-				raise e
 
 	def _close(self):
 		self.db.close()
