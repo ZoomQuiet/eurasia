@@ -45,41 +45,26 @@ except ImportError:
 		return [(i, R) for i in a] + [(i, W) for i in b] + [(i, E) for i in c]
 
 	@staticmethod
-	def register(pid, flag):
+	def register(fileno, flag):
 		if flag & R:
-			e[pid] = r[pid] = None
-			if flag & W:
-				w[pid] = None
-			else:
-				try:
-					del w[pid]
-				except KeyError:
-					pass
-		elif flag & W:
-			e[pid] = w[pid] = None
-			try:
-				del r[pid]
-			except KeyError:
-				pass
-		elif flag & E:
-			e[pid] = None
-			try:
-				del r[pid]
-			except KeyError:
-				pass
-			try:
-				del w[pid]
-			except KeyError:
-				pass
+			r[fileno] = None
+
+		if flag & W:
+			w[fileno] = None
+
+		if flag & E:
+			e[fileno] = None
 
 	@staticmethod
-	def unregister(pid):
-		try: del r[pid]
-		except KeyError: pass
-		try: del w[pid]
-		except KeyError: pass
-		try: del e[pid]
-		except KeyError: pass
+	def unregister(fileno):
+		if fileno in r:
+			del r[fileno]
+
+		if fileno in w:
+			del w[fileno]
+
+		if fileno in e:
+			del e[fileno]
 
 	pollster = type('poll', (), {'poll': poll, 'register': register,
 	                'unregister': unregister})()
