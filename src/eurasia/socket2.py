@@ -753,15 +753,30 @@ def mainloop(cpus=False):
 		return mainloop0()
 
 	try:
-		from os import fork
+		from os import fork, kill
+		from signal import signal, SIGTERM
 	except ImportError:
 		return mainloop0()
 
-	for i in '\x00' * (cpus - 1):
-		if fork() == 0:
+	pids = []
+	for i in xrange(cpus - 1):
+		pid = fork()
+		if pid == 0:
 			mainloop0()
 			sys.exit(0)
+		else:
+			pids.append(pid)
 
+	def term(sig, frame):
+		for pid in pids:
+			try:
+				kill(pid, SIGTERM)
+			except OSError:
+				pass
+
+		sys.exit(0)
+
+	signal(SIGTERM, term)
 	mainloop0()
 
 def poll():
@@ -809,7 +824,7 @@ def mainloop0():
 	while True:
 		try:
 			stackless.run()
-		except KeyboardInterrupt:
+		except (SystemExit, KeyboardInterrupt):
 			break
 		except:
 			print_exc(file=stderr)
