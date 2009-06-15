@@ -101,7 +101,10 @@ class Base(object):
 			pass
 
 	def __deepcopy__(self, memo):
-		return proxy(self)
+		if hasattr(self, '_p_key'):
+			return proxy(self)
+
+		return self
 
 	def _p_note_change(self):
 		try:
