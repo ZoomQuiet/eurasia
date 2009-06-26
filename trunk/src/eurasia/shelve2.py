@@ -772,7 +772,6 @@ class Connection:
 					for key in self.changed:
 						self.db[key] = dumps(self.cache[key], 2)
 
-					self.cache = {}
 					for key in self.deleted:
 						del self.db[key]
 
@@ -785,8 +784,8 @@ class Connection:
 						if has_intersection(conn.cache, changed):
 							conn.invalid.update(changed)
 
-					self.cache, self.changed, self.deleted, self.created, \
-						self.invalid = {}, {}, {}, [], set()
+					self.changed, self.deleted, self.created, \
+						self.invalid = {}, {}, [], set()
 				finally:
 					for conn in connections:
 						try:
