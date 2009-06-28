@@ -1,14 +1,12 @@
 from os import urandom
-from time import sleep
 from Queue import Queue
 from copy import deepcopy
 from os.path import abspath
 from random import randrange
-from stackless import channel
-from thread import allocate_lock
 from cPickle import dumps, loads
 from sys import _getframe, modules
 from exceptions import BaseException
+from stackless import channel, schedule
 from _weakref import proxy, ref as weakref
 from thread import allocate_lock, start_new_thread
 try:
@@ -32,7 +30,6 @@ class Pool:
 		self.queue = Queue()
 		for i in xrange(n):
 			start_new_thread(self.pipe, ())
-			sleep(0.001)
 
 	def __call__(self, func):
 		def wrapper(*args, **kw):
@@ -670,10 +667,11 @@ class Connection:
 		except KeyError:
 			pass
 
-		self.cache_invalid_lock.acquire()
+		while not self.cache_invalid_lock.acquire(0):
+			schedule()
 		try:
 			if key in self.invalid:
-				raise ReadConflict(key)
+				raise ReadConflictError(key)
 
 			e = channel()
 			self.queue.put((e, dbmget, (self.db, key), {}))
@@ -804,7 +802,7 @@ class Connection:
 			self.cache_invalid_lock.acquire()
 			try:
 				if oid in self.invalid:
-					raise ReadConflict(oid)
+					raise ReadConflictError(oid)
 
 				o = loads(self.db[oid])
 				self.cache[oid] = o
