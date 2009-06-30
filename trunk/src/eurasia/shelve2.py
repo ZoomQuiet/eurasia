@@ -1,6 +1,5 @@
 from os import urandom
 from Queue import Queue
-from copy import deepcopy
 from os.path import abspath
 from random import randrange
 from cPickle import dumps, loads
@@ -8,6 +7,7 @@ from sys import _getframe, modules
 from exceptions import BaseException
 from stackless import channel, schedule
 from _weakref import proxy, ref as weakref
+from copy import deepcopy, error as CopyError
 from thread import allocate_lock, start_new_thread
 try:
 	from gdbm import open as dbm
@@ -68,7 +68,7 @@ class Base(object):
 			return attrs['_p_key']
 		except KeyError:
 			conn = _getframe(1).f_locals['self']
-			attrs['_p_key'] = conn << self
+			attrs['_p_key' ] = conn << self
 			attrs['_p_conn'] = proxy(conn)
 			return attrs['_p_key']
 
@@ -78,30 +78,27 @@ class Base(object):
 		attrs['_p_conn'] = proxy(_getframe(1).f_locals['self'])
 		del attrs['_p_data']
 
-	def __del__(self):
+	def __deepcopy__(self, memo):
+		if '__del__' not in memo:
+			raise CopyError('uncopyable object')
+
 		attrs = self.__dict__
 		try:
 			key = attrs['_p_key']
 		except KeyError:
-			return
+			return 0
 
 		try:
 			if self._p_conn.closed:
-				return
+				return 0
 
-			if '_p_data' not in attrs:
-				self._p_conn.get(key)
-
+			deepcopy(self._p_ldata, {'__del__': 0})
 			del self._p_conn[key]
 
 		except ReferenceError:
 			pass
 
-	def __deepcopy__(self, memo):
-		if hasattr(self, '_p_key'):
-			return proxy(self)
-
-		return self
+		return 0
 
 	def _p_note_change(self):
 		try:
@@ -119,7 +116,8 @@ class Persistent(Base):
 
 	def __getattr__(self, name):
 		try:
-			return deepcopy(self._p_ldata[name])
+			return self._p_ldata[name]
+
 		except KeyError:
 			raise AttributeError(name)
 
@@ -141,10 +139,12 @@ class Persistent(Base):
 				return
 
 		try:
-			del self._p_ldata[name]
+			o = self._p_ldata[name]
 		except KeyError:
 			raise AttributeError(name)
 
+		deepcopy(o, {'__del__': 0})
+		del self._p_ldata[name]
 		self._p_note_change()
 
 class BNode(Base):
@@ -197,6 +197,7 @@ class BNode(Base):
 					extreme = node.max_item
 					del node[extreme[0]]
 					self._p_data[0][p] = extreme
+
 				elif upper_sibling and len(upper_sibling._p_ldata[0]
 					) >= minimum_degree:
 					extreme = upper_sibling.min_item
@@ -395,13 +396,13 @@ class BTree(Base):
 	def min_item(self):
 		assert self._p_root._p_ldata[0], 'empty BTree has no min item'
 		key, value = self._p_root.min_item
-		return key, deepcopy(value)
+		return key, value
 
 	@property
 	def max_item(self):
 		assert self._p_root._p_ldata[0], 'empty BTree has no max item'
 		key, value = self._p_root.max_item
-		return key, deepcopy(value)
+		return key, value
 
 	@property
 	def _p_key(self):
@@ -420,24 +421,27 @@ class BTree(Base):
 		o._p_root = BNode()
 		return o
 
-	def __del__(self):
+	def __deepcopy__(self, memo):
+		if '__del__' not in memo:
+			raise CopyError('uncopyable object')
+
 		node = self._p_root
 		try:
 			key = node._p_key
 		except AttributeError:
-			return
+			return 0
 
 		try:
 			if node._p_conn.closed:
-				return
+				return 0
 
-			if '_p_data' not in node.__dict__:
-				node._p_conn.get(key)
-
+			deepcopy(node._p_ldata, {'__del__': 0})
 			del node._p_conn[key]
 
 		except ReferenceError:
 			pass
+
+		return 0
 
 	def __getstate__(self):
 		node = self._p_root
@@ -479,7 +483,7 @@ class BTree(Base):
 		if item is None:
 			raise KeyError(key)
 
-		return deepcopy(item[1])
+		return item[1]
 
 	def __setitem__(self, key, value=True):
 		if len(self._p_root._p_ldata[0]) == 2 * minimum_degree - 1:
@@ -493,7 +497,13 @@ class BTree(Base):
 		self._p_root.insert_item((key, value))
 
 	def __delitem__(self, key):
+		item = self._p_root.search(key)
+		if item is None:
+			raise KeyError(key)
+
 		del self._p_root[key]
+		deepcopy(key , {'__del__': 0})
+		deepcopy(item, {'__del__': 0})
 
 	def has_key(self, key):
 		return self._p_root.search(key) is not None
@@ -503,7 +513,7 @@ class BTree(Base):
 		if item is None:
 			return default
 
-		return deepcopy(item[1])
+		return item[1]
 
 	def setdefault(self, key, value):
 		item = self._p_root.search(key)
@@ -511,7 +521,7 @@ class BTree(Base):
 			self[key] = value
 			return value
 
-		return deepcopy(item[1])
+		return item[1]
 
 	def update(self, *args, **kwargs):
 		if args:
@@ -545,7 +555,7 @@ class BTree(Base):
 
 	def itervalues(self):
 		for item in self._p_root:
-			yield deepcopy(item[1])
+			yield item[1]
 
 	def values(self):
 		return list(self.itervalues())
@@ -555,25 +565,25 @@ class BTree(Base):
 
 	def iteritems(self):
 		for key, value in self._p_root:
-			yield (key, deepcopy(value))
+			yield (key, value)
 
 	def items_backward(self):
 		for key, value in reversed(self._p_root):
-			yield (key, deepcopy(value))
+			yield (key, value)
 
 	def items_from(self, key, closed=True):
 		for key2, value in self._p_root.iter_from(key):
 			if closed or key2 != key:
-				yield (key2, deepcopy(value))
+				yield (key2, value)
 
 	def items_backward_from(self, key, closed=False):
 		if closed:
 			item = self._p_root.search(key)
 			if item is not None:
-				yield (item[0], deepcopy(item[1]))
+				yield (item[0], item[1])
 
 		for key, value in self._p_root.iter_backward_from(key):
-			yield (key, deepcopy(value))
+			yield (key, value)
 
 	def items_range(self, start, end, closed_start=True, closed_end=False):
 		if start <= end:
@@ -650,11 +660,14 @@ class Connection:
 
 	def __lshift__(self, o):
 		oid = uuid4()
-		while self.db.has_key(oid):
+		while self.db.has_key(oid) or oid in self.created:
 			oid = uuid4()
 
-		o._p_key = oid
 		self.db[oid] = dumps(o._p_data, 2)
+		if oid in self.deleted:
+			del self.deleted[oid]
+
+		self.cache[oid] = o._p_data
 		self.created.append(oid)
 		return oid
 
@@ -811,12 +824,12 @@ class Connection:
 
 		return o
 
-	def dump(self, oid, obj):
+	def dump(self, oid, o):
 		self.cache_invalid_lock.acquire()
 		try:
-			self.db[oid] = dumps(obj, 2)
-			self.cache[oid] = obj
-			self.cache[obj._p_key] = obj._p_data
+			self.db[oid] = dumps(o, 2)
+			self.cache[oid] = o
+			self.cache[o._p_key] = o._p_data
 			self.changed[oid] = None
 		finally:
 			self.cache_invalid_lock.release()
