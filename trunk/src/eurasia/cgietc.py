@@ -30,7 +30,6 @@ class Browser(object):
 	request_uri  = property(lambda self: self.httpfile.request_uri )
 	query_string = property(lambda self: self.httpfile.query_string)
 
-	fileno  = lambda self: self.httpfile.pid
 	nocache = lambda self: self.httpfile.nocache()
 
 	def fileno(self):
