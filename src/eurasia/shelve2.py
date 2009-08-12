@@ -147,6 +147,9 @@ class Persistent(Base):
 		del self._p_ldata[name]
 		self._p_note_change()
 
+	def __getnewargs__(self):
+		return ()
+
 class BNode(Base):
 	@property
 	def min_item(self):
