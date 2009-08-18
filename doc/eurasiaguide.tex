@@ -941,7 +941,7 @@ from eurasia import config, mainloop
 def handler(tcpfile):
 	while True:
 		data = tcpfile.readline(1024) # 从 socket 读取
-		if data == 'quit':
+		if data.strip() == 'quit':
 			tcpfile.close()
 			break
 		else:
