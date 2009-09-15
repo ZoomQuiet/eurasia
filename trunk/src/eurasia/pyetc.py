@@ -5,9 +5,11 @@ modules = {}
 
 def load(fullpath, env={}, module=Module):
 	try:
-		code = open(fullpath).read()
+		code = open(fullpath).readlines()
 	except IOError:
 		raise ImportError, 'No module named  %s' %fullpath
+
+	code = '\n'.join(i.rstrip() for i in code)
 
 	filename = os.path.basename(fullpath)
 
@@ -40,6 +42,8 @@ def reload(m):
 		code = open(fullpath).read()
 	except IOError:
 		raise ImportError, 'No module named  %s' %fullpath
+
+	code = '\n'.join(i.rstrip() for i in code)
 
 	env = m.__dict__
 	module_class = m.__module_class__
