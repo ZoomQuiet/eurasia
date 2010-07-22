@@ -23,3 +23,17 @@ httpd = httpserver(('', 8080), handler)
 httpd.start()
 mainloop()
 }}}
+
+执行脚本，启动服务器。
+
+{{{
+$/usr/bin/python2 test.py
+}}}
+
+这个程序简单地把 handler 绑定到本机的 8080 端口。
+所有发往这个端口的 http 请求都会得到一个 hello world 的响应。
+
+在这里：
+  * 使用 httpd.start() 激活服务器，同时你也可以通过 httpd.stop() 暂停服务器。
+  * 每个 eurasia 程序可以建立和启用多个类似于 httpd 这样的服务器。
+  * 使用 mainloop() 来启动主循环。主循环是所有 eurasia 程序必须要有的。
