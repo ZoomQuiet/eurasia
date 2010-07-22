@@ -1,0 +1,20 @@
+#labels Deprecated
+=EURASIA 用户手册 v3.1=
+==快速开始==
+我们将从最简单的 hello world 开始，通过一些范例程序，快速掌握 eurasia 的特点。
+===HELLO WORLD===
+{{{
+#!/usr/bin/python2
+#-*- coding: utf-8 -*-
+#filename: test.py
+
+from eurasia.web import httpserver, mainloop
+def handler(httpfile):
+    httpfile['Content-Type'] = 'text/html'
+    httpfile.write('<html>hello world!</html>')
+    httpfile.close()
+
+httpd = httpserver(('', 8080), handler)
+httpd.start()
+mainloop()
+}}}
