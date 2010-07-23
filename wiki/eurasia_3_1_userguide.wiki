@@ -1,7 +1,5 @@
-#summary eurasia userguide v3.1
 #labels Deprecated
-
-=EURASIA 用户手册（3.1 版）=
+#EURASIA 用户手册（3.1 版）
 
 eurasia 是一种纯异步超轻量级协程框架，或者工具集。主要用于高效能 web 开发，也适用于底层网络开发和其他常规协程应用。
 
@@ -53,12 +51,18 @@ $/usr/bin/python2 test.py
 
 通过操作 httpfile 对象以获取用户请求并完成响应。
 
-获取请求需要用到的接口：
+*request*：
 
 || *可读属性* || httpfile.method || 通常是“GET”或“POST” ||
 || *可读属性* || httpfile.path_info || 请求的路径信息 ||
 || *可读属性* || httpfile.query_string || 路径中“?”之后的部分 ||
 || *可读属性* || httpfile.cookie || 得到客户端 cookie（Cookie.SimpleCookie 对象）无则返回 None ||
-|| *{{{__getitem__}}}* || httpfile{{{[}}}*_HEADERNAME_*{{{]}}} || 得到指定头部 ||
+|| *{{{__getitem__}}}* || httpfile{{{[}}}_*HEADERNAME*_{{{]}}} || 得到指定头部 ||
 
-返回响应需要用到的接口：
+*response*：
+
+|| *可写属性* || httpfile.status || http 响应状态，默认是 200 ||
+|| *可写属性* || httpfile.cookie || 向客户端发送一个 Cookie 对象（比如 Cookie.SimpleCookie） ||
+|| *{{{__setitem__}}}* || httpfile{{{[}}}_*HEADERNAME*_{{{]}}} || 发送指定头部 ||
+|| *对象方法* || httpfile.write(_*data*_, _*timeout*=-1_) || 发送指定内容，默认无超时 ||
+|| *对象方法* || httpfile.close(_*timeout*=-1_) || 完成并终止本次响应，默认无超时 ||
