@@ -51,7 +51,7 @@ $/usr/bin/python2 test.py
 
 通过操作 httpfile 对象以获取用户请求并完成响应。
 
-*request*：
+*request 操作:*
 
 || *可读属性* || httpfile.method || 通常是“GET”或“POST” ||
 || *可读属性* || httpfile.path_info || 请求的路径信息 ||
@@ -59,7 +59,7 @@ $/usr/bin/python2 test.py
 || *可读属性* || httpfile.cookie || 得到客户端 cookie（Cookie.SimpleCookie 对象）无则返回 None ||
 || *{{{__getitem__}}}* || httpfile{{{[}}}_*HEADERNAME*_{{{]}}} || 得到指定头部 ||
 
-*response*：
+*response 操作:*
 
 || *可写属性* || httpfile.status || http 响应状态，默认是 200 ||
 || *可写属性* || httpfile.cookie || 向客户端发送一个 Cookie 对象（比如 Cookie.SimpleCookie） ||
