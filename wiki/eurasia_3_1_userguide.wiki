@@ -58,7 +58,7 @@ $/usr/bin/python2 test.py
 || *可读属性* || httpfile.method || 通常是“GET”或“POST” ||
 || *可读属性* || httpfile.path_info || 请求的路径信息 ||
 || *可读属性* || httpfile.query_string || 路径中“?”之后的部分 ||
-|| *可读属性* || httpfile.cookie || 得到客户端 cookie（Cookie.SimpleCookie 对象），客户端无 cooki 则返回 None ||
+|| *可读属性* || httpfile.cookie || 得到客户端 cookie（Cookie.SimpleCookie 对象），无则返回 None ||
 || *方法（*{{{__getitem__}}}*）* || httpfile{{{[}}}*_HEADERNAME_*{{{]}}} || 得到指定头部 ||
 
 返回响应需要用到的接口：
