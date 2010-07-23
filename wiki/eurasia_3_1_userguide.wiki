@@ -3,11 +3,9 @@
 
 =EURASIA 用户手册（3.1 版）=
 
-eurasia 是一种纯异步超轻量级协程框架，或者工具集。
-主要用于高效能 web 开发，也适用于底层网络开发和其他常规协程应用。
+eurasia 是一种纯异步超轻量级协程框架，或者工具集。主要用于高效能 web 开发，也适用于底层网络开发和其他常规协程应用。
 
-自带 wsgi、http 和 tcp 服务器，并具有将常规 IO 转换为协程异步的能力，
-可以让你用最 pythonic 的方式，编写出优美的程序。
+自带 wsgi、http 和 tcp 服务器，并具有将常规 IO 转换为协程异步的能力，可以让你用最 pythonic 的方式，编写出优美的程序。
 
 
 <wiki:toc max_depth="2" /> 
@@ -20,7 +18,7 @@ eurasia 是一种纯异步超轻量级协程框架，或者工具集。
 这首先是一个 web 程序。
 
 
-==HELLO WORLD==
+==hello world==
 
 {{{
 #!/usr/bin/python2
@@ -38,8 +36,7 @@ httpd.start()
 mainloop()
 }}}
 
-简单地把 handler 绑定到本机的 8080 端口。
-所有发往这个端口的 http 请求都会得到一个 hello world 的响应。
+简单地把 handler 绑定到本机的 8080 端口。所有发往这个端口的 http 请求都会得到一个 hello world 的响应。
 
 执行脚本，启动服务器。
 
@@ -52,4 +49,16 @@ $/usr/bin/python2 test.py
   * mainloop() 主循环是每个 eurasia 程序都必须要有的。
 
 
-==HTTPFILE 对象==
+==httpfile 对象==
+
+通过操作 httpfile 对象以获取用户请求并完成响应。
+
+获取请求需要用到的接口：
+
+|| *可读属性* || httpfile.method || 通常是“GET”或“POST” ||
+|| *可读属性* || httpfile.path_info || 请求的路径信息 ||
+|| *可读属性* || httpfile.query_string || 路径中“?”之后的部分 ||
+|| *可读属性* || httpfile.cookie || 得到客户端 cookie（Cookie.SimpleCookie 对象），客户端无 cooki 则返回 None ||
+|| *方法（*{{{__getitem__}}}*）* || httpfile{{{[}}}*_HEADERNAME_*{{{]}}} || 得到指定头部 ||
+
+返回响应需要用到的接口：
