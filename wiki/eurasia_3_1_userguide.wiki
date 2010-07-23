@@ -38,14 +38,14 @@ httpd.start()
 mainloop()
 }}}
 
+简单地把 handler 绑定到本机的 8080 端口。
+所有发往这个端口的 http 请求都会得到一个 hello world 的响应。
+
 执行脚本，启动服务器。
 
 {{{
 $/usr/bin/python2 test.py
 }}}
-
-简单地把 handler 绑定到本机的 8080 端口。
-所有发往这个端口的 http 请求都会得到一个 hello world 的响应。
 
   * 一次可以通过 httpserver 创建多个 http 服务器。
   * http 服务器通过 start() 启动，用 stop() 暂停。
