@@ -1,9 +1,23 @@
-#summary EURASIA 用户手册 v3.1
+#summary eurasia userguide v3.1
 #labels Deprecated
+
+=EURASIA 用户手册（3.1 版）=
+
+eurasia 是一种纯异步超轻量级协程框架，或者工具集。
+主要用于高效能 web 开发，也适用于底层网络开发和其他常规协程应用。
+
+自带 wsgi、http 和 tcp 服务器，并具有将常规 IO 转换为协程异步的能力，
+可以让你用最 pythonic 的方式，编写出优美的程序。
+
+
+<wiki:toc max_depth="2" /> 
+
 
 =快速开始=
 
 我们将从最简单的 hello world 开始，通过一些范例程序，快速掌握 eurasia 的特点。
+
+这首先是一个 web 程序。
 
 
 ==HELLO WORLD==
@@ -30,10 +44,12 @@ mainloop()
 $/usr/bin/python2 test.py
 }}}
 
-这个程序简单地把 handler 绑定到本机的 8080 端口。
+简单地把 handler 绑定到本机的 8080 端口。
 所有发往这个端口的 http 请求都会得到一个 hello world 的响应。
 
-在这里：
-  * 使用 httpd.start() 激活服务器，同时你也可以通过 httpd.stop() 暂停服务器。
-  * 每个 eurasia 程序可以建立和启用多个类似于 httpd 这样的服务器。
-  * 使用 mainloop() 来启动主循环。主循环是所有 eurasia 程序必须要有的。
+  * 一次可以通过 httpserver 创建多个 http 服务器。
+  * http 服务器通过 start() 启动，用 stop() 暂停。
+  * mainloop() 主循环是每个 eurasia 程序都必须要有的。
+
+
+==HTTPFILE 对象==
