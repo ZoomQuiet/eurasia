@@ -14,7 +14,7 @@
 ==hello world==
 
 {{{
-#!/usr/bin/python2
+#!/usr/bin/python
 #-*- coding: utf-8 -*-
 #filename: test.py
 
@@ -61,3 +61,36 @@ $/usr/bin/python2 test.py
 || *{{{__setitem__}}}* || httpfile{{{[}}}_*headername*_{{{]}}} || 发送指定头部 ||
 || *对象方法* || httpfile.write(_*data*_, _*timeout*=-1_) || 发送指定内容，默认无超时 ||
 || *对象方法* || httpfile.close(_*timeout*=-1_) || 完成并终止本次响应，默认无超时 ||
+
+下面将是一个完整的例子（文件服务器）：
+
+{{{
+#-*- coding: utf-8 -*-
+import os.path
+from eurasia.web import httpserver, mainloop
+def handler(httpfile):
+    # 注意，直接组合路径不安全，这里纯属简单演示
+    filename = '/var/www' + httpfile.path_info
+    if not os.path.exists(filename):
+        httpfile.status = 404 # 文件未找到
+        httpfile.write('<h1>Not Found</h1>')
+        return httpfile.close()
+    if os.path.isdir(filename):
+        httpfile.status = 403 # 不支持列出目录
+        httpfile.write('<h1>Forbidden</h1>')
+        return httpfile.close()
+    try:
+        # 这里纯属简单演示，eurasia.core 带有高效的文件操作接口
+        data = open(filename).read()
+    except:
+        httpfile.status = 500 # 服务器出错
+        httpfile.write('<h1>Internal Server Error</h1>')
+        return httpfile.close()
+    httpfile['Content-Type'] = 'application/octet-stream'
+    httpfile.write(data)
+    httpfile.close()
+
+httpd = httpserver(('', 8080), handler)
+httpd.start()
+mainloop()
+}}}
