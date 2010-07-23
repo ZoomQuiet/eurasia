@@ -1,5 +1,5 @@
+#summary EURASIA 用户手册（3.1 版）
 #labels Deprecated
-#EURASIA 用户手册（3.1 版）
 
 eurasia 是一种纯异步超轻量级协程框架，或者工具集。主要用于高效能 web 开发，也适用于底层网络开发和其他常规协程应用。
 
