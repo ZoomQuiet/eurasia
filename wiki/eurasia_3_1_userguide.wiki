@@ -48,19 +48,19 @@ $/usr/bin/python2 test.py
 
 *request 操作:*
 
-|| *可读属性* || httpfile.method || 通常是“GET”或“POST” ||
-|| *可读属性* || httpfile.path_info || 请求的路径信息 ||
-|| *可读属性* || httpfile.query_string || 路径中“?”之后的部分 ||
-|| *可读属性* || httpfile.cookie || 得到客户端 cookie（Cookie.SimpleCookie 对象）无则返回 None ||
-|| *{{{__getitem__}}}* || httpfile{{{[}}}_*headername*_{{{]}}} || 得到指定头部 ||
+|| *property* || httpfile.method || 通常是“GET”或“POST” ||
+|| *property* || httpfile.path_info || 请求的路径信息 ||
+|| *property* || httpfile.query_string || 路径中“?”之后的部分 ||
+|| *property* || httpfile.cookie || 得到客户端 cookie（Cookie.SimpleCookie 对象）无则返回 None ||
+|| *dict get* || httpfile{{{[}}}_*headername*_{{{]}}} || 得到指定头部 ||
 
 *response 操作:*
 
-|| *可写属性* || httpfile.status || http 响应状态，默认是 200 ||
-|| *可写属性* || httpfile.cookie || 向客户端发送一个 Cookie 对象（比如 Cookie.SimpleCookie） ||
-|| *{{{__setitem__}}}* || httpfile{{{[}}}_*headername*_{{{]}}} || 发送指定头部 ||
-|| *对象方法* || httpfile.write(_*data*_, _*timeout*=-1_) || 发送指定内容，默认无超时 ||
-|| *对象方法* || httpfile.close(_*timeout*=-1_) || 完成并终止本次响应，默认无超时 ||
+|| *property* || httpfile.status || http 响应状态，默认是 200 ||
+|| *property* || httpfile.cookie || 向客户端发送一个 Cookie 对象（比如 Cookie.SimpleCookie） ||
+|| *dict set* || httpfile{{{[}}}_*headername*_{{{]}}} || 发送指定头部 ||
+|| *method* || httpfile.write(_*data*_, _*timeout*=-1_) || 发送指定内容，默认无超时 ||
+|| *method* || httpfile.close(_*timeout*=-1_) || 完成并终止本次响应，默认无超时 ||
 
 下面将是一个完整的例子（文件服务器）：
 
@@ -69,7 +69,7 @@ $/usr/bin/python2 test.py
 import os.path
 from eurasia.web import httpserver, mainloop
 def handler(httpfile):
-    # 注意，直接组合路径不安全，这里纯属简单演示
+    # 注意，直接组合路径不安全
     filename = '/var/www' + httpfile.path_info
     if not os.path.exists(filename):
         httpfile.status = 404 # 文件未找到
@@ -79,14 +79,8 @@ def handler(httpfile):
         httpfile.status = 403 # 不支持列出目录
         httpfile.write('<h1>Forbidden</h1>')
         return httpfile.close()
-    try:
-        # 这里纯属简单演示，eurasia.core 带有高效的文件操作接口
-        data = open(filename).read()
-    except:
-        httpfile.status = 500 # 服务器出错
-        httpfile.write('<h1>Internal Server Error</h1>')
-        return httpfile.close()
     httpfile['Content-Type'] = 'application/octet-stream'
+    data = open(filename).read()
     httpfile.write(data)
     httpfile.close()
 
@@ -94,3 +88,8 @@ httpd = httpserver(('', 8080), handler)
 httpd.start()
 mainloop()
 }}}
+
+需要注意的是：
+
+  * 这里直接对路径进行相加，是不安全的，仅用于演示
+  * 这里对磁盘文件的读取操作会严重拖慢整个程序的速度，eurasia 带有文件 IO 的协程版本，这在后文中会提到
