@@ -89,5 +89,9 @@ httpd.start()
 mainloop()
 }}}
 
-  * 这里直接对路径进行相加，是不安全的，仅用于演示。
+  * 虽然 httpfile 形似 dict，但是 dict get 仅用于读取 request 头部，dict set 仅用于写入 response 头部。
+    # 这意味着从 {{{httpfile[...]}}} 获取的内容和写入 {{{httpfile[...]}}} 的内容，一般*并不匹配*。
+    # httpfile.cookie 亦然。
+
+  * 这里直接对路径进行相加，*是不安全的*，仅用于演示。
   * 这里对磁盘文件的读取操作会阻塞整个程序，eurasia 带有文件 IO 的协程版本，将于后文中详述。
