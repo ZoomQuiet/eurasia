@@ -99,8 +99,16 @@ mainloop()
 
 =标准 web 服务器=
 
-==处理请求==
+现在详细讲述标准 web 服务器的使用。
 
-==发送==
+首先通过 httpserver 创建服务器。
 
-在“快速开始”一节中，我们已经通过 write() 接口，向浏览器返回响应。
+==httpserver==
+
+==httpfile 对象==
+
+==读写超时的处理==
+
+==cgietc 辅助功能==
+
+==wsgiserver==
