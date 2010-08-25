@@ -99,16 +99,8 @@ mainloop()
 
 =标准 web 服务器=
 
-现在详细讲述标准 web 服务器的使用。
+现在进入进阶主题。
 
-首先通过 httpserver 创建服务器。
+==地址格式==
 
-==httpserver==
-
-==httpfile 对象==
-
-==读写超时的处理==
-
-==cgietc 辅助功能==
-
-==wsgiserver==
+使用 httpserver(_*addr*_, _*handler*_) 接口创建 eurasia 标准的 http 服务器。接受多种形式的 _*addr*_ 地址参数。
