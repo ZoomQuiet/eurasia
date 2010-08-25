@@ -105,6 +105,6 @@ mainloop()
 
 ==地址格式==
 
-接口 httpserver 允许多种形式的 _*addr*_ 地址：
-  * 字符串地址：
-    * httpserver(_'127.0.0.1:8080'_, _handler_)
+接口 httpserver 允许多种形式的 addr 地址，下面是一些例子。
+
+  * 字符串类型的地址
