@@ -101,6 +101,10 @@ mainloop()
 
 现在进入进阶主题。
 
+首先通过 httpserver(_*addr*_, _*handler*_) 创建标准 http 服务器。
+
 ==地址格式==
 
-使用 httpserver(_*addr*_, _*handler*_) 接口创建 eurasia 标准的 http 服务器。接受多种形式的 _*addr*_ 地址参数。
+接口 httpserver 允许多种形式的 _*addr*_ 地址：
+  * 字符串地址：
+    * httpserver(_'127.0.0.1:8080'_, _handler_)
