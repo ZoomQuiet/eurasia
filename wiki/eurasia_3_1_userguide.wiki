@@ -46,21 +46,21 @@ $/usr/bin/python2 test.py
 
 通过操作 httpfile 对象以获取用户请求并完成响应。
 
-*request 操作:*
+request 操作:
 
-|| *property* || httpfile.method || 通常是“GET”或“POST” ||
-|| *property* || httpfile.path_info || 请求的路径信息 ||
-|| *property* || httpfile.query_string || 路径中“?”之后的部分 ||
-|| *property* || httpfile.cookie || 得到客户端 cookie（Cookie.SimpleCookie 对象）无则返回 None ||
-|| *dict get* || httpfile{{{[}}}_*headername*_{{{]}}} || 得到指定头部 ||
+|| property || httpfile.method || 通常是“GET”或“POST” ||
+|| property || httpfile.path_info || 请求的路径信息 ||
+|| property || httpfile.query_string || 路径中“?”之后的部分 ||
+|| property || httpfile.cookie || 得到客户端 cookie（Cookie.SimpleCookie 对象）无则返回 None ||
+|| dict get || httpfile{{{[}}}_*headername*_{{{]}}} || 得到指定头部 ||
 
-*response 操作:*
+response 操作:
 
-|| *property* || httpfile.status || http 响应状态，默认是 200 ||
-|| *property* || httpfile.cookie || 向客户端发送一个 Cookie 对象（比如 Cookie.SimpleCookie） ||
-|| *dict set* || httpfile{{{[}}}_*headername*_{{{]}}} || 发送指定头部 ||
-|| *method* || httpfile.write(_*data*_, _*timeout*=-1_) || 发送指定内容，默认无超时 ||
-|| *method* || httpfile.close(_*timeout*=-1_) || 完成并终止本次响应，默认无超时 ||
+|| property || httpfile.status || http 响应状态，默认是 200 ||
+|| property || httpfile.cookie || 向客户端发送一个 Cookie 对象（比如 Cookie.SimpleCookie） ||
+|| dict set || httpfile{{{[}}}_*headername*_{{{]}}} || 发送指定头部 ||
+|| method || httpfile.write(_*data*_, _*timeout*=-1_) || 发送指定内容，默认无超时 ||
+|| method || httpfile.close(_*timeout*=-1_) || 完成并终止本次响应，默认无超时 ||
 
 下面将是一个完整的例子（文件服务器）：
 
@@ -107,7 +107,7 @@ mainloop()
 
 接口 httpserver 允许多种形式的 addr 参数。
 
-使用字符串指定地址
+使用字符串指定地址：
 
 {{{
 httpserver('127.0.0.1:8080', handler)  # IPv4 地址，端口 8080
@@ -115,14 +115,14 @@ httpserver('[::1]:8080', handler)  # IPv6 地址
 httpserver(':8080', handler)  # 地址是 ''，端口 8080
 }}}
 
-使用 tuple 类型的地址（默认 family 为 AF_INET）
+使用 tuple 类型的地址（默认 family 为 AF_INET）：
 
 {{{
 httpserver(('127.0.0.1', 8080), handler)
 httpserver(('::1', 8080), handler)
 }}}
 
-同时指定地址及 family
+同时指定地址及 family：
 
 {{{
 from socket import AF_INET6, AF_UNIX
@@ -132,13 +132,13 @@ httpserver((('::1', 8080), AF_INET6), handler)
 httpserver(('/var/httpd/httpd.sock', AF_UNIX), handler)  # unix socket
 }}}
 
-使用已打开的 fileno（默认 family 为 AF_INET）
+使用已打开的 fileno（默认 family 为 AF_INET）：
 
 {{{
 httpserver(0, handler)  # 绑定到 fileno 为 0 的资源描述符
 }}}
 
-使用 fileno 并指定 family
+使用 fileno 并指定 family：
 
 {{{
 from socket import AF_INET6
@@ -147,4 +147,8 @@ from eurasia.web import httpserver
 httpserver((AF_INET6, 0), handler)
 }}}
 
-==cgi 1.1 及 wsgi==
+==CGI/1.1 规范适配==
+
+http 服务器的设计在很大程度上与 CGI/1.1 规范适配，以下是一些对应关系：
+
+|| ||
