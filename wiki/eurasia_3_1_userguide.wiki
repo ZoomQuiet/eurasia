@@ -112,6 +112,7 @@ mainloop()
 {{{
 httpserver('127.0.0.1:8080', handler)  # IPv4 地址，端口 8080
 httpserver('[::1]:8080', handler)  # IPv6 地址
+httpserver(':8080', handler)  # 地址是 ''，端口 8080
 }}}
 
 使用 tuple 类型的地址（默认 family 为 AF_INET）
@@ -145,3 +146,5 @@ from eurasia.web import httpserver
 
 httpserver((AF_INET6, 0), handler)
 }}}
+
+==cgi 1.1 及 wsgi==
