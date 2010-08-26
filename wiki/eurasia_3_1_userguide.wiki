@@ -4,6 +4,11 @@
 <wiki:toc max_depth="2" /> 
 
 
+|| || || ||
+|| || ||
+|| ||
+
+
 =快速开始=
 
 我们将从最简单的 hello world 开始，通过一些范例程序，快速掌握 eurasia 的特点。
@@ -97,6 +102,11 @@ mainloop()
   * 这里对磁盘文件的读取操作会阻塞整个程序，eurasia 带有文件 IO 的协程版本，将于后文中详述。
 
 
+|| || || ||
+|| || ||
+|| ||
+
+
 =标准 web 服务器=
 
 现在进入进阶主题。
@@ -149,6 +159,16 @@ httpserver((AF_INET6, 0), handler)
 
 ==CGI/1.1 规范适配==
 
-http 服务器的设计在很大程度上与 CGI/1.1 规范适配，以下是一些对应关系：
+httpfile 对象是整个服务器的关键接口，其设计在很大程度上与 CGI/1.1 规范适配，以下是一些对应关系：
 
-|| ||
+|| || 接口： || CGI/1.1 对应： ||
+|| dict get || httpfile.environ{{{[}}}_*envname*_{{{]}}} || 环境变量 ||
+|| method || httpfile.read(_*size*=-1_, _*timeout*=-1_) || 标准输入 ||
+|| method || httpfile.readline(_*size*=-1_, _*timeout*=-1_) || 标准输入 ||
+|| method || httpfile.write(_*data*_, _*timeout*=-1_) || 标准输出 ||
+|| method || httpfile.sendall(_*data*_, _*timeout*=-1_) || 标准输出 ||
+
+仿照 CGI 编程：
+
+{{{
+}}}
