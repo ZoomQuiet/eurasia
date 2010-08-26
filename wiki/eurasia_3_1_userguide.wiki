@@ -107,31 +107,41 @@ mainloop()
 
 接口 httpserver 允许多种形式的 addr 参数。
 
-使用字符串指定地址：
+使用字符串指定地址
 
 {{{
 httpserver('127.0.0.1:8080', handler)  # IPv4 地址，端口 8080
 httpserver('[::1]:8080', handler)  # IPv6 地址
 }}}
 
-使用 tuple 类型的地址（默认 family 为 AF_INET）：
+使用 tuple 类型的地址（默认 family 为 AF_INET）
 
 {{{
 httpserver(('127.0.0.1', 8080), handler)
 httpserver(('::1', 8080), handler)
 }}}
 
-绑定到已打开的 fileno（默认 family 为 AF_INET）：
+同时指定地址及 family
+
+{{{
+from socket import AF_INET6, AF_UNIX
+from eurasia.web import httpserver
+
+httpserver((('::1', 8080), AF_INET6), handler)
+httpserver(('/var/httpd/httpd.sock', AF_UNIX), handler)  # unix socket
+}}}
+
+使用已打开的 fileno（默认 family 为 AF_INET）
 
 {{{
 httpserver(0, handler)  # 绑定到 fileno 为 0 的资源描述符
 }}}
 
-绑定到 fileno 并指定 family：
+使用 fileno 并指定 family
 
 {{{
 from socket import AF_INET6
 from eurasia.web import httpserver
 
-httpserver((0, AF_INET), handler)
+httpserver((AF_INET6, 0), handler)
 }}}
