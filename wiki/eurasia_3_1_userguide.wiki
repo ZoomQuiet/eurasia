@@ -42,9 +42,9 @@ mainloop()
 $/usr/bin/python2 test.py
 }}}
 
-  * 一次可以通过 httpserver 创建多个 http 服务器。
-  * http 服务器通过 start() 启动，用 stop() 暂停。
-  * mainloop() 主循环是每个 eurasia 程序都必须要有的。
+  * 一次可以通过 httpserver 创建多个 http 服务器
+  * http 服务器通过 start() 启动，用 stop() 暂停
+  * mainloop() 主循环是每个 eurasia 程序都必须要有的
 
 
 ==httpfile 对象==
@@ -94,12 +94,12 @@ httpd.start()
 mainloop()
 }}}
 
-  * 虽然 httpfile 形似 dict，但是 dict get 仅用于读取 request 头部，dict set 仅用于写入 response 头部。
-    # 这意味着从 {{{httpfile[...]}}} 获取的内容和写入 {{{httpfile[...]}}} 的内容，一般*并不匹配*。
-    # httpfile.cookie 亦然。
+  * 虽然 httpfile 形似 dict，但是 dict get 仅用于读取 request 头部，dict set 仅用于写入 response 头部
+    # 这意味着从 {{{httpfile[...]}}} 获取的内容和写入 {{{httpfile[...]}}} 的内容，一般*并不匹配*
+    # httpfile.cookie 亦然
 
-  * 这里直接对路径进行相加，*是不安全的*，仅用于演示。
-  * 这里对磁盘文件的读取操作会阻塞整个程序，eurasia 带有文件 IO 的协程版本，将于后文中详述。
+  * 这里直接对路径进行相加，*是不安全的*，仅用于演示
+  * 这里对磁盘文件的读取操作会阻塞整个程序，eurasia 带有文件 IO 的协程版本，将于后文中详述
 
 
 || || || ||
@@ -139,7 +139,7 @@ from socket import AF_INET6, AF_UNIX
 from eurasia.web import httpserver
 
 httpserver((('::1', 8080), AF_INET6), handler)
-httpserver(('/var/httpd/httpd.sock', AF_UNIX), handler)  # unix socket
+httpserver(('/var/httpd.sock', AF_UNIX), handler)  # unix socket
 }}}
 
 使用已打开的 fileno（默认 family 为 AF_INET）：
@@ -161,14 +161,44 @@ httpserver((AF_INET6, 0), handler)
 
 httpfile 对象是整个服务器的关键接口，其设计在很大程度上与 CGI/1.1 规范适配，以下是一些对应关系：
 
-|| || 接口： || CGI/1.1 对应： ||
+|| 接口类型： || 接口描述： || CGI/1.1 对应： ||
 || dict get || httpfile.environ{{{[}}}_*envname*_{{{]}}} || 环境变量 ||
 || method || httpfile.read(_*size*=-1_, _*timeout*=-1_) || 标准输入 ||
 || method || httpfile.readline(_*size*=-1_, _*timeout*=-1_) || 标准输入 ||
 || method || httpfile.write(_*data*_, _*timeout*=-1_) || 标准输出 ||
-|| method || httpfile.sendall(_*data*_, _*timeout*=-1_) || 标准输出 ||
 
-仿照 CGI 编程：
+可以通过 httpfile.environ{{{[}}}_*envname*_{{{]}}} 提取的环境变量有：
+
+|| 环境变量： || 变量描述： || example： ||
+|| REQUEST_METHOD || 请求的方法 || "GET"、"POST" ||
+|| SERVER_PROTOCOL || 请求协议及版本 || "HTTP/1.1" ||
+|| REMOTE_ADDR || 连入客户端的地址和端口 || ("192.168.0.2", 5566) ||
+|| REMOTE_PORT || 连入客户端的端口 || 5566 ||
+|| REQUEST_URI || 完整 uri || "/login?username=foo&passwd=***" ||
+|| PATH_INFO || 页面地址 || "/login" ||
+|| QUERY_STRING || 请求参数 || "username=william&passwd=***" ||
+|| SCRIPT_NAME {{{*}}} || 脚本名 || 通常是 "" ||
+|| CONTENT_TYPE || POST 等报文类型 || "application/x-www-form-urlencoded" ||
+|| CONTENT_LENGTH || POST 等报文长度 || 999 ||
+|| HTTP{{{_}}}_*HEADERNAME*_ || 请求头部 || 比如 HTTP_REFER 可以是 "http://www.google.com/" ||
+
+  * SCRIPT_NAME 通常对应用服务器无意义，一般是空值 ""，但用户可以为下级调用者进行设置
+  * 同样可以通过 httpfile.request_uri、httpfile.path_info、httpfile.query_string 取出相应环境变量
+    * 对 httpfile.request_uri、httpfile.path_info、httpfile.query_string 进行设置这三个变量会联动
+    * 设置 httpfile.environ 这三个变量*不会*发生联动，一般避免直接通过 httpfile.environ 操作这三个变量
 
 {{{
+# 操作 httpfile.request_uri 会同时影响到 PATH_INFO 和 QUERY_STRING
+httpfile.request_uri = '/login?username=tom&passwd=***'
+print httpfile.path_info, httpfile.query_string  # 分别是 "/login" 和 "username=tom&passwd=***"
+print httpfile.environ['PATH_INFO'], httpfile.environ['QUERY_STRING']  # 同上
+
+# 操作 httpfile.path_info 会影响到 REQUEST_URI
+httpfile.path_info = '/check'
+print httpfile.request_uri  # uri 变成 "/check?username=tom&passwd=***"，query_string 不变
+print httpfile.environ['REQUEST_URI']  # 同上
+
+# 操作 httpfile.query_string 会影响到 REQUEST_URI
+httpfile.query_string = 'username=jerry&passwd=***'
+print httpfile.request_uri  # uri 变成 "/check?username=jerry&passwd=***"，path_info 不变
 }}}
