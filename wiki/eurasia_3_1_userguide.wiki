@@ -157,6 +157,43 @@ from eurasia.web import httpserver
 httpserver((AF_INET6, 0), handler)
 }}}
 
+==启动和暂停服务器==
+
+通过 httpserver.start() 和 httpserver.stop() 启动和暂停服务器，暂停后的服务器可以通过 httpserver.start() 重新启动。
+
+注意区分 httpserver.start() 和 mainloop()：
+  * mainloop() 是整个程序的调度器，每个 eurasia 程序都必须要调用一次 mainloop() 以启动协程调度
+  * httpserver.start() 和调度无关，只是让服务器进入请求监听状态
+  * httpserver 可以有多个，而 mainloop() 只有一个
+
+{{{
+# -*- coding: utf-8 -*-
+from eurasia.web import httpserver, mianloop
+
+# 工作服务器，绑定到 8080 总是返回 hello world
+def handler(httpfile):
+    httpfile.write('hello world!')
+    httpfile.close()
+
+httpd = httpserver(':8080', handler)
+httpd.start()
+
+# 管理服务器，绑定到 8090
+def manager(httpfile):
+    # 如果请求地址是 /start 则启动工作服务器
+    if httpfile.path_info == '/start':
+        httpd.start()
+   # 如果请求地址是 /pause 则停止工作服务器
+    elif httpfile.path_info == '/pause':
+        httpd.stop()
+
+man = httpserver('8090', manager)
+man.start()
+
+# 执行调度
+mainloop()
+}}}
+
 ==CGI/1.1 规范适配==
 
 httpfile 对象是整个服务器的关键接口，其设计在很大程度上与 CGI/1.1 规范适配，以下是一些对应关系：
@@ -174,18 +211,14 @@ httpfile 对象是整个服务器的关键接口，其设计在很大程度上�
 || SERVER_PROTOCOL || 请求协议及版本 || "HTTP/1.1" ||
 || REMOTE_ADDR || 连入客户端的地址和端口 || ("192.168.0.2", 5566) ||
 || REMOTE_PORT || 连入客户端的端口 || 5566 ||
-|| REQUEST_URI || 完整 uri || "/login?username=foo&passwd=***" ||
+|| REQUEST_URI || 完整 uri || "/login?username=tom&passwd=***" ||
 || PATH_INFO || 页面地址 || "/login" ||
-|| QUERY_STRING || 请求参数 || "username=william&passwd=***" ||
-|| SCRIPT_NAME {{{*}}} || 脚本名 || 通常是 "" ||
+|| QUERY_STRING || 请求参数 || "username=tom&passwd=***" ||
 || CONTENT_TYPE || POST 等报文类型 || "application/x-www-form-urlencoded" ||
 || CONTENT_LENGTH || POST 等报文长度 || 999 ||
-|| HTTP{{{_}}}_*HEADERNAME*_ || 请求头部 || 比如 HTTP_REFER 可以是 "http://www.google.com/" ||
+|| HTTP{{{_}}}_*HEADERNAME*_ || 请求头部 || HTTP_REFER 可以是 "http://www.google.com/" ||
 
-  * SCRIPT_NAME 通常对应用服务器无意义，一般是空值 ""，但用户可以为下级调用者进行设置
-  * 同样可以通过 httpfile.request_uri、httpfile.path_info、httpfile.query_string 取出相应环境变量
-    * 对 httpfile.request_uri、httpfile.path_info、httpfile.query_string 进行设置这三个变量会联动
-    * 设置 httpfile.environ 这三个变量*不会*发生联动，一般避免直接通过 httpfile.environ 操作这三个变量
+同样可以通过 httpfile.request_uri、httpfile.path_info、httpfile.query_string 取出相应环境变量并设置：
 
 {{{
 # 操作 httpfile.request_uri 会同时影响到 PATH_INFO 和 QUERY_STRING
@@ -201,4 +234,24 @@ print httpfile.environ['REQUEST_URI']  # 同上
 # 操作 httpfile.query_string 会影响到 REQUEST_URI
 httpfile.query_string = 'username=jerry&passwd=***'
 print httpfile.request_uri  # uri 变成 "/check?username=jerry&passwd=***"，path_info 不变
+}}}
+
+  * 对 httpfile.request_uri、httpfile.path_info、httpfile.query_string 进行设置这三个变量会联动
+  * 设置 httpfile.environ 这三个变量*不会*发生联动，一般避免直接通过 httpfile.environ 操作这三个变量
+
+==解读请求==
+
+通过 httpfile.read(_*size*=-1_, _*timeout*=-1_) 和 httpfile.readline(_*size*=-1_, _*timeout*=-1_) 可以直接读取 POST 等请求报文。
+
+eurasia.cgietc 模块提供了用于解析 POST 形式表单的工具 form(_*httpfile*_, _*max_size*=1048576_, _*timeout*=-1_)：
+  * 需要指定一个 httpfile 对象
+  * 使用 max_size 限定允许用户提交表单的大小，超过限制会抛出 ValueError 并立即杀死客户端，默认最多传输 1M 数据
+  * 使用 timeout 指定读取表单的超时时间
+  * 使用 dict 返回解析的表单
+    * 正常情况下每个表单项的取值都是 str
+    * 如果提交了多个同名的表单项，那么该表单项取值就是一个 list，在其中保存多个 str 值
+
+{{{
+from eurasia.cgietc import form
+from eurasia.web import httpserver, mainloop
 }}}
