@@ -117,7 +117,7 @@ mainloop()
 
 接口 httpserver 允许多种形式的 addr 参数。
 
-使用字符串指定地址：
+使用字符串指定：
 
 {{{
 httpserver('127.0.0.1:8080', handler)  # IPv4 地址，端口 8080
@@ -125,7 +125,7 @@ httpserver('[::1]:8080', handler)  # IPv6 地址
 httpserver(':8080', handler)  # 本机 8080 端口
 }}}
 
-使用 tuple 类型的地址（默认 family 为 AF_INET）：
+使用 tuple 指定（默认 AF_INET）：
 
 {{{
 httpserver(('127.0.0.1', 8080), handler)
@@ -142,7 +142,7 @@ httpserver((('::1', 8080), AF_INET6), handler)
 httpserver(('/var/httpd.sock', AF_UNIX), handler)  # unix socket
 }}}
 
-使用已打开的 fileno（默认 family 为 AF_INET）：
+使用已打开的 fileno（默认 AF_INET）：
 
 {{{
 httpserver(0, handler)  # 绑定到 fileno 为 0 的资源描述符
@@ -160,11 +160,6 @@ httpserver((AF_INET6, 0), handler)
 ==启动和暂停服务器==
 
 通过 httpserver.start() 和 httpserver.stop() 启动和暂停服务器，暂停后的服务器可以通过 httpserver.start() 重新启动。
-
-注意区分 httpserver.start() 和 mainloop()：
-  * mainloop() 是整个程序的调度器，每个 eurasia 程序都必须要调用一次 mainloop() 以启动协程调度
-  * httpserver.start() 和调度无关，只是让服务器进入请求监听状态
-  * httpserver 可以有多个，而 mainloop() 只有一个
 
 {{{
 # -*- coding: utf-8 -*-
@@ -194,11 +189,16 @@ man.start()
 mainloop()
 }}}
 
-==CGI/1.1 规范适配==
+注意区分 httpserver.start() 和 mainloop()：
+  * mainloop() 是整个程序的调度器，每个 eurasia 程序都必须要调用一次 mainloop() 以启动协程调度
+  * httpserver.start() 和调度无关，只是让服务器进入请求监听状态
+  * httpserver 可以有多个，而 mainloop() 只有一个
+
+==CGI 规范适配==
 
 httpfile 对象是整个服务器的关键接口，其设计在很大程度上与 CGI/1.1 规范适配，以下是一些对应关系：
 
-|| 接口类型： || 接口描述： || CGI/1.1 对应： ||
+|| 接口类型： || 接口描述： || CGI 对应： ||
 || dict get || httpfile.environ{{{[}}}_*envname*_{{{]}}} || 环境变量 ||
 || method || httpfile.read(_*size*=-1_, _*timeout*=-1_) || 标准输入 ||
 || method || httpfile.readline(_*size*=-1_, _*timeout*=-1_) || 标准输入 ||
@@ -216,7 +216,7 @@ httpfile 对象是整个服务器的关键接口，其设计在很大程度上�
 || QUERY_STRING || 请求参数 || "username=tom&passwd=***" ||
 || CONTENT_TYPE || POST 等报文类型 || "application/x-www-form-urlencoded" ||
 || CONTENT_LENGTH || POST 等报文长度 || 999 ||
-|| HTTP{{{_}}}_*HEADERNAME*_ || 请求头部 || HTTP_REFER 可以是 "http://www.google.com/" ||
+|| HTTP{{{_}}}_*HEADERNAME*_ || 请求头部 || 比如 HTTP_REFER 获得 "http://www.google.com/" ||
 
 同样可以通过 httpfile.request_uri、httpfile.path_info、httpfile.query_string 取出相应环境变量并设置：
 
@@ -245,13 +245,20 @@ print httpfile.request_uri  # uri 变成 "/check?username=jerry&passwd=***"，pa
 
 eurasia.cgietc 模块提供了用于解析 POST 形式表单的工具 form(_*httpfile*_, _*max_size*=1048576_, _*timeout*=-1_)：
   * 需要指定一个 httpfile 对象
-  * 使用 max_size 限定允许用户提交表单的大小，超过限制会抛出 ValueError 并立即杀死客户端，默认最多传输 1M 数据
+  * 使用 max_size 限定允许用户提交表单的最大字节数，超过限制会抛出 ValueError 并立即杀死客户端，默认最多传输 1M 数据
   * 使用 timeout 指定读取表单的超时时间
   * 使用 dict 返回解析的表单
     * 正常情况下每个表单项的取值都是 str
     * 如果提交了多个同名的表单项，那么该表单项取值就是一个 list，在其中保存多个 str 值
 
 {{{
+# -*- conding: utf-8 -*-
 from eurasia.cgietc import form
 from eurasia.web import httpserver, mainloop
+
+def handler(httpfile):
+    form1 = form(httpfile)
+
 }}}
+
+  * 注意，httpfile.read() / httpfile.readline() *不能与 form() 混用*
