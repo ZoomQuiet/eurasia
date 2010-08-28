@@ -109,7 +109,7 @@ mainloop()
 
 =标准 web 服务器=
 
-现在进入进阶主题。
+进入正题。
 
 首先通过 httpserver(_*addr*_, _*handler*_) 创建标准 http 服务器。
 
@@ -122,7 +122,7 @@ mainloop()
 {{{
 httpserver('127.0.0.1:8080', handler)  # IPv4 地址，端口 8080
 httpserver('[::1]:8080', handler)  # IPv6 地址
-httpserver(':8080', handler)  # 地址是 ''，端口 8080
+httpserver(':8080', handler)  # 本机 8080 端口
 }}}
 
 使用 tuple 类型的地址（默认 family 为 AF_INET）：
