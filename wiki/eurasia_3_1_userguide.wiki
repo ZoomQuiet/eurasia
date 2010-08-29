@@ -268,3 +268,7 @@ def handler(httpfile):
   * form() 会同时处理 QUERY_STRING 和 POST 报文体
   * 注意，_*不能*_处理 multipart 报文，比如文件上传
   * 注意，httpfile.read() / httpfile.readline() _*不能与 form() 混用*_，会导致接收内容混乱
+
+==完成响应==
+
+我们提供了 httpfile.start_response(_*status*_, _*response_headers*_, _*timeout*=-1_) 接口以取代 httpfile{{{[}}}_*headername*_{{{]}}} 和 httpfile.status 。
