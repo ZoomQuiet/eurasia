@@ -95,10 +95,10 @@ mainloop()
 }}}
 
   * 虽然 httpfile 形似 dict，但是 dict get 仅用于读取 request 头部，dict set 仅用于写入 response 头部
-    # 这意味着从 {{{httpfile[...]}}} 获取的内容和写入 {{{httpfile[...]}}} 的内容，一般*并不匹配*
+    # 这意味着从 {{{httpfile[...]}}} 获取的内容和写入 {{{httpfile[...]}}} 的内容，一般_*并不匹配*_
     # httpfile.cookie 亦然
 
-  * 这里直接对路径进行相加，*是不安全的*，仅用于演示
+  * 这里直接对路径进行相加，_*是不安全的*_，仅用于演示
   * 这里对磁盘文件的读取操作会阻塞整个程序，eurasia 带有文件 IO 的协程版本，将于后文中详述
 
 
@@ -237,7 +237,7 @@ print httpfile.request_uri  # uri 变成 "/check?username=jerry&passwd=***"，pa
 }}}
 
   * 对 httpfile.request_uri、httpfile.path_info、httpfile.query_string 进行设置这三个变量会联动
-  * 设置 httpfile.environ 这三个变量*不会*发生联动，一般避免直接通过 httpfile.environ 操作这三个变量
+  * 设置 httpfile.environ 这三个变量_*不会*_发生联动，一般避免直接通过 httpfile.environ 操作这三个变量
 
 ==解读请求==
 
@@ -256,9 +256,15 @@ eurasia.cgietc 模块提供了用于解析 POST 形式表单的工具 form(_*htt
 from eurasia.cgietc import form
 from eurasia.web import httpserver, mainloop
 
+# 返回表单内容
 def handler(httpfile):
+    # 假定提交的表单：a=hello&b=world&c=1&c=2&c=3
+    # 则输出 {'a': 'hello', 'b': 'world', 'c': ['1', '2', '3']}
     form1 = form(httpfile)
-
+    httpfile.write(repr(form1))
+    httpfile.close()
 }}}
 
-  * 注意，httpfile.read() / httpfile.readline() *不能与 form() 混用*
+  * form() 会同时处理 QUERY_STRING 和 POST 报文体
+  * 注意，_*不能*_处理 multipart 报文，比如文件上传
+  * 注意，httpfile.read() / httpfile.readline() _*不能与 form() 混用*_，会导致接收内容混乱
