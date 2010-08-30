@@ -109,9 +109,11 @@ mainloop()
 
 =标准 web 服务器=
 
-进入正题。
+进入正题。首先通过：
 
-首先通过 httpserver(_*addr*_, _*handler*_) 创建标准 http 服务器。
+|| httpserver(_*addr*_, _*handler*_) ||
+
+创建标准 http 服务器。
 
 ==地址格式==
 
@@ -159,7 +161,15 @@ httpserver((AF_INET6, 0), handler)
 
 ==启动和暂停服务器==
 
-通过 httpserver.start() 和 httpserver.stop() 启动和暂停服务器，暂停后的服务器可以通过 httpserver.start() 重新启动。
+通过：
+
+|| httpserver.start() ||
+
+和
+
+|| httpserver.stop() ||
+
+启动和暂停服务器，暂停后的服务器可以通过 httpserver.start() 重新启动。
 
 {{{
 # -*- coding: utf-8 -*-
@@ -241,7 +251,15 @@ print httpfile.request_uri  # uri 变成 "/check?username=jerry&passwd=***"，pa
 
 ==解读请求==
 
-通过 httpfile.read(_*size*=-1_, _*timeout*=-1_) 和 httpfile.readline(_*size*=-1_, _*timeout*=-1_) 可以直接读取 POST 等请求报文。
+通过：
+
+|| httpfile.read(_*size*=-1_, _*timeout*=-1_) ||
+
+和
+
+|| httpfile.readline(_*size*=-1_, _*timeout*=-1_) ||
+
+可以直接读取 POST 等请求报文。
 
 eurasia.cgietc 模块提供了用于解析 POST 形式表单的工具 form(_*httpfile*_, _*max_size*=1048576_, _*timeout*=-1_)：
   * 需要指定一个 httpfile 对象
@@ -267,8 +285,33 @@ def handler(httpfile):
 
   * form() 会同时处理 QUERY_STRING 和 POST 报文体
   * 注意，_*不能*_处理 multipart 报文，比如文件上传
-  * 注意，httpfile.read() / httpfile.readline() _*不能与 form() 混用*_，会导致接收内容混乱
+  * 注意，httpfile.read() / httpfile.readline() _*不能*_与 form() 混用，会导致接收内容混乱
 
 ==完成响应==
 
-我们提供了 httpfile.start_response(_*status*_, _*response_headers*_, _*timeout*=-1_) 接口以取代 httpfile{{{[}}}_*headername*_{{{]}}} 和 httpfile.status 。
+我们提供了接口：
+
+|| httpfile.start_response(_*status*_, _*response_headers*_, _*timeout*=-1_) ||
+
+用于替代 httpfile{{{[}}}_*headername*_{{{]}}} 和 httpfile.status 的作用。下面是一个例子：
+
+{{{
+def handler(httpfile):
+    response_status = '200 OK'
+    response_headers = [('Content-Type', 'text/html')]
+    httpfile.start_response(response_status, response_headers)
+    httpfile.sendall('hello world!')
+    httpfile.close()
+}}}
+
+httpfile.start_response() 的作用是发送指定 status 和 headers 的报文头，这和 wsgi 规范（[http://www.python.org/dev/peps/pep-0333/ pep333]）中 start_response() 接口的定义相当接近。
+
+需要注意，用 httpfile.start_response() 指定 status 和 headers，优先级要_*高于*_ httpfile{{{[}}}_headername_{{{]}}} 和 htttpfile.status 的设定。
+
+通过 httpfile.start_response() 完成报文头部以后，就可以通过：
+
+|| httpfile.sendall(_*data*_, _*timeout*=-1_) ||
+
+发送具体的报文体了。
+
+httpfile.write() 与 httpfile.sendall() 的功能相当接近，他们的区别在于：
