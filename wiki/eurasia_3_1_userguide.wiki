@@ -293,7 +293,7 @@ def handler(httpfile):
 
 || httpfile.start_response(_*status*_, _*response_headers*_, _*timeout*=-1_) ||
 
-用于替代 httpfile{{{[}}}_*headername*_{{{]}}} 和 httpfile.status 的作用。下面是一个例子：
+用于替代 httpfile{{{[}}}_*headername*_{{{]}}}（dict set）和 httpfile.status 的作用。下面是一个例子：
 
 {{{
 def handler(httpfile):
@@ -330,28 +330,32 @@ httpfile.write() 与 httpfile.sendall() 的功能相当接近，主要都用于�
 
 {{{
 # -*- coding: utf-8 -*-
+from time import strftime
+from eurasia.socket2 import error
 from eurasia.web import httpserver, mainloop
-clients = {}
-def handler(httpfile):
-    ip = httpfile.environ['REMOTE_ADDR']
-    if ip not in clients: # clients 中没有一个具有相同 ip 的客户端，则保存一个
-        # 开始这个请求，但是不立即结束
-        httpfile.start_response('200 OK', [('Content-Type', 'text/html')])
-        httpfile.sendall('<h1>begin</h1>') # 这条报文是立即返回给客户端的
-        clients[ip] = httpfile # 在 clients 中保存当前 httpfile
-        return
-
-    if ip in clients: # 如果当前正维持着一个具有相同 ip 的客户端
-        # 完成上一个未结束的请求
-        httpfile2 = clients[ip] # 取出之前未结束的客户端
-        httpfile2.sendall('<h1>end</h1>')
-        httpfile2.close() # 完成响应
-
-        # 保持本次请求
-        httpfile.start_response('200 OK', [('Content-Type', 'text/html')])
-        httpfile.sendall('<h1>begin</h1>')
-        clients[ip] = httpfile
-
+httpfiles = set()
+def handler(current_httpfile):
+    response_headers = [('Content-Type', 'text/html; charset=utf-8')]
+    current_httpfile.start_response('200 OK', response_headers)
+    current_httpfile.sendall(strftime('[%a, %d-%b-%Y %H:%M:%S GMT] 我加入了<br/>'))
+    # 通知其他在线用户，有新人加入
+    disconnected_httpfile = []
+    for httpfile in httpfiles:
+        try:
+            # 告诉其他在线用户
+            httpfile.sendall(strftime('[%a, %d-%b-%Y %H:%M:%S GMT] 又有新人加入<br/>'))
+        except error:
+            # 连接已断开
+            disconnected_httpfile.append(httpfile)
+    # 移除断开的 httpfile
+    for httpfile in disconnected_httpfile:
+        httpfiles.remove(httpfile)
+    # 将当前客户端加入全局列表中
+    httpfiles.add(current_httpfile)
 httpserver(':8080', handler).start()
 mainloop()
 }}}
+
+  * 请使用 firefox 浏览此样例，其他浏览器因为缓存原因可能不能展现出即时效果
+
+==javascript rpc==
