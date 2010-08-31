@@ -326,5 +326,6 @@ mainloop()
 
   * 请使用 firefox 浏览器观看此样例，因为缓存原因一些浏览器可能不能展现即时效果
   * handler 结束时如果其他地方没有保存 httpfile 的样本，因为引用计数的原因 httpfile 将被销毁，并断开用户连接
+  * httpfile.start_response()、httpfile.sendall() 与 httpfile.write() 都将立即向客户端发送数据，_*不会*_缓存数据
 
 ==javascript rpc==
