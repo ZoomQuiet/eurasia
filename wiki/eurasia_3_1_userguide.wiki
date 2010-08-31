@@ -306,12 +306,52 @@ def handler(httpfile):
 
 httpfile.start_response() 的作用是发送指定 status 和 headers 的报文头，这和 wsgi 规范（[http://www.python.org/dev/peps/pep-0333/ pep333]）中 start_response() 接口的定义相当接近。
 
-需要注意，用 httpfile.start_response() 指定 status 和 headers，优先级要_*高于*_ httpfile{{{[}}}_headername_{{{]}}} 和 htttpfile.status 的设定。
-
 通过 httpfile.start_response() 完成报文头部以后，就可以通过：
 
 || httpfile.sendall(_*data*_, _*timeout*=-1_) ||
 
 发送具体的报文体了。
 
-httpfile.write() 与 httpfile.sendall() 的功能相当接近，他们的区别在于：
+httpfile.write() 与 httpfile.sendall() 的功能相当接近，主要都用于发送报文体，他们的区别在于：
+  * httpfile.write() 会判断头部如果没有发送，会首先发送 httpfile.status 和 httpfile{{{[}}}…{{{]}}} 的头部设置，再发送报文
+  * httpfile.sendall() _*不会*_理会头部是否已发送，而直接发送报文，在没有调用 httpfile.start_response() 的情况下这会导致严重问题
+
+一般情况下，httpfile.status、httpfile{{{[}}}…{{{]}}} 和 httpfile.write() 配合使用；httpfile.start_response() 则与 httpfile.sendall() 一起使用
+  * 需要注意的是 httpfile.start_response() 会覆盖 httpfile{{{[}}}…{{{]}}} 和 htttpfile.status 的设定
+  * 严格说 httpfile.start_response() 的头部内容会追加在 httpfile{{{[}}}…{{{]}}} 的设定之后
+
+==长连接==
+
+只要不调用：
+
+|| httpfile.close() ||
+
+这次请求将被一直保持，你可以在任何时候向用户发送内容。
+
+{{{
+# -*- coding: utf-8 -*-
+from eurasia.web import httpserver, mainloop
+clients = {}
+def handler(httpfile):
+    ip = httpfile.environ['REMOTE_ADDR']
+    if ip not in clients: # clients 中没有一个具有相同 ip 的客户端，则保存一个
+        # 开始这个请求，但是不立即结束
+        httpfile.start_response('200 OK', [('Content-Type', 'text/html')])
+        httpfile.sendall('<h1>begin</h1>') # 这条报文是立即返回给客户端的
+        clients[ip] = httpfile # 在 clients 中保存当前 httpfile
+        return
+
+    if ip in clients: # 如果当前正维持着一个具有相同 ip 的客户端
+        # 完成上一个未结束的请求
+        httpfile2 = clients[ip] # 取出之前未结束的客户端
+        httpfile2.sendall('<h1>end</h1>')
+        httpfile2.close() # 完成响应
+
+        # 保持本次请求
+        httpfile.start_response('200 OK', [('Content-Type', 'text/html')])
+        httpfile.sendall('<h1>begin</h1>')
+        clients[ip] = httpfile
+
+httpserver(':8080', handler).start()
+mainloop()
+}}}
