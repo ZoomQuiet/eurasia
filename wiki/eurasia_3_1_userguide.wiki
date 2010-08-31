@@ -57,13 +57,13 @@ request 操作:
 || property || httpfile.path_info || 请求的路径信息 ||
 || property || httpfile.query_string || 路径中“?”之后的部分 ||
 || property || httpfile.cookie || 得到客户端 cookie（Cookie.SimpleCookie 对象）无则返回 None ||
-|| dict get || httpfile{{{[}}}_*headername*_{{{]}}} || 得到指定头部 ||
+|| dict get || httpfile`[`_*headername*_`]` || 得到指定头部 ||
 
 response 操作:
 
 || property || httpfile.status || http 响应状态，默认是 200 ||
 || property || httpfile.cookie || 向客户端发送一个 Cookie 对象（比如 Cookie.SimpleCookie） ||
-|| dict set || httpfile{{{[}}}_*headername*_{{{]}}} || 发送指定头部 ||
+|| dict set || httpfile`[`_*headername*_`]` || 发送指定头部 ||
 || method || httpfile.write(_*data*_, _*timeout*=-1_) || 发送指定内容，默认无超时 ||
 || method || httpfile.close(_*timeout*=-1_) || 完成并终止本次响应，默认无超时 ||
 
@@ -95,7 +95,7 @@ mainloop()
 }}}
 
   * 虽然 httpfile 形似 dict，但是 dict get 仅用于读取 request 头部，dict set 仅用于写入 response 头部
-    # 这意味着从 {{{httpfile[...]}}} 获取的内容和写入 {{{httpfile[...]}}} 的内容，一般_*并不匹配*_
+    # 这意味着从 httpfile`[`...`]` 获取的内容和写入 httpfile`[`...`]` 的内容，一般_*并不匹配*_
     # httpfile.cookie 亦然
 
   * 这里直接对路径进行相加，_*是不安全的*_，仅用于演示
@@ -109,11 +109,7 @@ mainloop()
 
 =标准 web 服务器=
 
-进入正题。首先通过：
-
-|| httpserver(_*addr*_, _*handler*_) ||
-
-创建标准 http 服务器。
+进入正题。首先通过 httpserver(_*addr*_, _*handler*_) 创建标准 http 服务器。
 
 ==地址格式==
 
@@ -161,15 +157,7 @@ httpserver((AF_INET6, 0), handler)
 
 ==启动和暂停服务器==
 
-通过：
-
-|| httpserver.start() ||
-
-和
-
-|| httpserver.stop() ||
-
-启动和暂停服务器，暂停后的服务器可以通过 httpserver.start() 重新启动。
+通过 httpserver.start() 和 httpserver.stop() 启动和暂停服务器，暂停后的服务器可以通过 httpserver.start() 重新启动。
 
 {{{
 # -*- coding: utf-8 -*-
@@ -209,24 +197,24 @@ mainloop()
 httpfile 对象是整个服务器的关键接口，其设计在很大程度上与 CGI/1.1 规范适配，以下是一些对应关系：
 
 || 接口类型： || 接口描述： || CGI 对应： ||
-|| dict get || httpfile.environ{{{[}}}_*envname*_{{{]}}} || 环境变量 ||
+|| dict get || httpfile.environ`[`_*envname*_`]` || 环境变量 ||
 || method || httpfile.read(_*size*=-1_, _*timeout*=-1_) || 标准输入 ||
 || method || httpfile.readline(_*size*=-1_, _*timeout*=-1_) || 标准输入 ||
 || method || httpfile.write(_*data*_, _*timeout*=-1_) || 标准输出 ||
 
-可以通过 httpfile.environ{{{[}}}_*envname*_{{{]}}} 提取的环境变量有：
+可以通过 httpfile.environ`[`_*envname*_`]` 提取的环境变量有：
 
 || 环境变量： || 变量描述： || example： ||
 || REQUEST_METHOD || 请求的方法 || "GET"、"POST" ||
 || SERVER_PROTOCOL || 请求协议及版本 || "HTTP/1.1" ||
-|| REMOTE_ADDR || 连入客户端的地址和端口 || ("192.168.0.2", 5566) ||
+|| REMOTE_ADDR || 连入客户端的地址 || "192.168.0.2" ||
 || REMOTE_PORT || 连入客户端的端口 || 5566 ||
 || REQUEST_URI || 完整 uri || "/login?username=tom&passwd=***" ||
 || PATH_INFO || 页面地址 || "/login" ||
 || QUERY_STRING || 请求参数 || "username=tom&passwd=***" ||
 || CONTENT_TYPE || POST 等报文类型 || "application/x-www-form-urlencoded" ||
 || CONTENT_LENGTH || POST 等报文长度 || 999 ||
-|| HTTP{{{_}}}_*HEADERNAME*_ || 请求头部 || 比如 HTTP_REFER 获得 "http://www.google.com/" ||
+|| HTTP{{{_}}}_*HEADERNAME*_ || 请求头部 || （比如 HTTP_REFER：）"http://www.google.com/" ||
 
 同样可以通过 httpfile.request_uri、httpfile.path_info、httpfile.query_string 取出相应环境变量并设置：
 
@@ -251,15 +239,7 @@ print httpfile.request_uri  # uri 变成 "/check?username=jerry&passwd=***"，pa
 
 ==解读请求==
 
-通过：
-
-|| httpfile.read(_*size*=-1_, _*timeout*=-1_) ||
-
-和
-
-|| httpfile.readline(_*size*=-1_, _*timeout*=-1_) ||
-
-可以直接读取 POST 等请求报文。
+通过 httpfile.read(_*size*=-1_, _*timeout*=-1_) 和 httpfile.readline(_*size*=-1_, _*timeout*=-1_) 可以直接读取 POST 等请求报文。
 
 eurasia.cgietc 模块提供了用于解析 POST 形式表单的工具 form(_*httpfile*_, _*max_size*=1048576_, _*timeout*=-1_)：
   * 需要指定一个 httpfile 对象
@@ -289,11 +269,7 @@ def handler(httpfile):
 
 ==完成响应==
 
-我们提供了接口：
-
-|| httpfile.start_response(_*status*_, _*response_headers*_, _*timeout*=-1_) ||
-
-用于替代 httpfile{{{[}}}_*headername*_{{{]}}}（dict set）和 httpfile.status 的作用。下面是一个例子：
+我们提供了接口 httpfile.start_response(_*status*_, _*response_headers*_, _*timeout*=-1_) 用于替代 httpfile`[`...`]`（设置头部）和 httpfile.status 的作用：
 
 {{{
 def handler(httpfile):
@@ -306,27 +282,19 @@ def handler(httpfile):
 
 httpfile.start_response() 的作用是发送指定 status 和 headers 的报文头，这和 wsgi 规范（[http://www.python.org/dev/peps/pep-0333/ pep333]）中 start_response() 接口的定义相当接近。
 
-通过 httpfile.start_response() 完成报文头部以后，就可以通过：
-
-|| httpfile.sendall(_*data*_, _*timeout*=-1_) ||
-
-发送具体的报文体了。
+通过 httpfile.start_response() 完成报文头部以后，就可以通过 httpfile.sendall(_*data*_, _*timeout*=-1_) 发送具体的报文体了。
 
 httpfile.write() 与 httpfile.sendall() 的功能相当接近，主要都用于发送报文体，他们的区别在于：
-  * httpfile.write() 会判断头部如果没有发送，会首先发送 httpfile.status 和 httpfile{{{[}}}…{{{]}}} 的头部设置，再发送报文
+  * httpfile.write() 会判断头部如果没有发送，会首先发送 httpfile.status 和 httpfile`[`...`]` 的头部设置，再发送报文
   * httpfile.sendall() _*不会*_理会头部是否已发送，而直接发送报文，在没有调用 httpfile.start_response() 的情况下这会导致严重问题
 
-一般情况下，httpfile.status、httpfile{{{[}}}…{{{]}}} 和 httpfile.write() 配合使用；httpfile.start_response() 则与 httpfile.sendall() 一起使用
-  * 需要注意的是 httpfile.start_response() 会覆盖 httpfile{{{[}}}…{{{]}}} 和 htttpfile.status 的设定
-  * 严格说 httpfile.start_response() 的头部内容会追加在 httpfile{{{[}}}…{{{]}}} 的设定之后
+一般情况下，httpfile.status、httpfile`[`...`]` 和 httpfile.write() 配合使用；httpfile.start_response() 则与 httpfile.sendall() 一起使用
+  * 需要注意的是 httpfile.start_response() 会覆盖 httpfile`[`...`]` 和 htttpfile.status 的设定
+  * 严格说 httpfile.start_response() 的头部内容会追加在 httpfile`[`...`]` 的设定之后
 
 ==长连接==
 
-请求将被一直保持，直到你调用：
-
-|| httpfile.close() ||
-
-在此期间你可以在任何时候向用户发送内容。
+请求将被一直保持，直到你调用 `httpfile.close()` 在此期间你可以在任何时候向用户发送内容。
 
 {{{
 # -*- coding: utf-8 -*-
@@ -356,6 +324,7 @@ httpserver(':8080', handler).start()
 mainloop()
 }}}
 
-  * 请使用 firefox 浏览此样例，其他浏览器因为缓存原因可能不能展现出即时效果
+  * 请使用 firefox 浏览器观看此样例，因为缓存原因一些浏览器可能不能展现即时效果
+  * handler 结束时如果其他地方没有保存 httpfile 的样本，因为引用计数的原因 httpfile 将被销毁，并断开用户连接
 
 ==javascript rpc==
