@@ -115,43 +115,25 @@ mainloop()
 
 接口 httpserver 允许多种形式的 addr 参数。
 
-使用字符串指定：
-
 {{{
 httpserver('127.0.0.1:8080', handler)  # IPv4 地址，端口 8080
 httpserver('[::1]:8080', handler)  # IPv6 地址
 httpserver(':8080', handler)  # 本机 8080 端口
-}}}
+httpserver(('127.0.0.1', 8080), handler)  # IPv4
+httpserver(('::1', 8080), handler)  # IPv6
 
-使用 tuple 指定（默认 AF_INET）：
-
-{{{
-httpserver(('127.0.0.1', 8080), handler)
-httpserver(('::1', 8080), handler)
-}}}
-
-同时指定地址及 family：
-
-{{{
+# 同时指定地址及 family：
 from socket import AF_INET6, AF_UNIX
 from eurasia.web import httpserver
-
 httpserver((('::1', 8080), AF_INET6), handler)
 httpserver(('/var/httpd.sock', AF_UNIX), handler)  # unix socket
-}}}
 
-使用已打开的 fileno（默认 AF_INET）：
+# 绑定到 fileno 为 0 的资源描述符，默认 family 是 AF_INET：
+httpserver(0, handler)
 
-{{{
-httpserver(0, handler)  # 绑定到 fileno 为 0 的资源描述符
-}}}
-
-使用 fileno 并指定 family：
-
-{{{
+# 绑定到 fileno 为 0 的描述符，指定 family 为 AF_INET6：
 from socket import AF_INET6
 from eurasia.web import httpserver
-
 httpserver((AF_INET6, 0), handler)
 }}}
 
@@ -266,6 +248,41 @@ def handler(httpfile):
   * form() 会同时处理 QUERY_STRING 和 POST 报文体
   * 注意，_*不能*_处理 multipart 报文，比如文件上传
   * 注意，httpfile.read() / httpfile.readline() _*不能*_与 form() 混用，会导致接收内容混乱
+
+==cookie==
+
+通过 httpfile.cookie 属性配合标准库 [http://docs.python.org/library/cookie.html Cookie] 读取和设置 cookie。
+
+{{{
+from uuid import uuid4
+from Cookie import SimpleCookie
+from time import gmtime, strftime, time
+from eurasia.web import httpserver, mainloop
+
+def handler(httpfile):
+    cookie = httpfile.cookie
+    if cookie is None:  # 客户端没有 cookie 则设置一个
+        cookie = SimpleCookie()
+        cookie['uid'] = uuid4().hex
+        cookie['uid']['path'] = '/'
+        cookie['uid']['expires'] = strftime(  # 设置过期时间是 3600 秒
+            '%a, %d-%b-%Y %H:%M:%S GMT', gmtime(time() + 3600))
+        httpfile.start_response('200 OK', [('Content-Type', 'text/plain')])   #cookie 随头部发送
+        httpfile.sendall(cookie.output())  # 输出发送的 cookie 头部内容
+        httpfile.close()
+    else:  # 客户端已有 cookie，删除该 cookie
+        cookie = SimpleCookie()
+        cookie['uid'] = ''
+        cookie['uid']['path'] = '/'
+        cookie['uid']['expires'] = 'Mon, 26 Jul 1997 05:00:00 GMT'  # 使过期删除
+        httpfile.cookie = cookie  # 必须写入以修改
+        httpfile.start_response('200 OK', [('Content-Type', 'text/plain')])
+        httpfile.sendall('cookie deleted.')
+        httpfile.close()
+}}}
+
+  * 注意，读取的 httpfile.cookie 属性操作的是 request，而写入 httpfile.cookie 操作的是 response，它们通常_*并不匹配*_
+  * 出于安全性考虑，推荐仅使用 Cookie.SimpleCookie() 来存取 cookie
 
 ==完成响应==
 
