@@ -404,37 +404,31 @@ function my_alert(stuff) { alert(stuff); };
 </body
 </html>
 '''
-
 # 保存了所有在线用户的全局列表
 global_browsers = set()
 
 def handler(httpfile):
-	if httpfile.path_info != '/remotecall':
-                httpfile.start_response('200 OK', [('Content-Type', 'text/html')])
-		httpfile.sendall(page) # 输出前面定义的上传表单
-		return httpfile.close()
-
-	# 创建 Browser 对象
-	# 调用客户端名为 "my_alert()" 的 js 函数
-	current_browser = browser(httpfile)
-	current_browser.my_alert(u'我加入啦!')
-
-	# 通知其他在线用户, 有新人加入
-	disconnected = []
-	for browser in global_browsers:
-		try:
-			# 调用在线用户的 my_alert 函数
-			browser.my_alert(u'又有新人加入啦!')
-
-		except error: # 已经断开连接
-			disconnected.append(browser)
-
-	# 移除已经断开连接的浏览器
-	for browser in disconnected:
-		disconnected.remove(browser)
-
-	# 将当前浏览器添加到全局浏览器对象列表中
-	global_browsers.add(current_browser)
+    if httpfile.path_info != '/remotecall':
+        httpfile.start_response('200 OK', [('Content-Type', 'text/html')])
+        httpfile.sendall(page) # 输出前面定义的上传表单
+        return httpfile.close()
+    # 创建 Browser 对象
+    # 调用客户端名为 "my_alert()" 的 js 函数
+    current_browser = browser(httpfile)
+    current_browser.my_alert(u'我加入啦!')
+    # 通知其他在线用户, 有新人加入
+    disconnected = []
+    for browser in global_browsers:
+        try:
+            # 调用在线用户的 my_alert 函数
+            browser.my_alert(u'又有新人加入啦!')
+        except error: # 已经断开连接
+            disconnected.append(browser)
+    # 移除已经断开连接的浏览器
+    for browser in disconnected:
+        disconnected.remove(browser)
+    # 将当前浏览器添加到全局浏览器对象列表中
+    global_browsers.add(current_browser)
 
 httpserver(':8080', handler)
 mainloop()
@@ -443,5 +437,7 @@ mainloop()
 我们可以在 Brwoser 对象创建时指定 javascript 域 (document.domain), 方便 javascript 的跨子域调用:
 
 {{{
-browser = Browser(httpfile, domain=DOMAIN)
+browser_obj = browser(httpfile, domain=DOMAIN)
 }}}
+
+  * browser 会增加一次 httpfile 的引用，在没有 httpfile 对象并且也没有指向该对象的 browser 对象时，与用户的连接会自动断开
