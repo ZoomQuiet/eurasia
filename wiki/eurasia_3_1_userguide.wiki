@@ -362,3 +362,86 @@ mainloop()
   * httpfile.start_response()、httpfile.sendall() 与 httpfile.write() 都将立即向客户端发送数据，_*不会*_缓存数据
 
 ==javascript rpc==
+
+通过 eurasia.cgietc 提供的 browser(_*httpfile*_, _*domain*=None_, _*timeout*=-1_) 接口，服务器端可以在任何时候即时调用客户端的 javascript 函数。
+
+在下面这个例子中，每当有新用户访问站点，所有在线用户都将收到一条 javascript 的提醒。
+
+我们首先定义一个包含有 javascript 的 html 页面, 并与服务器建立一条长连接。 其中的 "my_alert" 函数就是我们即将要用到的:
+
+{{{
+<html>
+<head>
+<script language="JavaScript">
+function my_alert(stuff) { alert(stuff); };
+</script>
+</head>
+<body>
+<!-- 与 /remotecall 位置的服务器脚本建立长连接 -->
+<iframe src="/remotecall" style="display: none;"></iframe>
+</body
+</html>
+}}}
+
+下面是完整的处理脚本:
+
+{{{
+#-*- coding: utf-8 -*-
+from eurasia.socket2 import error
+from eurasia.cgietc import browser
+from eurasia.web import httpserver, mainloop
+
+page = '''\
+<html>
+<head>
+<script language="JavaScript">
+function my_alert(stuff) { alert(stuff); };
+</script>
+</head>
+<body>
+<!-- 与 /remotecall 位置的服务器脚本建立长连接 -->
+<iframe src="/remotecall" style="display: none;"></iframe>
+</body
+</html>
+'''
+
+# 保存了所有在线用户的全局列表
+global_browsers = set()
+
+def handler(httpfile):
+	if httpfile.path_info != '/remotecall':
+                httpfile.start_response('200 OK', [('Content-Type', 'text/html')])
+		httpfile.sendall(page) # 输出前面定义的上传表单
+		return httpfile.close()
+
+	# 创建 Browser 对象
+	# 调用客户端名为 "my_alert()" 的 js 函数
+	current_browser = browser(httpfile)
+	current_browser.my_alert(u'我加入啦!')
+
+	# 通知其他在线用户, 有新人加入
+	disconnected = []
+	for browser in global_browsers:
+		try:
+			# 调用在线用户的 my_alert 函数
+			browser.my_alert(u'又有新人加入啦!')
+
+		except error: # 已经断开连接
+			disconnected.append(browser)
+
+	# 移除已经断开连接的浏览器
+	for browser in disconnected:
+		disconnected.remove(browser)
+
+	# 将当前浏览器添加到全局浏览器对象列表中
+	global_browsers.add(current_browser)
+
+httpserver(':8080', handler)
+mainloop()
+}}}
+
+我们可以在 Brwoser 对象创建时指定 javascript 域 (document.domain), 方便 javascript 的跨子域调用:
+
+{{{
+browser = Browser(httpfile, domain=DOMAIN)
+}}}
