@@ -254,6 +254,8 @@ def handler(httpfile):
 通过 httpfile.cookie 属性配合标准库 [http://docs.python.org/library/cookie.html Cookie] 读取和设置 cookie。
 
 {{{
+#!/opt/unladen-2.6.4/bin/python2.6
+# -*- coding: utf-8 -*-
 from uuid import uuid4
 from Cookie import SimpleCookie
 from time import gmtime, strftime, time
@@ -267,20 +269,30 @@ def handler(httpfile):
         cookie['uid']['path'] = '/'
         cookie['uid']['expires'] = strftime(  # 设置过期时间是 3600 秒
             '%a, %d-%b-%Y %H:%M:%S GMT', gmtime(time() + 3600))
-        httpfile.start_response('200 OK', [('Content-Type', 'text/plain')])   #cookie 随头部发送
-        httpfile.sendall(cookie.output())  # 输出发送的 cookie 头部内容
+        httpfile.cookie = cookie # 设置到 httpfile.cookie
+        # 通过 start_response()，cookie 随头部一起发送
+        httpfile.start_response('200 OK', [('Content-Type', 'text/html; charset=utf-8')])
+        httpfile.sendall('<p>创建 cookie 内容：<br><br>%s</p>'%cookie.output(header=''))
+        httpfile.sendall('<p><b>该 cookie 已发送至浏览器</b></p>')
         httpfile.close()
     else:  # 客户端已有 cookie，删除该 cookie
-        cookie = SimpleCookie()
-        cookie['uid'] = ''
-        cookie['uid']['path'] = '/'
-        cookie['uid']['expires'] = 'Mon, 26 Jul 1997 05:00:00 GMT'  # 使过期删除
-        httpfile.cookie = cookie  # 必须写入以修改
-        httpfile.start_response('200 OK', [('Content-Type', 'text/plain')])
-        httpfile.sendall('cookie deleted.')
+        cookie_from_request = httpfile.cookie
+        cookie_to_response  = SimpleCookie()
+        cookie_to_response['uid'] = ''
+        cookie_to_response['uid']['path'] = '/'
+        cookie_to_response['uid']['expires'] = 'Mon, 26 Jul 1997 05:00:00 GMT'  # 使过期删除
+
+        httpfile.cookie = cookie_to_response  # 在头部发送前设置好 cookie
+        httpfile.start_response('200 OK', [('Content-Type', 'text/html')])
+        httpfile.sendall('<p>收到 cookie 内容：<br><br>%s</p>'%cookie_from_request.output(header=''))
+        httpfile.sendall('<p><b>该 cookie 已经删除</b></p>')
         httpfile.close()
+
+httpserver(':8080', handler).start()
+mainloop()
 }}}
 
+  * httpfile.cookie 的设置通过 httpfile.start_response() 或者 httpfile.write() 调用发送给浏览器
   * 注意，读取的 httpfile.cookie 属性操作的是 request，而写入 httpfile.cookie 操作的是 response，它们通常_*并不匹配*_
   * 出于安全性考虑，推荐仅使用 Cookie.SimpleCookie() 来存取 cookie
 
