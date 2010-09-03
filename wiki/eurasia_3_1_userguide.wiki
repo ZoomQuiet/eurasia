@@ -292,8 +292,12 @@ httpserver(':8080', handler).start()
 mainloop()
 }}}
 
+  * 读取 httpfile.cookie 仅用于读取 request 头部，设置 httpfile.cookie 仅用于写入 response 头部
+    # 这意味着从 httpfile.cookie 获取的内容和写入 httpfile.cookie 的内容，一般_*并不匹配*_
+    # httpfile`[`...`]`亦然
+
   * httpfile.cookie 的设置通过 httpfile.start_response() 或者 httpfile.write() 调用发送给浏览器
-  * 注意，读取的 httpfile.cookie 属性操作的是 request，而写入 httpfile.cookie 操作的是 response，它们通常_*并不匹配*_
+  * 注意，写入 httpfile.cookie 的内容与从 httpfile.cookie 读取的内容_*并不*_一定匹配
   * 出于安全性考虑，推荐仅使用 Cookie.SimpleCookie() 来存取 cookie
 
 ==完成响应==
