@@ -248,6 +248,7 @@ def handler(httpfile):
   * form() 会同时处理 QUERY_STRING 和 POST 报文体
   * 注意，_*不能*_处理 multipart 报文，比如文件上传
   * 注意，httpfile.read() / httpfile.readline() _*不能*_与 form() 混用，会导致接收内容混乱
+  * form() 处理完请求以后会将结果以 dict 对象返回，不会增加 httpfile 的引用
 
 ==完成响应==
 
@@ -435,4 +436,33 @@ mainloop()
 }}}
 
   * browser 接口的 domain 参数用于指定 javascript 域（document.domain）方便跨域调用
+  * browser 接口的 timeout 参数用于指定建立 js rpc 连接的超时时间
   * browser 会增加一次 httpfile 的引用，在没有引用时，与用户的连接会自动断开
+
+==超时处理==
+
+多数 web 接口可以通过 timeout 参数设置超时，timeout 是以秒为单位的浮点数（float），默认值 -1 意为无超时。
+
+{{{
+# -*- coding: utf-8 -*-
+from eurasia.cgietc import form
+from eurasia.core import timeout  # 超时异常
+from eurasia.web import httpserver, mainloop
+
+def handler(httpfile):
+    try:
+        form1 = form(httpfile, max_size=10240, timeout=30.)  # 30 秒超时
+    except timeout:
+        httpfile.shutdown()  # 中断连接
+    try:
+        httpfile.write(repr(form1), timeout=10.)  # 10 秒超时
+    except timeout:
+        httpfile.shutdown()
+    httpfile.close()  # 正常结束请求
+
+httpd = httpserver(':8080', handler)
+httpd.start()
+mainloop()
+}}}
+
+  * 中断发生时会抛出 eurasia.core.timeout 异常，但是连接并不会随之中断
