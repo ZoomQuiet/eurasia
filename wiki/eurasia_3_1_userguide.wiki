@@ -249,6 +249,31 @@ def handler(httpfile):
   * 注意，_*不能*_处理 multipart 报文，比如文件上传
   * 注意，httpfile.read() / httpfile.readline() _*不能*_与 form() 混用，会导致接收内容混乱
 
+==完成响应==
+
+我们提供了接口 httpfile.start_response(_*status*_, _*response_headers*_, _*timeout*=-1_) 用于替代 httpfile`[`...`]`（设置头部）和 httpfile.status 的作用：
+
+{{{
+def handler(httpfile):
+    response_status = '200 OK'
+    response_headers = [('Content-Type', 'text/html')]
+    httpfile.start_response(response_status, response_headers)
+    httpfile.sendall('hello world!')
+    httpfile.close()
+}}}
+
+httpfile.start_response() 的作用是发送指定 status 和 headers 的报文头，这和 wsgi 规范（[http://www.python.org/dev/peps/pep-0333/ pep333]）中 start_response() 接口的定义相当接近。
+
+通过 httpfile.start_response() 完成报文头部以后，就可以通过 httpfile.sendall(_*data*_, _*timeout*=-1_) 发送具体的报文体了。
+
+httpfile.write() 与 httpfile.sendall() 的功能相当接近，主要都用于发送报文体，他们的区别在于：
+  * httpfile.write() 会判断头部如果没有发送，会首先发送 httpfile.status 和 httpfile`[`...`]` 的头部设置，再发送报文
+  * httpfile.sendall() _*不会*_理会头部是否已发送，而直接发送报文，在没有调用 httpfile.start_response() 的情况下这会导致严重问题
+
+一般情况下，httpfile.status、httpfile`[`...`]` 和 httpfile.write() 配合使用；httpfile.start_response() 则与 httpfile.sendall() 一起使用
+  * 需要注意的是 httpfile.start_response() 会覆盖 httpfile`[`...`]` 和 htttpfile.status 的设定
+  * 严格说 httpfile.start_response() 的头部内容会追加在 httpfile`[`...`]` 的设定之后
+
 ==cookie==
 
 通过 httpfile.cookie 属性配合标准库 [http://docs.python.org/library/cookie.html Cookie] 读取和设置 cookie。
@@ -293,37 +318,12 @@ mainloop()
 }}}
 
   * 读取 httpfile.cookie 仅用于读取 request 头部，设置 httpfile.cookie 仅用于写入 response 头部
-    # 这意味着从 httpfile.cookie 获取的内容和写入 httpfile.cookie 的内容，一般_*并不匹配*_
-    # httpfile`[`...`]`亦然
+    * 这意味着从 httpfile.cookie 获取的内容和写入 httpfile.cookie 的内容，一般_*并不匹配*_
 
   * httpfile.cookie 的设置通过 httpfile.start_response() 或者 httpfile.write() 调用发送给浏览器
   * 注意，写入 httpfile.cookie 的内容与从 httpfile.cookie 读取的内容_*并不*_一定匹配
-  * 出于安全性考虑，推荐仅使用 Cookie.SimpleCookie() 来存取 cookie
-
-==完成响应==
-
-我们提供了接口 httpfile.start_response(_*status*_, _*response_headers*_, _*timeout*=-1_) 用于替代 httpfile`[`...`]`（设置头部）和 httpfile.status 的作用：
-
-{{{
-def handler(httpfile):
-    response_status = '200 OK'
-    response_headers = [('Content-Type', 'text/html')]
-    httpfile.start_response(response_status, response_headers)
-    httpfile.sendall('hello world!')
-    httpfile.close()
-}}}
-
-httpfile.start_response() 的作用是发送指定 status 和 headers 的报文头，这和 wsgi 规范（[http://www.python.org/dev/peps/pep-0333/ pep333]）中 start_response() 接口的定义相当接近。
-
-通过 httpfile.start_response() 完成报文头部以后，就可以通过 httpfile.sendall(_*data*_, _*timeout*=-1_) 发送具体的报文体了。
-
-httpfile.write() 与 httpfile.sendall() 的功能相当接近，主要都用于发送报文体，他们的区别在于：
-  * httpfile.write() 会判断头部如果没有发送，会首先发送 httpfile.status 和 httpfile`[`...`]` 的头部设置，再发送报文
-  * httpfile.sendall() _*不会*_理会头部是否已发送，而直接发送报文，在没有调用 httpfile.start_response() 的情况下这会导致严重问题
-
-一般情况下，httpfile.status、httpfile`[`...`]` 和 httpfile.write() 配合使用；httpfile.start_response() 则与 httpfile.sendall() 一起使用
-  * 需要注意的是 httpfile.start_response() 会覆盖 httpfile`[`...`]` 和 htttpfile.status 的设定
-  * 严格说 httpfile.start_response() 的头部内容会追加在 httpfile`[`...`]` 的设定之后
+  * httpfile.cookie 的所有功能都可以直接通过 Cookie 和 Set-Cookie 头部的处理来完成
+  * 出于安全性考虑，应仅使用 Cookie.SimpleCookie() 来存取 cookie
 
 ==长连接==
 
@@ -434,10 +434,5 @@ httpserver(':8080', handler)
 mainloop()
 }}}
 
-我们可以在 Brwoser 对象创建时指定 javascript 域 (document.domain), 方便 javascript 的跨子域调用:
-
-{{{
-browser_obj = browser(httpfile, domain=DOMAIN)
-}}}
-
-  * browser 会增加一次 httpfile 的引用，在没有 httpfile 对象并且也没有指向该对象的 browser 对象时，与用户的连接会自动断开
+  * browser 接口的 domain 参数用于指定 javascript 域（document.domain）方便跨域调用
+  * browser 会增加一次 httpfile 的引用，在没有引用时，与用户的连接会自动断开
