@@ -477,4 +477,26 @@ mainloop()
   * 用户仍然可以恢复因为超时中断的工作，这可能会导致一些潜在问题，因此建议终止连接后进行重试
   * 如果不捕获 timeout，异常将会传递到顶层，自动终止本次请求，断开连接
 
-==标准 wsgi 服务器==
+==wsgiserver==
+
+使用 wsgiserver(_*addr*_, _*app*_) 创建标准的 wsgi 服务器。
+
+{{{
+from eurasia.web import wsgiserver, mainloop
+def app(environ, start_response):
+    start_response('200 OK', [('Content-Type', 'text/plain')])
+    return ['hello world!']
+
+httpd = wsgiserver(':8080', app)
+httpd.start()
+mainloop()
+}}}
+
+  * wsgiserver 使用和 httpserver 相同的地址描述格式
+  * 和普通 wsgi 服务器不同的是，wsgiserver 将为每个请求分配一个协程（而不是线程或者进程）
+    * 这意味着 wsgiserver 具有更高的并发响应能力，但也存在一些限制，主要是必须用协程异步的接口来代替传统的阻塞式接口
+
+
+|| || || ||
+|| || ||
+|| ||
