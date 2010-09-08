@@ -1,8 +1,6 @@
 #summary EURASIA 用户手册（3.1 版）
 #labels Deprecated
 
-|| || || || || || || || || || || || || || || || || ||
-
 <wiki:toc max_depth="2" /> 
 
 || || || ||
