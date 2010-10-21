@@ -493,8 +493,7 @@ mainloop()
 }}}
 
   * wsgiserver 使用和 httpserver 相同的地址描述格式
-  * 和普通 wsgi 服务器不同的是，wsgiserver 将为每个请求分配一个协程（而不是线程或者进程）
-    * 这意味着 wsgiserver 具有更高的并发响应能力，但也存在一些限制，主要是必须用协程异步的接口来代替传统的阻塞式接口
+  * 比起普通的 wsgi 服务器，wsgiserver 具有更高的并发响应能力，但是必须使用框架自带的 IO 接口来代替传统的阻塞式 IO
 
 
 || || || ||
@@ -502,3 +501,48 @@ mainloop()
 || ||
 
 =框架功能介绍=
+
+这里介绍一些重要的框架工具。
+
+==文件==
+
+在 eurasia 中传统的阻塞式文件 IO 会严重降低系统响应能力，为此框架提供了专门的文件接口。
+
+使用 core.file(_*fileno*_) 操作已打开的文件描述符（fileno）。
+
+{{{
+from eurasia.core import file
+from eurasia.web import httpserver, mainloop
+
+def handler(httpfile):
+    bufsize = 8192
+    test_txt = open('test.txt')
+    fd = file(test_txt.fileno())
+
+    httpfile.start_response('200 OK', [('Content-Type', 'text/plain')])
+    # 每次从文件读取 bufsize，返回给浏览器
+    data = fd.read(bufsize)
+    while data:
+        httpfile.sendall(data)
+        data = fd.read(bufsize)
+    httpfile.close()
+
+httpd = httpserver(':8080', handler)
+httpd.start()
+mainloop()
+}}}
+
+在 unix 下，管道、socket、设备等等都是文件，都可以使用 core.file() 接口。
+
+{{{
+from os import popen
+from eurasia.core import file
+...
+ls_cmd = popen('ls -alh')
+fd = file(ls_cmd.fileno())
+fd.readline()
+}}}
+
+==文件对象接口列表==
+
+|| 接口类型： || 接口描述： || 解释： ||
