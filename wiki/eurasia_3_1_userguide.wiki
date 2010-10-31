@@ -10,7 +10,7 @@
 
 =快速开始=
 
-我们将从最简单的 hello world 开始，通过一些范例程序，快速掌握 eurasia 的特点。
+我们将从最简单的 hello world 开始，通过范例快速掌握 eurasia 。
 
 这首先是一个 web 程序。
 
@@ -18,10 +18,7 @@
 ==hello world==
 
 {{{
-#!/usr/bin/python
-#-*- coding: utf-8 -*-
-#filename: test.py
-
+# 文件名: test.py
 from eurasia.web import httpserver, mainloop
 def handler(httpfile):
     httpfile['Content-Type'] = 'text/html'
@@ -33,7 +30,7 @@ httpd.start()
 mainloop()
 }}}
 
-简单地把 handler 绑定到本机的 8080 端口。所有发往这个端口的 http 请求都会得到一个 hello world 的响应。
+把 handler 绑定到 8080 端口，浏览器访问该端口会得到 hello world 。
 
 执行脚本，启动服务器。
 
@@ -42,29 +39,29 @@ $/usr/bin/python2 test.py
 }}}
 
   * 一次可以通过 httpserver 创建多个 http 服务器
-  * http 服务器通过 start() 启动，用 stop() 暂停
-  * mainloop() 主循环是每个 eurasia 程序都必须要有的
+  * 服务器通过 start() 启动 / 以 stop() 暂停
+  * 最后执行 mainloop() 主循环
 
 
 ==httpfile 对象==
 
-通过操作 httpfile 对象以获取用户请求并完成响应。
+操作 httpfile 对象，获取请求，并完成响应。
 
 request 操作:
 
-|| property || httpfile.method || 通常是“GET”或“POST” ||
-|| property || httpfile.path_info || 请求的路径信息 ||
-|| property || httpfile.query_string || 路径中“?”之后的部分 ||
-|| property || httpfile.cookie || 得到客户端 cookie（Cookie.SimpleCookie 对象）无则返回 None ||
-|| dict get || httpfile`[`_*headername*_`]` || 得到指定头部 ||
+|| 属性 || httpfile.method || 通常是“GET”或“POST” ||
+|| 属性 || httpfile.path_info || 请求的资源位置（路径） ||
+|| 属性 || httpfile.query_string || 路径“?”之后的部分 ||
+|| 属性 || httpfile.cookie || 得到客户端 cookie（Cookie.SimpleCookie 对象）无则返回 None ||
+|| 字典（取出） || httpfile`[`_*headername*_`]` || 取得指定头部 ||
 
 response 操作:
 
-|| property || httpfile.status || http 响应状态，默认是 200 ||
-|| property || httpfile.cookie || 向客户端发送一个 Cookie 对象（比如 Cookie.SimpleCookie） ||
-|| dict set || httpfile`[`_*headername*_`]` || 发送指定头部 ||
-|| method || httpfile.write(_*data*_, _*timeout*=-1_) || 发送指定内容，默认无超时 ||
-|| method || httpfile.close(_*timeout*=-1_) || 完成并终止本次响应，默认无超时 ||
+|| 属性 || httpfile.status || 响应状态，默认 200 ||
+|| 属性 || httpfile.cookie || 向客户端写入 Cookie（Cookie.SimpleCookie 对象） ||
+|| 字典（写入） || httpfile`[`_*headername*_`]` || 设置头部 ||
+|| 成员函数 || httpfile.write(_*data*_, _*timeout*=-1_) || 发送内容，默认无超时 ||
+|| 成员函数 || httpfile.close(_*timeout*=-1_) || 完成本次响应，默认无超时 ||
 
 下面将是一个完整的例子（文件服务器）：
 
@@ -93,12 +90,12 @@ httpd.start()
 mainloop()
 }}}
 
-  * 虽然 httpfile 形似 dict，但是 dict get 仅用于读取 request 头部，dict set 仅用于写入 response 头部
-    # 这意味着从 httpfile`[`...`]` 获取的内容和写入 httpfile`[`...`]` 的内容，一般_*并不匹配*_
+  * 虽然 httpfile 形似 dict，但是读取接口仅用于读取 request，写入接口仅用于写入 response
+    # 这意味着从 httpfile`[`...`]` 获取的内容和写入 httpfile`[`...`]` 的内容_*不能保证一致*_
     # httpfile.cookie 亦然
 
-  * 这里直接对路径进行相加，_*是不安全的*_，仅用于演示
-  * 这里对磁盘文件的读取操作会阻塞整个程序，eurasia 带有文件 IO 的协程版本，将于后文中详述
+  * 这里直接对路径进行相加_*是不安全的*_，用于演示
+  * 这里对磁盘文件的读取操作是低效的，请使用“框架功能介绍 - 文件”一节中介绍的接口
 
 
 || || || ||
@@ -108,7 +105,7 @@ mainloop()
 
 =标准 web 服务器=
 
-进入正题。首先通过 httpserver(_*addr*_, _*handler*_) 创建标准 http 服务器。
+框架的关键应用之一便是 web 。首先通过 httpserver(_*addr*_, _*handler*_) 创建标准 http 服务器。
 
 ==地址格式==
 
@@ -138,13 +135,12 @@ httpserver((AF_INET6, 0), handler)
 
 ==启动和暂停服务器==
 
-通过 httpserver.start() 和 httpserver.stop() 启动和暂停服务器，暂停后的服务器可以通过 httpserver.start() 重新启动。
+通过 httpserver.start() 和 httpserver.stop() 启动和暂停服务器，暂停的服务器可以通过 httpserver.start() 重新启动。
 
 {{{
-# -*- coding: utf-8 -*-
 from eurasia.web import httpserver, mianloop
 
-# 工作服务器，绑定到 8080 总是返回 hello world
+# 工作服务器，绑定到 8080
 def handler(httpfile):
     httpfile.write('hello world!')
     httpfile.close()
@@ -163,27 +159,25 @@ def manager(httpfile):
 
 man = httpserver('8090', manager)
 man.start()
-
-# 执行调度
-mainloop()
+mainloop() # 开始调度
 }}}
 
 注意区分 httpserver.start() 和 mainloop()：
-  * mainloop() 是整个程序的调度器，每个 eurasia 程序都必须要调用一次 mainloop() 以启动协程调度
-  * httpserver.start() 和调度无关，只是让服务器进入请求监听状态
-  * httpserver 可以有多个，而 mainloop() 只有一个
+  * mainloop() 是整个程序的调度器
+  * httpserver.start() 是启动服务器（开始监听）
+  * httpserver 可以有多个而 mainloop() 只有一个
 
 ==CGI 规范适配==
 
-httpfile 对象是整个服务器的关键接口，其设计在很大程度上与 CGI/1.1 规范适配，以下是一些对应关系：
+httpfile 对象是服务器关键接口，其设计在很大程度上与 CGI/1.1 规范适配，以下是一些对应关系：
 
 || 接口类型： || 接口描述： || CGI 对应： ||
-|| dict get || httpfile.environ`[`_*envname*_`]` || 环境变量 ||
-|| method || httpfile.read(_*size*=-1_, _*timeout*=-1_) || 标准输入 ||
-|| method || httpfile.readline(_*size*=-1_, _*timeout*=-1_) || 标准输入 ||
-|| method || httpfile.write(_*data*_, _*timeout*=-1_) || 标准输出 ||
+|| 字典（读取） || httpfile.environ`[`_*envname*_`]` || 环境变量（environ） ||
+|| 成员函数 || httpfile.read(_*size*=-1_, _*timeout*=-1_) || 标准输入（stdin） ||
+|| 成员函数 || httpfile.readline(_*size*=-1_, _*timeout*=-1_) || 标准输入（stdin） ||
+|| 成员函数 || httpfile.write(_*data*_, _*timeout*=-1_) || 标准输出（stdout） ||
 
-可以通过 httpfile.environ`[`_*envname*_`]` 提取的环境变量有：
+可以通过 httpfile.environ`[`_*envname*_`]` 获取的环境变量：
 
 || 环境变量： || 变量描述： || example： ||
 || REQUEST_METHOD || 请求的方法 || "GET"、"POST" ||
@@ -195,9 +189,9 @@ httpfile 对象是整个服务器的关键接口，其设计在很大程度上�
 || QUERY_STRING || 请求参数 || "username=tom&passwd=***" ||
 || CONTENT_TYPE || POST 等报文类型 || "application/x-www-form-urlencoded" ||
 || CONTENT_LENGTH || POST 等报文长度 || 999 ||
-|| HTTP{{{_}}}_*HEADERNAME*_ || 请求头部 || （比如 HTTP_REFER：）"http://www.google.com/" ||
+|| HTTP{{{_}}}_*HEADERNAME*_ || 请求头部 || HTTP_REFER："http://www.google.com/" ||
 
-同样可以通过 httpfile.request_uri、httpfile.path_info、httpfile.query_string 取出相应环境变量并设置：
+也可以使用 httpfile.request_uri、httpfile.path_info、httpfile.query_string 操作环境变量：
 
 {{{
 # 操作 httpfile.request_uri 会同时影响到 PATH_INFO 和 QUERY_STRING
@@ -215,14 +209,14 @@ httpfile.query_string = 'username=jerry&passwd=***'
 print httpfile.request_uri  # uri 变成 "/check?username=jerry&passwd=***"，path_info 不变
 }}}
 
-  * 对 httpfile.request_uri、httpfile.path_info、httpfile.query_string 进行设置这三个变量会联动
-  * 设置 httpfile.environ 这三个变量_*不会*_发生联动，一般避免直接通过 httpfile.environ 操作这三个变量
+  * 修改 httpfile.request_uri、httpfile.path_info、httpfile.query_string 时，这三个值会联动
+  * 设置 httpfile.environ 这三个值_*不会*_发生联动，一般避免通过 httpfile.environ 直接操作这三个变量
 
 ==解读请求==
 
-通过 httpfile.read(_*size*=-1_, _*timeout*=-1_) 和 httpfile.readline(_*size*=-1_, _*timeout*=-1_) 可以直接读取 POST 等请求报文。
+通过 httpfile.read(_*size*=-1_, _*timeout*=-1_) 和 httpfile.readline(_*size*=-1_, _*timeout*=-1_) 读取报文体。
 
-eurasia.cgietc 模块提供了用于解析 POST 形式表单的工具 form(_*httpfile*_, _*max_size*=1048576_, _*timeout*=-1_)：
+eurasia.cgietc 模块提供了解析 POST 形式表单的工具 form(_*httpfile*_, _*max_size*=1048576_, _*timeout*=-1_)：
   * 需要指定一个 httpfile 对象
   * 使用 max_size 限定允许用户提交表单的最大字节数，超过限制会抛出 ValueError 并立即杀死客户端，默认最多传输 1M 数据
   * 使用 timeout 指定读取表单的超时时间
@@ -237,21 +231,21 @@ from eurasia.web import httpserver, mainloop
 
 # 返回表单内容
 def handler(httpfile):
+    form1 = form(httpfile)
     # 假定提交的表单：a=hello&b=world&c=1&c=2&c=3
     # 则输出 {'a': 'hello', 'b': 'world', 'c': ['1', '2', '3']}
-    form1 = form(httpfile)
     httpfile.write(repr(form1))
     httpfile.close()
 }}}
 
   * form() 会同时处理 QUERY_STRING 和 POST 报文体
   * 注意，_*不能*_处理 multipart 报文，比如文件上传
-  * 注意，httpfile.read() / httpfile.readline() _*不能*_与 form() 混用，会导致接收内容混乱
-  * form() 处理完请求以后会将结果以 dict 对象返回，不会增加 httpfile 的引用
+  * 注意，httpfile.read() / httpfile.readline() _*不能*_与 form() 混用，会导内容混乱
+  * form() 处理完请求以后将结果以新的 dict 对象返回，不增加 httpfile 的引用
 
 ==完成响应==
 
-我们提供了接口 httpfile.start_response(_*status*_, _*response_headers*_, _*timeout*=-1_) 用于替代 httpfile`[`...`]`（设置头部）和 httpfile.status 的作用：
+我们提供了接口 httpfile.start_response(_*status*_, _*response_headers*_, _*timeout*=-1_) 用来简化 httpfile`[`...`]`和 httpfile.status 的操作：
 
 {{{
 def handler(httpfile):
@@ -262,16 +256,16 @@ def handler(httpfile):
     httpfile.close()
 }}}
 
-httpfile.start_response() 的作用是发送指定 status 和 headers 的报文头，这和 wsgi 规范（[http://www.python.org/dev/peps/pep-0333/ pep333]）中 start_response() 接口的定义相当接近。
+httpfile.start_response() 发送指定的 status 和 headers 报文头，这和 wsgi 规范（[http://www.python.org/dev/peps/pep-0333/ pep333]）中 start_response() 接口的定义比较接近。
 
-通过 httpfile.start_response() 完成报文头部以后，就可以通过 httpfile.sendall(_*data*_, _*timeout*=-1_) 发送具体的报文体了。
+通过 httpfile.start_response() 完成报文头部以后，就可以通过 httpfile.sendall(_*data*_, _*timeout*=-1_) 发送报文体了。
 
-httpfile.write() 与 httpfile.sendall() 的功能相当接近，主要都用于发送报文体，他们的区别在于：
+httpfile.write() 与 httpfile.sendall() 的功能相当接近，都用于发送报文体，他们的区别是：
   * httpfile.write() 会判断头部如果没有发送，会首先发送 httpfile.status 和 httpfile`[`...`]` 的头部设置，再发送报文
   * httpfile.sendall() _*不会*_理会头部是否已发送，而直接发送报文，在没有调用 httpfile.start_response() 的情况下这会导致严重问题
 
-一般情况下，httpfile.status、httpfile`[`...`]` 和 httpfile.write() 配合使用；httpfile.start_response() 则与 httpfile.sendall() 一起使用
-  * 需要注意的是 httpfile.start_response() 会覆盖 httpfile`[`...`]` 和 htttpfile.status 的设定
+一般情况下，httpfile.status、httpfile`[`...`]` 与 httpfile.write() 配合使用；httpfile.start_response() 与 httpfile.sendall() 是一对
+  * 需要注意 httpfile.start_response() 会覆盖 httpfile`[`...`]` 和 htttpfile.status 的设定
   * 严格说 httpfile.start_response() 的头部内容会追加在 httpfile`[`...`]` 的设定之后
 
 ==cookie==
@@ -318,12 +312,12 @@ mainloop()
 }}}
 
   * 读取 httpfile.cookie 仅用于读取 request 头部，设置 httpfile.cookie 仅用于写入 response 头部
-    * 这意味着从 httpfile.cookie 获取的内容和写入 httpfile.cookie 的内容，一般_*并不匹配*_
+    * 这意味着从 httpfile.cookie 获取的内容和写入 httpfile.cookie 的内容_*不能保证一致*_
 
-  * httpfile.cookie 的设置通过 httpfile.start_response() 或者 httpfile.write() 调用发送给浏览器
-  * 注意，写入 httpfile.cookie 的内容与从 httpfile.cookie 读取的内容_*并不*_一定匹配
-  * httpfile.cookie 的所有功能都可以直接通过 Cookie 和 Set-Cookie 头部的处理来完成
-  * 出于安全性考虑，应仅使用 Cookie.SimpleCookie() 来存取 cookie
+  * httpfile.cookie 的设置通过 httpfile.start_response() 或者 httpfile.write() 发送给浏览器
+  * 注意，写入 httpfile.cookie 的内容与从 httpfile.cookie 读取的内容_*不能保证一致*_
+  * httpfile.cookie 的所有功能都可以直接通过操作 headers`[`Cookie`]` 和 headers`[`Set-Cookie`]` 来完成
+  * 出于安全性考虑，应仅使用 Cookie.SimpleCookie 对象来存取 cookie
 
 ==长连接==
 
@@ -358,8 +352,8 @@ mainloop()
 }}}
 
   * 请使用 firefox 浏览器观看此样例，因为缓存原因一些浏览器可能不能展现即时效果
-  * handler 结束时如果其他地方没有保存 httpfile 的样本，因为引用计数的原因 httpfile 将被销毁，并断开用户连接
-  * httpfile.start_response()、httpfile.sendall() 与 httpfile.write() 都将立即向客户端发送数据，_*不会*_缓存数据
+  * handler 结束时，如果引用为零 httpfile 对象会自动销毁，并同时断开用户连接
+  * httpfile.start_response()、httpfile.sendall() 与 httpfile.write() 都将立即发送数据，_*没有缓存*_
 
 ==javascript rpc==
 
@@ -436,19 +430,19 @@ mainloop()
 
   * browser 接口的 domain 参数用于指定 javascript 域（document.domain）方便跨域调用
   * browser 接口的 timeout 参数用于指定建立 js rpc 连接的超时时间
-  * browser 会增加一次 httpfile 的引用，在没有引用时，与用户的连接会自动断开
+  * browser 会增加一个 httpfile 对象的引用，在没有引用时，与用户的连接会自动断开
 
 ==keep-alive==
 
 如果浏览器支持 keep-alive 特性，服务器将会自动以 keep-alive 方式处理浏览器请求。
 
-  * 服务器没有连接数上的限制，在高并发的情况下即便每个请求都以 keep-alive 处理，对性能也不会有太大影响
+  * 服务器以 keep-alive 方式处理每一个请求
   * 默认情况下使用 httpfile.close() 接口完成本次请求，并继续保持连接
-  * 使用 httpfile.shutdown() 断开连接（无论是否完成）
+  * 使用 httpfile.shutdown() 强制断开连接（无论是否完成）
 
 ==超时处理==
 
-多数 web 接口可以通过 timeout 参数设置超时，timeout 是以秒为单位的浮点数（float），默认值 -1 意为无超时。
+多数 web 接口可以通过 timeout 参数设置超时，timeout 是以秒为单位的浮点数（float），默认 -1 意思是无超时。
 
 {{{
 # -*- coding: utf-8 -*-
@@ -472,7 +466,7 @@ httpd.start()
 mainloop()
 }}}
 
-  * 中断发生时会抛出 eurasia.core.timeout 异常，但是连接并不会随之中断
+  * 发生超时，会抛出 eurasia.core.timeout 异常，但是连接并不会随之中断
   * 用户仍然可以恢复因为超时中断的工作，这可能会导致一些潜在问题，因此建议断开连接并重试
   * 和 web 服务器不同，socket 服务器可以有效恢复因 timeout 而中断的工作，这将在后面的章节详解
   * 如果不捕获 timeout，异常将会传递到顶层，自动终止本次请求，断开连接
@@ -493,7 +487,7 @@ mainloop()
 }}}
 
   * wsgiserver 使用和 httpserver 相同的地址描述格式
-  * 比起普通的 wsgi 服务器，wsgiserver 具有更高的并发响应能力，但是必须使用框架自带的 IO 接口来代替传统的阻塞式 IO
+  * wsgiserver 中应使用框架附带的 IO 接口，以提高性能
 
 
 || || || ||
@@ -506,7 +500,7 @@ mainloop()
 
 ==文件==
 
-在 eurasia 中传统的阻塞式文件 IO 会严重降低系统响应能力，为此框架提供了专门的文件接口。
+框架提供了专门的文件 IO 接口，用来提高系统性能。
 
 使用 core.file(_*fileno*_) 操作已打开的文件描述符（fileno）。
 
@@ -537,10 +531,14 @@ mainloop()
 {{{
 from os import popen
 from eurasia.core import file
+
 ...
-ls_cmd = popen('ls -alh')
-fd = file(ls_cmd.fileno())
-fd.readline()
+
+lsdir = popen('ls -alh')
+fd = file(lsdir.fileno())
+files = fd.readlines()
+
+...
 }}}
 
 ==文件对象接口列表==
