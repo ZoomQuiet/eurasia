@@ -268,6 +268,8 @@ httpfile.write() 与 httpfile.sendall() 的功能相当接近，都用于发送�
   * 需要注意 httpfile.start_response() 会覆盖 httpfile`[`...`]` 和 htttpfile.status 的设定
   * 严格说 httpfile.start_response() 的头部内容会追加在 httpfile`[`...`]` 的设定之后
 
+==模板==
+
 ==cookie==
 
 通过 httpfile.cookie 属性配合标准库 [http://docs.python.org/library/cookie.html Cookie] 读取和设置 cookie。
@@ -353,7 +355,7 @@ mainloop()
 
   * 请使用 firefox 浏览器观看此样例，因为缓存原因一些浏览器可能不能展现即时效果
   * handler 结束时，如果引用为零 httpfile 对象会自动销毁，并同时断开用户连接
-  * httpfile.start_response()、httpfile.sendall() 与 httpfile.write() 都将立即发送数据，_*没有缓存*_
+  * httpfile.start_response()、httpfile.sendall() 与 httpfile.write() 都将立即发送数据_*没有缓存*_
 
 ==javascript rpc==
 
@@ -494,6 +496,7 @@ mainloop()
 || || ||
 || ||
 
+
 =框架功能介绍=
 
 这里介绍一些重要的框架工具。
@@ -539,6 +542,8 @@ fd = file(lsdir.fileno())
 files = fd.readlines()
 
 ...
+
+mainloop()
 }}}
 
 ==文件对象接口列表==
@@ -551,3 +556,78 @@ files = fd.readlines()
 || 成员函数 || file.readline(_*size*=-1_, _*timeout*=-1_) || 读取一行 ||
 || 成员函数 || file.sendall(_*data*_, _*timeout*=-1_) || 发送全部指定数据 ||
 || 成员函数 || file.close() || 关闭文件 ||
+
+==tcpclient==
+
+框架提供的 socket2 模块具有和标准库 socket 一致的接口，在 eurasia 中应总是使用 socket2 。
+
+{{{
+# from socket import socket, AF_INET, SOCK_STREAM
+from eurasia.socket2 import socket, AF_INET, SOCK_STREAM
+
+...
+
+sock = socket(AF_INET, SOCK_STREAM)
+sock.connect(('www.google.com', 80))
+sock.sendall('GET / HTTP/1.0\r\n\r\n')
+data = sock.read()
+
+...
+}}}
+
+  * socket2.socket 对象除具有标准 socket 的功能外，还是一个 file 对象，因此可以使用 core.file 对象的所有接口
+  * socket2.socket 对象用于创建客户端 socket
+
+通过 socket2.install() 把标准 socket 替换为 socket2。
+
+{{{
+from eurasia import socket2
+socket2.install() # 这时标准库 socket 模块已经变成 socket2
+import urllib     # urllib 将使用 socket2 模块
+
+...
+
+fd = urllib.urlopen('http://www.google.com/')
+data = fd.read()
+
+...
+}}}
+
+==tcpserver==
+
+使用 server(_*addr*_, _*handler*_) 创建标准的 tcp 服务器。
+
+这是一个 echo 服务。
+
+{{{
+# 文件名：test.py
+from eurasia.server import server, mainloop
+def handler(sock, addr, serv):
+    data = sock.readline()
+    while data.strip() != 'quit':
+        sock.sendall(data)
+        data = sock.readline()
+    sock.close()
+
+tcpd = server(':8080', handler)
+tcpd.start()
+mainloop()
+}}}
+
+执行脚本，启动服务器。
+
+{{{
+$/usr/bin/python2 test.py
+}}}
+
+使用 telnet 连接到服务器，进行测试（输入 quit 退出测试）。
+
+{{{
+$telnet 127.0.0.1 8080
+}}}
+
+==配置文件==
+
+==系统工具==
+
+==部署==
