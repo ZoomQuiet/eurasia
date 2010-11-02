@@ -557,9 +557,12 @@ mainloop()
 || 成员函数 || file.sendall(_*data*_, _*timeout*=-1_) || 发送全部指定数据 ||
 || 成员函数 || file.close() || 关闭文件 ||
 
-==tcpclient==
+  * file.recv() 不能和 file.read()、file.readline() 混用
+  * file.send() 不能和 file.sendall() 混用
 
-框架提供的 socket2 模块具有和标准库 socket 一致的接口，在 eurasia 中应总是使用 socket2 。
+==tcp 客户端==
+
+socket 作为特殊的文件类型，框架也提供了支持，socket2 具有和标准库 socket 一致的接口。
 
 {{{
 # from socket import socket, AF_INET, SOCK_STREAM
@@ -578,7 +581,7 @@ data = sock.read()
   * socket2.socket 对象除具有标准 socket 的功能外，还是一个 file 对象，因此可以使用 core.file 对象的所有接口
   * socket2.socket 对象用于创建客户端 socket
 
-通过 socket2.install() 把标准 socket 替换为 socket2。
+通过 socket2.install() 替换标准库。
 
 {{{
 from eurasia import socket2
@@ -593,7 +596,7 @@ data = fd.read()
 ...
 }}}
 
-==tcpserver==
+==tcp 服务器==
 
 使用 server(_*addr*_, _*handler*_) 创建标准的 tcp 服务器。
 
@@ -614,6 +617,11 @@ tcpd.start()
 mainloop()
 }}}
 
+  * handler 接受的三个参数，分别是：
+    # 客户端连接 _*sock*_，socket2.socket 对象
+    # 客户端地址 _*addr*_，tuple 类型，比如 ('192.168.0.101', 20000)
+    # 服务器对象 _*serv*_，也就是 server 本身
+
 执行脚本，启动服务器。
 
 {{{
@@ -625,6 +633,47 @@ $/usr/bin/python2 test.py
 {{{
 $telnet 127.0.0.1 8080
 }}}
+
+==超时恢复==
+
+发生超时，会抛出 eurasia.core.timeout 异常。
+
+当 file.recv()、file.send() 以及 socket.ready() 发生超时，没有产生任何 IO 操作，可以忽略超时。
+
+{{{
+from eurasia.core import timeout
+
+# recv 超时
+try:
+    data = fd.recv(1024, 1.) # 读取 1024 字节，超时 1 秒
+except timeout:
+    data = ''
+
+# send 超时
+try:
+    fd.send('hello world!', 1.) # 超时 1 秒
+    sented = 'hello world!'
+except timeout:
+    sented = ''
+
+# ready 超时
+try:
+    sock.ready(1.)
+    ready = True
+except timeout:
+    ready = False
+}}}
+
+当 file.read()/readline() 发生超时，缓冲区可能已读取部分数据，但不影响下一次 file.read()/readline() 的读取。
+
+{{{
+try:
+    data = file.read(1024, 1.)
+except timeout:
+    data = file.read(1024, 1.) # 重试
+}}}
+
+当 file.sendall() 发生超时，可以通过 timeout 对象的 num_sent 属性，得到已经发送的字节数。
 
 ==配置文件==
 
