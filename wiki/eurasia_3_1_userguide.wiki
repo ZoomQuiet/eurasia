@@ -268,8 +268,6 @@ httpfile.write() 与 httpfile.sendall() 的功能相当接近，都用于发送�
   * 需要注意 httpfile.start_response() 会覆盖 httpfile`[`...`]` 和 htttpfile.status 的设定
   * 严格说 httpfile.start_response() 的头部内容会追加在 httpfile`[`...`]` 的设定之后
 
-==模板==
-
 ==cookie==
 
 通过 httpfile.cookie 属性配合标准库 [http://docs.python.org/library/cookie.html Cookie] 读取和设置 cookie。
@@ -497,6 +495,24 @@ mainloop()
 || ||
 
 
+=使用标准模板=
+
+==使用模板==
+
+==一个更为复杂的例子==
+
+==使用 <%call> 标签定义宏==
+
+==缓存编译结果==
+
+==<%namespace> 标签==
+
+
+|| || || ||
+|| || ||
+|| ||
+
+
 =框架功能介绍=
 
 这里介绍一些重要的框架工具。
@@ -560,7 +576,7 @@ mainloop()
   * file.recv() 不能和 file.read()、file.readline() 混用
   * file.send() 不能和 file.sendall() 混用
 
-==tcp 客户端==
+==socket==
 
 使用框架自带的 socket2 以替代 socket 标准库。
 
@@ -675,6 +691,15 @@ except timeout:
 }}}
 
 当 file.sendall() 发生超时，可以通过 timeout 对象的 num_sent 属性，得到已经发送的字节数。
+
+{{{
+data = 'hello world!'
+try:
+    file.sendall(data, 1.)
+except timeout, e:
+    data = data[e.num_sent:] # 扣除已发送，得到剩余的数据
+    file.sendall(data, 1.)
+}}}
 
 ==配置文件==
 
