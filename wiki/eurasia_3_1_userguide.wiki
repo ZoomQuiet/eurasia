@@ -1046,7 +1046,7 @@ utility.setuid('nobody') # 以 nobody 身份运行
 ...
 }}}
 
-  * 需要注意的是 utility.setprocname() 调用_*必须放置在整个程序顶端*_否则就会出错
+  * 需要注意的是 utility.setprocname() 调用必须_*放在程序顶端*_否则就会出错
 
 
 || || || ||
