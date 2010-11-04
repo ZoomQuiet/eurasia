@@ -1058,14 +1058,14 @@ utility.setuid('nobody') # 以 nobody 身份运行
 
 eurasia 3.1 不再原生提供对多核处理器和 daemon 的支持，以下是 eurasia 3.1 推荐的部署方案。
 
-* 支持多核
+  * 支持多核
 
-  最简单的方法是在多个端口上启动多个独立的 eurasia 服务，数量与 cpu 核心相应，这样就可以充分使用 cpu 核心了。
+    最简单的方法是在多个端口上启动多个独立的 eurasia 服务，数量与 cpu 核心相应，这样就可以充分使用 cpu 核心了。
 
-  然后通过 iptables（redirect）或者 lvs 做端口负载均衡即可。
+    然后通过 iptables（redirect）或者 lvs 做端口负载均衡即可。
 
-* 启动为 daemon
+  * 启动为 daemon
 
-  eurasia 推荐使用 [http://www.libslack.org/daemon/ daemon] 命令启动服务器。
+    eurasia 推荐使用 [http://www.libslack.org/daemon/ daemon] 命令启动服务器。
 
-  在多数 unix/linux 发行版上都可以非常方便地安装 daemon 命令。
+    在多数 unix/linux 发行版上都可以非常方便地安装 daemon 命令。
