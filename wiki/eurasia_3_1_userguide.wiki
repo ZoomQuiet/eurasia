@@ -988,6 +988,20 @@ except timeout, e:
 
 这里介绍一些有用的框架工具。
 
+==sleep==
+
+core.sleep(_*sec*_) 是标准库 time.sleep() 在框架中的替代实现：
+
+{{{
+from eurasia.core import sleep
+
+...
+
+sleep(0.5) # 程序暂停 0.5 秒
+
+...
+}}}
+
 ==配置文件==
 
 eurasia.pyetc 模块为配置文件的读取提供了支持。eurasia 认为使用 python 语法来编写配置文件是个好主意。
