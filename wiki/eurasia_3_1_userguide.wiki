@@ -497,6 +497,52 @@ mainloop()
 
 =使用标准模板=
 
+eurasia.template 模块是 Mako 的简化版，带有大部分 Mako 模板的功能，和相同的标签语法。同时也是编译型模板。
+
+template 包涵以下标签语法。
+
+  * 表达式替换
+
+{{{
+this is x: ${x}
+}}}
+
+    进一步，取值表达式可以嵌入 python 代码，并替换为 python 表达式的运算结果：
+
+{{{
+${int(a) + int(b)}
+}}}
+
+  * 控制结构
+
+    我们可以在模板中使用条件表达式及叠代循环表达式。
+
+    这里是条件表达式：
+
+{{{
+%if x==1:
+    x is ${x}
+%elif x==2:
+    x is ${x}
+%else:
+    x is ${x}
+%endif
+}}}
+
+    这里是循环：
+
+{{{
+%for a in ['one', 'two', 'three', 'four', 'five']:
+    %if a[0] == 't':
+        its two or three
+    %elif a[0] == 'f':
+        four/five
+    %else:
+        one
+    %endif
+%endfor
+}}}
+
 ==使用模板==
 
 ==一个更为复杂的例子==
