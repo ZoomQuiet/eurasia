@@ -613,18 +613,177 @@ test2, b is world
 
 <%def> 标签定义了模板的调用接口, 在这个例子中, 我们定义了 test1 和 test2 两个调用接口。
 
-_我们已经确认 cpython 中存在的一个 bug 将导致 Template(s).test1('hello') 这种写法*报错*。
-因此需要分开来写成 tmpl = Template(s); tmpl.test1('hello')。也就是上面这个例子中的写法。
-非 c 实现的 python 没有这个问题。_
+_我们已经确认 cpython 中存在的一个 bug 将导致 Template(s).test1('hello') *这种写法出错*。因此需要分开来写成：_
+
+{{{
+tmpl = Template(s)
+tmpl.test1('hello')
+}}}
+
+_也就是上面这个例子中的写法。非 c 实现的 python 没有这个问题。_
 
 ==一个更为复杂的例子==
 
+本例中，将用到大量模板常用语法。包括有条件判断，循环等：
+
+{{{
+#!/usr/bin/python2.5
+#-*- coding: utf-8 -*-
+from eurasia.template import Template
+
+s = '''\
+<%def name="main(lst)">
+--------------------------------------------
+<% # python 代码块示范
+class Foo:
+    def test(self):
+        return 'from foo.test()'
+
+foo = Foo()
+
+# 在 python 代码块中可以使用 write 函数进行内容输出
+write('\\n' + foo.test())
+
+%>
+
+${Foo().test()}
+
+--------------------------------------------
+# 循环判断示范
+%for i in lst:
+    %if i == 1:
+        ${1+2}
+    %elif i == 2:
+        ${'hello' + 'world'}
+    %else:
+        ${i}
+    %endif
+%endfor
+
+--------------------------------------------
+# 嵌入式函数示范, 只在 main 函数中可见
+<%def name="bar()">
+    this is bar
+</%def>
+${bar()}
+
+--------------------------------------------
+</%def>'''
+
+tmpl = Template(s)
+print tmpl.main([1, 2, 3, 4, 5])
+}}}
+
 ==使用 <%call> 标签定义宏==
+
+<%call> 标签提供了一种较为高级的功能，也就是模板宏：
+
+{{{
+<%def name="macros(a, b)">
+${caller.slot1(a)}
+${caller.slot2(b)}
+</%def>
+
+----------------------------
+
+<%def name="main()">
+<%call expr="macros(1, 2)">
+  <%def name="slot1(a)">
+    slot1, ${a}
+  </%def>
+
+  <%def name="slot2(b)">
+    slot1, ${b}
+  </%def>
+</%call>
+</%def>
+}}}
+
+这里首先使用 <%def> 定义了一个名为 macros 的模板宏。
+
+然后在 main 函数中使用 <%call> 调用 macros，其中定义了 slot1 和 slot2，在 macros 中可以通过 caller 取出。
+
+该模板的入口函数是 main()。调用结果是：
+
+{{{
+slot1, 1
+slot2, 2
+}}}
+
+  *本例中在同一个模板中同时包涵了模板宏和宏调用，通常情况下，我们会将模板宏保存入外部文件。
+  * call 只能在函数中 (<%def>) 调用。如果把 call 放置在模板顶层，模板在编译时会忽略 call 调用。
 
 ==缓存编译结果==
 
+eurasia 标准模板是一种编译型模板，字符串模板经过 Template 函数可以编译成可执行的 python 模块。
+
+我们也可以仅仅把字符串模板转换成 python 源代码，在文件中保存起来，这样可以在下次使用时直接 import 进来，省去了编译过程，尽管这花不了多少时间。
+
+这里我们将用到 template 的 compile 工具。
+
+{{{
+#!/usr/bin/python2.5
+#-*- coding: utf-8 -*-
+from eurasia.template import compile
+
+s = '''\
+<%def name="main()">
+	hello world!
+</%def>
+
+# 得到 python 源码
+code = compile(s)
+
+# 保存为 python 模块文件
+fd = open('cache.py', w)
+fd.write(code)
+fd.close()
+
+# 以模块方式导入模板
+import cache
+print cache.main()
+}}}
+
 ==<%namespace> 标签==
 
+eurasia 标准模板中没有 Mako 中 <%namespace> 标签的等价物，这个功能相当于 Python 中的 import。
+
+<%namespace> 需要一系列关于导入路径的配置，这比较复杂，因此 eurasia 换了一种方式。
+
+Template 函数第二个参数可以设定模板中可见的环境。你可以在这里预先导入一些模板中用得到的东西，比如宏。
+
+这个例子在讲解 <%call> 时出现过，这里把宏和调用部分拆离开来。
+
+{{{
+#!/usr/bin/python2.5
+#-*- coding: utf-8 -*-
+from eurasia.template import Template
+s1 = '''\ # 定义模板宏
+<%def name="macros(a, b)">
+${caller.slot1(a)}
+${caller.slot2(b)}
+</%def>'''
+
+s2 = '''\ # 调用模板宏
+<%def name="main()">
+<%call expr="macros(1, 2)">
+  <%def name="slot1(a)">
+    slot1, ${a}
+  </%def>
+
+  <%def name="slot2(b)">
+    slot1, ${b}
+  </%def>
+</%call>
+</%def>'''
+
+tmpl1 = Template(s1)
+
+# 使用 env 参数指定模板环境
+tmpl2 = Template(s2, env={'macros': tmpl1.macros})
+
+tmpl2.main()
+}}}
 
 || || || ||
 || || ||
