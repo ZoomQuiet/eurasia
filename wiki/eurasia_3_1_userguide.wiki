@@ -556,7 +556,7 @@ b = 2
 测试一下 a + b : ${a + b}
 }}}
 
-    第一行 python 代码的缩进_*会被忽略*_，所以请避免使用 def、class、if、for 等依赖缩进的 python 代码。
+    第一行（紧跟“<%”之后）的 python 代码的缩进_*会被忽略*_，所以请避免使用 def、class、if、for 等依赖缩进的 python 代码。
 
     函数中的 python 代码块在当前函数中可见，函数外的代码块在当前模板中全局可见。
 
@@ -578,6 +578,45 @@ b = 2
 
 ==使用模板==
 
+为了演示 eurasia 标准模板的用法，这里将建立一个模板的应用范例。
+
+{{{
+#!/usr/bin/python2.5
+#-*- coding: utf-8 -*-
+from eurasia.template import Template
+
+s = '''\                  # 字符串模板
+<%def name="test1(a)">
+    test1, a is ${a}
+</%def>
+
+<%def name="test2(b)">
+    test2, b is ${b}
+</%def>'''
+
+tmpl = Template(s)        # 将字符串模板编译成可执行的 Python 模块
+
+print tmpl.test1('hello') # 调用模板中的 "test1" 函数
+print tmpl.test2('world') # 调用模板中的 "test2" 函数
+}}}
+
+在这个例子里，首先是一个字符串模板，带有 test1 和 test2 两个函数。
+
+然后使用 Template() 编译成可执行的 python 模块，并对模板中的 test1、test2 函数进行调用。
+
+结果是：
+
+{{{
+test1, a is hello
+test2, b is world
+}}}
+
+<%def> 标签定义了模板的调用接口, 在这个例子中, 我们定义了 test1 和 test2 两个调用接口。
+
+_我们已经确认 cpython 中存在的一个 bug 将导致 Template(s).test1('hello') 这种写法*报错*。
+因此需要分开来写成 tmpl = Template(s); tmpl.test1('hello')。也就是上面这个例子中的写法。
+非 c 实现的 python 没有这个问题。_
+
 ==一个更为复杂的例子==
 
 ==使用 <%call> 标签定义宏==
@@ -596,7 +635,7 @@ b = 2
 
 框架提供了专门的文件 IO 接口，用来提高系统性能。
 
-socket 是一种特殊的文件。
+而 socket 则是一种特殊的文件，也在这一节介绍。
 
 ==文件==
 
