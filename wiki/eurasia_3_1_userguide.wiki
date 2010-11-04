@@ -543,6 +543,39 @@ ${int(a) + int(b)}
 %endfor
 }}}
 
+  * python 代码
+
+    可以在模板中运行 python 代码：
+
+{{{
+<% # 这里是 Python 代码
+a = 1
+b = 2
+%>
+
+测试一下 a + b : ${a + b}
+}}}
+
+    第一行 python 代码的缩进_*会被忽略*_，所以请避免使用 def、class、if、for 等依赖缩进的 python 代码。
+
+    函数中的 python 代码块在当前函数中可见，函数外的代码块在当前模板中全局可见。
+
+  * 函数标签 <%def name="..." %>
+
+    函数是模板中最基本的调用单位，类似于 Python 中的函数：
+
+{{{
+<%def name="myfunc(x)">
+    this is myfunc, x is ${x}
+</%def>
+
+调用: ${myfunc(7)}
+}}}
+
+  * <%call expr="..."%> 标签
+
+    call 标签用于调用 <%def%> 标签，可传递额外的内嵌内容。稍后介绍。
+
 ==使用模板==
 
 ==一个更为复杂的例子==
