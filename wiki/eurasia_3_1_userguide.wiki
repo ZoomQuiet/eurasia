@@ -1,5 +1,5 @@
 #summary EURASIA 用户手册（3.1 版）
-#labels Deprecated
+#labels Featured
 
 <wiki:toc max_depth="2" /> 
 
@@ -729,7 +729,7 @@ from eurasia.template import compile
 s = '''\
 <%def name="main()">
 	hello world!
-</%def>
+</%def>'''
 
 # 得到 python 源码
 code = compile(s)
@@ -990,7 +990,63 @@ except timeout, e:
 
 ==配置文件==
 
+eurasia.pyetc 模块为配置文件的读取提供了支持。eurasia 认为使用 python 语法来编写配置文件是个好主意。
+
+pyetc 中的 load(_*filename*_, _*{{{**}}}env*_) 函数能读取指定的 python 源码文件（文件后缀并不需要一定是“.py”）, 并设定配置文件中的可见环境 env。
+
+load 函数能将指定源码文件转换成 python 模块并返回。
+
+我们首先编写一个名为 httpd.conf 的配置文件：
+
+{{{
+Server(controller='Products.default.controller'
+	port=8080)
+
+user = 'nobody'
+}}}
+
+下面是对于这个配置文件的解析：
+
+{{{
+from eurasia import pyetc
+config = {}
+def Server(**args):
+	config.update(args)
+
+mod = pyetc.load('httpd.conf', env={Server:Server})
+print 'Server:', config
+print 'user', mod.user
+}}}
+
+  * pyetc 模块可以被用于导入执行任意指定路径和文件后缀的 python 模块
+
 ==系统工具==
+
+eurasia.utility 模块提供了一些常用的系统工具。
+
+这里列出这些接口，以及说明：
+
+|| 接口：|| 说明：||
+|| cpu_count() || 返回所有 cpu 核心总数 ||
+|| setuid(_*user*_) || 设定运行时身份，可以指定用户名或者用户 id ||
+|| setprocname(_*procname*_) || 指定进程名 ||
+|| dummy() || 禁止 stdout、stderr 输出 ||
+
+一个例子：
+
+{{{
+from eurasia import utility
+utility.setprocname('hello')
+
+...
+
+sock.bind(('', 80)) # bind 到 80 需要 root 权限
+utility.setuid('nobody') # 以 nobody 身份运行
+
+...
+}}}
+
+  * 需要注意的是 utility.setprocname() 调用_*必须放置在整个程序顶端*_否则就会出错
 
 
 || || || ||
@@ -999,3 +1055,17 @@ except timeout, e:
 
 
 ==部署==
+
+eurasia 3.1 不再原生提供对多核处理器和 daemon 的支持，以下是 eurasia 3.1 推荐的部署方案。
+
+* 支持多核
+
+  最简单的方法是在多个端口上启动多个独立的 eurasia 服务，数量与 cpu 核心相应，这样就可以充分使用 cpu 核心了。
+
+  然后通过 iptables（redirect）或者 lvs 做端口负载均衡即可。
+
+* 启动为 daemon
+
+  eurasia 推荐使用 [http://www.libslack.org/daemon/ daemon] 命令启动服务器。
+
+  在多数 unix/linux 发行版上都可以非常方便地安装 daemon 命令。
