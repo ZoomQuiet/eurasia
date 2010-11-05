@@ -988,7 +988,7 @@ except timeout, e:
 
 这里介绍一些有用的框架工具。
 
-==sleep==
+==使用 sleep 暂停线索==
 
 core.sleep(_*sec*_) 是标准库 time.sleep() 在框架中的替代实现：
 
@@ -1000,6 +1000,48 @@ from eurasia.core import sleep
 sleep(0.5) # 程序暂停 0.5 秒
 
 ...
+}}}
+
+==调试==
+
+通过设置 core.excepthook 安装调试钩子。
+
+{{{
+# -*- coding: utf-8 -*-
+import sys, traceback
+from eurasia import core
+from eurasia.web import httpserver, mainloop
+
+# 安装调试钩子
+def excepthook():
+    traceback.print_exc(file=sys.stderr)
+core.excepthook = excepthook
+
+def handler(httpfile):
+    print not_exists # 这里会报错，变量 not_exists 不存在
+    httpfile.close()
+
+httpd = httpserver(('', 8080), handler)
+httpd.start()
+mainloop()
+}}}
+
+发布产品时，通过 core.without_excepthook() 调用忽略调试钩子。
+
+{{{
+# -*- coding: utf-8 -*-
+import sys, traceback
+from eurasia import core
+from eurasia.web import httpserver, mainloop
+
+# 安装调试钩子
+def excepthook():
+    traceback.print_exc(file=sys.stderr)
+core.excepthook = excepthook
+
+...
+
+core.without_excepthook() # 忽略前面设置的调试钩子
 }}}
 
 ==配置文件==
