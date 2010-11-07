@@ -10,7 +10,7 @@ def form(httpfile, max_size=1048576, timeout=-1):
             httpfile.shutdown()
             raise ValueError(CONTENTLIMIT%(length, max_size))
         query = httpfile.environ['QUERY_STRING'].split('&') + \
-                httpfile.read(length).split('&')
+                httpfile.read(length, timeout).split('&')
     else:
         query = httpfile.environ['QUERY_STRING'].split('&')
     dct = {}
