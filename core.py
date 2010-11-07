@@ -422,9 +422,21 @@ class file(object):
 
 code = '''\
 def ${ev}_timer_cb(w, evts):
-    w.data.${ev}_gcurr.throw(timeout, timeout(ETIMEDOUT, 'timed out'))
+    try:
+        w.data.${ev}_gcurr.throw(timeout, timeout(ETIMEDOUT, 'timed out'))
+    except:
+        excepthook()
 
 def ${ev}_event_cb(w, evts):
+    try:
+        w.data.${ev}_gcurr.switch()
+    except:
+        excepthook()
+
+def ${ev}_timer_cb_without_excepthook(w, evts):
+    w.data.${ev}_gcurr.throw(timeout, timeout(ETIMEDOUT, 'timed out'))
+
+def ${ev}_event_cb_without_excepthook(w, evts):
     w.data.${ev}_gcurr.switch()'''
 
 for ev in 'xrw': # r:read w:write x:rw callback
@@ -432,10 +444,33 @@ for ev in 'xrw': # r:read w:write x:rw callback
 del code, ev
 
 def s_timer_cb(w, evts): # sleep timer callback
-    w.data.switch()
+    try:
+        w.data.switch()
+    except:
+        excepthook()
+
+def s_timer_cb_without_excepthook(w, evts):
+        w.data.switch()
 
 class timeout(OSError):
     num_sent = 0  # bytes were already sent
+
+def without_excepthook():
+    global x_event_cb, r_event_cb, w_event_cb
+    x_event_cb, r_event_cb, w_event_cb = \
+        x_event_cb_without_excepthook, \
+        r_event_cb_without_excepthook, \
+        w_event_cb_without_excepthook
+    global x_timer_cb, r_timer_cb, w_timer_cb, s_timer_cb
+    x_timer_cb, r_timer_cb, w_timer_cb, s_timer_cb = \
+        x_timer_cb_without_excepthook, \
+        r_timer_cb_without_excepthook, \
+        w_timer_cb_without_excepthook, \
+        s_timer_cb_without_excepthook
+
+def excepthook():
+    # need to override
+    pass
 
 __all__  = 'exit file loop schedule timeout mainloop'.split()
 edisconn = {ECONNRESET: None, ENOTCONN: None, ESHUTDOWN: None}

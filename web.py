@@ -325,40 +325,38 @@ class httpfile(object):
         self.closed = True
         self.owner.switch(0)
 
-    def close(self, timeout=-1):
+    def close(self, keep_alive=-1, timeout=-1):
         self.sockfile.sendall('0\r\n\r\n', timeout)
         environ = self.environ
         if 'HTTP_KEEP_ALIVE'  in  environ or  environ.get(
            'HTTP_CONNECTION', '').lower() == 'keep-alive':
-            timeout = environ.get('HTTP_KEEP_ALIVE', '300')
-            if len(timeout) > 3:
-                timeout = 0
-            else:
-                timeout = float(timeout)
-                if not timeout > 0:
-                    timeout = 0
+            try:
+                seconds = int(environ.get('HTTP_KEEP_ALIVE', 300))
+                if keep_alive == -1 or keep_alive > seconds:
+                    keep_alive = float(seconds)
+            except:
+                keep_alive = 0
         else:
-            timeout = 0
+            keep_alive = 0
         self.closed = True
-        self.owner.switch(timeout)
+        self.owner.switch(keep_alive)
     closed = False
 
-    def _close(self):
+    def _close(self, keep_alive=-1):
         self.sockfile._sendall('0\r\n\r\n')
         environ = self.environ
         if 'HTTP_KEEP_ALIVE'  in  environ or  environ.get(
            'HTTP_CONNECTION', '').lower() == 'keep-alive':
-            timeout = environ.get('HTTP_KEEP_ALIVE', '300')
-            if len(timeout) > 3:
-                timeout = 0
-            else:
-                timeout = float(timeout)
-                if not timeout > 0:
-                    timeout = 0
+            try:
+                seconds = int(environ.get('HTTP_KEEP_ALIVE', 300))
+                if keep_alive == -1 or keep_alive > seconds:
+                    keep_alive = float(seconds)
+            except:
+                keep_alive = 0
         else:
-            timeout = 0
+            keep_alive = 0
         self.closed = True
-        self.owner.switch(timeout)
+        self.owner.switch(keep_alive)
 
 def _bad_file_descriptor(*args):
     raise SocketError(EBADF, 'Bad file descriptor')
