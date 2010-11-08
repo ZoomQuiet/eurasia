@@ -93,7 +93,7 @@ class httpfile(object):
     def __del__(self):
         if self.closed:
             return
-        self.owner.switch(0)
+        self._keep_alive = 0
 
     def __len__(self):
         return int(self.environ['HTTP_CONTENT_LENGTH'])
@@ -339,8 +339,9 @@ class httpfile(object):
         else:
             keep_alive = 0
         self.closed = True
-        self.owner.switch(keep_alive)
-    closed = False
+        self._keep_alive = keep_alive
+        getcurrent().parent = self.owner
+    closed, _keep_alive = False, 0
 
     def _close(self, keep_alive=-1):
         self.sockfile._sendall('0\r\n\r\n')
@@ -356,7 +357,8 @@ class httpfile(object):
         else:
             keep_alive = 0
         self.closed = True
-        self.owner.switch(keep_alive)
+        self._keep_alive = keep_alive
+        getcurrent().parent = self.owner
 
 def _bad_file_descriptor(*args):
     raise SocketError(EBADF, 'Bad file descriptor')
@@ -385,20 +387,20 @@ def wsgienv(serv, env={}, **environ):
 def httphandler(controller, env={}, **environ):
     environ.update(env)
     def handler(sock, addr, serv):
-        schedule = greenlet(controller).switch
-        timeout = schedule(httpfile(sock, addr, **environ))
+        fd = httpfile(sock, addr, **environ)
         try:
-            schedule()
+            greenlet(controller).switch(fd)
         except GreenletExit:
             pass
-        while timeout:
-            sock.r_wait(timeout)
-            schedule = greenlet(controller).switch
-            timeout = schedule(httpfile(sock, addr, **environ))
+        keep_alive = fd._keep_alive
+        while keep_alive:
+            sock.r_wait(keep_alive)
+            fd = httpfile(sock, addr, **environ)
             try:
-                schedule()
+                greenlet(controller).switch(fd)
             except GreenletExit:
                 pass
+            keep_alive = fd._keep_alive
     return handler
 
 def wsgihandler(app, env={}, **environ):
