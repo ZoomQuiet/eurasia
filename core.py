@@ -400,7 +400,7 @@ class file(object):
             self.${ev}_event.start()
             self.${ev}_gcurr = getcurrent()
             try:
-                schedule()
+                self.${ev}_gcurr.parent.switch()
             finally:
                 del self.${ev}_gcurr
                 self.${ev}_event.stop()
@@ -410,7 +410,7 @@ class file(object):
             self.${ev}_event.start()
             self.${ev}_gcurr = getcurrent()
             try:
-                schedule()
+                self.${ev}_gcurr.parent.switch()
             finally:
                 del self.${ev}_gcurr
                 self.${ev}_event.stop()'''
