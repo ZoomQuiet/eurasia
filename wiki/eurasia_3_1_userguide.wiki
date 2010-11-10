@@ -1,7 +1,37 @@
 #summary EURASIA 用户手册（3.1 版）
 #labels Featured
 
-<wiki:toc max_depth="2" /> 
+<wiki:toc max_depth="2" />
+
+|| || || ||
+|| || ||
+|| ||
+
+
+=安装=
+
+在此 [http://eurasia.googlecode.com/files/eurasia-3.1-snapshot.tar.bz2 在此] 下载集成安装包：
+
+{{{
+$ tar -xjf eurasia-3.1-snapshot.tar.bz2
+$ cd eurasia-3.1-snapshot
+$ sudo /PATH/TO/DEST/bin/python2.6 setup.py install
+}}}
+
+  * 使用哪个 python 执行 setup.py ，eurasia 就安装到哪个 python
+  * 安装到系统 python 你一般需要 root 权限
+
+也可以安装到指定目录：
+
+{{{
+$ /PATH/TO/PYTHON/bin/python2.6 setup.py install /home/foo/MyProjects
+}}}
+
+  * 将会安装到 /home/foo/MyProject/eurasia
+  * 你指定的 python 解释器将被用于编译过程，兼容于此 python 版本
+  * 需要 /home/foo/MyProject 目录的权限，一般只需要普通权限即可
+  * 方便随项目部署
+
 
 || || || ||
 || || ||
@@ -96,36 +126,6 @@ mainloop()
 
   * 这里直接对路径进行相加_*是不安全的*_，用于演示
   * 这里对磁盘文件的读取操作是低效的，应使用框架带有的文件 IO 接口（见“文件”一节）
-
-
-|| || || ||
-|| || ||
-|| ||
-
-
-=安装=
-
-在此 [http://eurasia.googlecode.com/files/eurasia-3.1-snapshot.tar.bz2 在此] 下载集成安装包：
-
-{{{
-$ tar -xjf eurasia-3.1-snapshot.tar.bz2
-$ cd eurasia-3.1-snapshot
-$ sudo /PATH/TO/DEST/bin/python2.6 setup.py install
-}}}
-
-  * 使用哪个 python 执行 setup.py ，eurasia 就安装到哪个 python
-  * 安装到系统 python 你一般需要 root 权限
-
-也可以安装到指定目录：
-
-{{{
-$ /PATH/TO/PYTHON/bin/python2.6 setup.py install /home/foo/MyProjects
-}}}
-
-  * 将会安装到 /home/foo/MyProject/eurasia
-  * 你指定的 python 解释器将被用于编译过程，兼容于此 python 版本
-  * 需要 /home/foo/MyProject 目录的权限，一般只需要普通权限即可
-  * 方便随项目部署
 
 
 || || || ||
