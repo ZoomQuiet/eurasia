@@ -103,6 +103,36 @@ mainloop()
 || ||
 
 
+=安装=
+
+在此 [http://eurasia.googlecode.com/files/eurasia-3.1-snapshot.tar.bz2 在此] 下载集成安装包：
+
+{{{
+$ tar -xjf eurasia-3.1-snapshot.tar.bz2
+$ cd eurasia-3.1-snapshot
+$ sudo /PATH/TO/DEST/bin/python2.6 setup.py install
+}}}
+
+  * 使用哪个 python 执行 setup.py ，eurasia 就安装到哪个 python
+  * 安装到系统 python 你一般需要 root 权限
+
+也可以安装到指定目录：
+
+{{{
+$ /PATH/TO/PYTHON/bin/python2.6 setup.py install /home/foo/MyProjects
+}}}
+
+  * 将会安装到 /home/foo/MyProject/eurasia
+  * 你指定的 python 解释器将被用于编译过程，兼容于此 python 版本
+  * 需要 /home/foo/MyProject 目录的权限，一般只需要普通权限即可
+  * 方便随项目部署
+
+
+|| || || ||
+|| || ||
+|| ||
+
+
 =标准 web 服务器=
 
 框架的关键应用之一便是 web 。首先通过 httpserver(_*addr*_, _*handler*_) 创建标准 http 服务器。
