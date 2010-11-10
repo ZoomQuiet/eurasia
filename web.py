@@ -20,11 +20,10 @@ class wsgiserver(server):
         self.RequestHandlerClass = wsgihandler(app, wsgienv(self,  environ))
 
 class httpfile(object):
-    def __init__(self, sock, addr, **environ):
-        self.owner = getcurrent()
-        sock._r_call(self._init, 300., sock, addr, environ)
+    def __init__(self, sock, reuse, **environ):
+        sock._r_call(self._init, 300., getcurrent(), sock, reuse, environ)
 
-    def _init(self, sock, addr, environ):
+    def _init(self, owner, sock, reuse, environ):
         data = sock._readline(4096)
         if data == '':
             raise GreenletExit
@@ -33,6 +32,7 @@ class httpfile(object):
             method, uri, self.version = m.groups()
         else:
             raise ValueError('invalid http header %r' %data)
+        self.bgenv  = dict(environ)
         self.method = method = method.upper()
         data = sock._readline(2048)
         size = len(data)
@@ -67,10 +67,6 @@ class httpfile(object):
         else:
             environ['PATH_INFO'] = uri
             environ['QUERY_STRING'] = ''
-        if addr:
-            environ['REMOTE_ADDR'] , environ['REMOTE_PORT'] = addr
-        else:
-            environ['REMOTE_ADDR'] = environ['REMOTE_PORT'] = ''
         environ['SCRIPT_NAME'] = ''
         environ['REQUEST_URI'] = uri
         environ['REQUEST_METHOD' ] = method
@@ -80,6 +76,8 @@ class httpfile(object):
         self.headers  = {}
         self.uri      = uri
         self.sockfile = sock
+        self.owner    = owner
+        self.reuse    = reuse
         self.environ  = environ
         self._r_call  = sock._r_call
         self._w_call  = sock._w_call
@@ -338,8 +336,7 @@ class httpfile(object):
         else:
             return
         self.closed = True
-        controller, sock, addr, environ = self.args
-        greenlet(_httphandler).switch(controller, sock, addr, environ, keep_alive)
+        greenlet(self._reuse).switch(keep_alive)
     closed = False
 
     def _close(self, keep_alive=-1):
@@ -360,14 +357,13 @@ class httpfile(object):
         else:
             return
         self.closed = True
-        controller, sock, addr, environ = self.args
-        greenlet(_httphandler).switch(controller, sock, addr, environ, keep_alive)
+        greenlet(self._reuse).switch(keep_alive)
 
-def _httphandler(controller, sock, addr, environ, keep_alive):
-    sock.r_wait(keep_alive)
-    o = httpfile(sock, addr, **environ)
-    o.args = controller, sock, addr, environ
-    controller(o)
+    def _reuse(self, keep_alive):
+        ctrl = self.reuse
+        sock = self.sockfile
+        sock.r_wait(keep_alive)
+        self.reuse(httpfile(sock, ctrl, **self.bgenv))
 
 def _bad_file_descriptor(*args):
     raise SocketError(EBADF, 'Bad file descriptor')
@@ -393,12 +389,17 @@ def wsgienv(serv, env={}, **environ):
         environ['wsgi.errors'] = __import__('sys').stderr
     return environ
 
-def httphandler(controller, env={}, **environ):
+def httphandler(ctrl, env={}, **environ):
     environ.update(env)
     def handler(sock, addr, serv):
-        o = httpfile(sock, addr, **environ)
-        o.args = controller, sock, addr, environ
-        controller(o)
+        if addr:
+            addr, port = addr
+        else:
+            addr = port = ''
+        ctrl(httpfile(sock, ctrl,
+            REMOTE_ADDR=addr,
+            REMOTE_PORT=port, **environ
+        ))
     return handler
 
 def wsgihandler(app, env={}, **environ):
