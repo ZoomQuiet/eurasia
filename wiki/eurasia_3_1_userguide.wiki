@@ -10,6 +10,13 @@
 
 =安装=
 
+需要 unix/linux 系统，在 python2.6 下经过测试。
+
+  * 暂不支持 windows 系统和 python3.x
+  * python2.5 、python2.7 未经充分测试
+
+==安装过程==
+
 在此 [http://eurasia.googlecode.com/files/eurasia-3.1-snapshot.tar.bz2 在此] 下载集成安装包：
 
 {{{
@@ -18,18 +25,18 @@ $ cd eurasia-3.1-snapshot
 $ sudo /PATH/TO/DEST/bin/python2.6 setup.py install
 }}}
 
-  * 使用哪个 python 执行 setup.py ，eurasia 就安装到哪个 python
-  * 安装到系统 python 你一般需要 root 权限
+  * 使用哪个 python 执行 setup.py 就安装到哪个 python
+  * 安装到系统 python 一般需要管理权限
 
 也可以安装到指定目录：
 
 {{{
-$ /PATH/TO/PYTHON/bin/python2.6 setup.py install /home/foo/MyProjects
+$ /PATH/TO/PYTHON/bin/python2.6 setup.py install /home/foo/MyProject
 }}}
 
-  * 将会安装到 /home/foo/MyProject/eurasia
-  * 你指定的 python 解释器将被用于编译过程，兼容于此 python 版本
-  * 需要 /home/foo/MyProject 目录的权限，一般只需要普通权限即可
+  * 将会安装到 `/home/foo/MyProject/eurasia`
+  * 你指定的 python 解释器将被用于编译过程，兼容此 python 版本
+  * 需要 `/home/foo/MyProject` 目录权限，方便用户权限部署
   * 方便随项目部署
 
 
