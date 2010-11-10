@@ -4,20 +4,19 @@ Module = type(sys)
 modules = {}
 
 def load(fullpath, env={}, module=Module):
+    fullpath = os.path.abspath(fullpath)
+    if fullpath in modules:
+        return modules[fullpath]
     try:
         code = open(fullpath).readlines()
     except IOError:
         raise ImportError, 'No module named  %s' %fullpath
-    code = '\n'.join(i.rstrip() for i in code)
     filename = os.path.basename(fullpath)
-    try:
-        return modules[filename]
-    except KeyError:
-        pass
     m = module(filename)
     m.__module_class__ = module
     m.__file__ = fullpath
     m.__dict__.update(env)
+    code = '\n'.join(i.rstrip() for i in code)
     exec compile(code, filename, 'exec') in m.__dict__
     modules[filename] = m
     return m
