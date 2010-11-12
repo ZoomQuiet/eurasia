@@ -74,8 +74,8 @@ class fakesocket(file):
         if e in econn_noerr:
             self.ready(timeout)
             e = self._sock.connect_ex(addr)
-            if e == 0 or e == EISCONN:
-                return
+        if e == 0 or e == EISCONN:
+            return
         raise error(e, strerror(e))
     connect.__doc__ = realsocket.connect.__doc__
 
