@@ -15,12 +15,14 @@ def sleep(seconds):
 
     Delay execution for a given number of seconds.  The argument may be
     a floating point number for subsecond precision.'''
-    timer = Timer(seconds, 0., loop, s_timer_cb, getcurrent())
+    gcurr = getcurrent()
+    timer = Timer(seconds, 0., loop, s_timer_cb, gcurr)
     timer.start()
     try:
-        schedule()
+        gcurr.parent.switch()
     finally:
         timer.stop()
+    return timer
 
 class file(object):
     def __init__(self, f):
