@@ -1021,6 +1021,60 @@ except timeout, e:
 || ||
 
 
+=使用 durus 数据库=
+
+通过 socket2.install() 可以使 eurasia 和 [http://www.mems-exchange.org/software/durus/ durus] 实现兼容。
+
+首先需要一个 durus 数据库服务器。
+
+{{{
+from durus.file_storage import FileStorage
+from durus.storage_server import StorageServer
+storage = FileStorage('test.db')
+server = StorageServer(storage=storage, address='test.sock')
+server.serve()
+}}}
+
+在 eurasia 中通过 ClientStorage 连接数据库服务器。
+
+{{{
+from eurasia import socket2
+socket2.install()
+from time import time
+from eurasia.web import httpserver, mainloop
+
+form durus.persistent import Persistent
+from durus.connection import Connection
+from durus.client_storage import ClientStorage
+
+class Guest(Persistent):
+    def __init__(self, addr, port):
+        self.addr = addr
+        self.port = port
+
+def handler(httpfile):
+    conn = Connection(ClientStorage(address='test.sock'))
+    root = conn.get_root()
+
+    addr = httpfile.environ['REMOTE_ADDR']
+    port = httpfile.environ['REMOTE_PORT']
+    guest = Guest(addr, port)
+    root[int(time())] = guest
+
+    httpfile.start_response('200 OK', [('Content-Type', 'text/plain')])
+    httpfile.sendall('added.')
+    httpfile.close()
+    conn.commit()
+}}}
+  * socket2.install() 必须在导入 durus 之前调用
+  * 这个程序将每个访问者的地址和 port 存入数据库（使用 time() 做 key）
+
+
+|| || || ||
+|| || ||
+|| ||
+
+
 =框架功能介绍=
 
 这里介绍一些有用的框架工具。
@@ -1140,60 +1194,6 @@ utility.setuid('nobody') # 以 nobody 身份运行
 }}}
 
   * 需要注意的是 utility.setprocname() 调用必须_*放在程序顶端*_否则就会出错
-
-
-|| || || ||
-|| || ||
-|| ||
-
-
-==使用 durus 数据库==
-
-通过 socket2.install() 可以使 eurasia 和 [http://www.mems-exchange.org/software/durus/ durus] 实现兼容。
-
-首先需要一个 durus 数据库服务器。
-
-{{{
-from durus.file_storage import FileStorage
-from durus.storage_server import StorageServer
-storage = FileStorage('test.db')
-server = StorageServer(storage=storage, address='test.sock')
-server.serve()
-}}}
-
-在 eurasia 中通过 ClientStorage 连接数据库服务器。
-
-{{{
-from eurasia import socket2
-socket2.install()
-from time import time
-from eurasia.web import httpserver, mainloop
-
-form durus.persistent import Persistent
-from durus.connection import Connection
-from durus.client_storage import ClientStorage
-
-class Guest(Persistent):
-    def __init__(self, addr, port):
-        self.addr = addr
-        self.port = port
-
-def handler(httpfile):
-    conn = Connection(ClientStorage(address='test.sock'))
-    root = conn.get_root()
-
-    addr = httpfile.environ['REMOTE_ADDR']
-    port = httpfile.environ['REMOTE_PORT']
-    guest = Guest(addr, port)
-    root[int(time())] = guest
-
-    httpfile.start_response('200 OK', [('Content-Type', 'text/plain')])
-    httpfile.sendall('added.')
-    httpfile.close()
-    conn.commit()
-}}}
-  * socket2.install() 必须在导入 durus 之前调用
-  * 这个程序将每个访问者的地址和 port 存入数据库（使用 time() 做 key）
 
 
 || || || ||
