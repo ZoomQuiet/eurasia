@@ -410,7 +410,7 @@ function my_alert(stuff) { alert(stuff); };
 <body>
 <!-- 与 /remotecall 位置的服务器脚本建立长连接 -->
 <iframe src="/remotecall" style="display: none;"></iframe>
-</body
+</body>
 </html>
 }}}
 
@@ -432,7 +432,7 @@ function my_alert(stuff) { alert(stuff); };
 <body>
 <!-- 与 /remotecall 位置的服务器脚本建立长连接 -->
 <iframe src="/remotecall" style="display: none;"></iframe>
-</body
+</body>
 </html>
 '''
 # 保存了所有在线用户的全局列表
@@ -461,7 +461,8 @@ def handler(httpfile):
     # 将当前浏览器添加到全局浏览器对象列表中
     global_browsers.add(current_browser)
 
-httpserver(':8080', handler)
+httpd = httpserver(':8080', handler)
+httpd.start()
 mainloop()
 }}}
 
