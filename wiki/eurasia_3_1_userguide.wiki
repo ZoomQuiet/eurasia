@@ -449,15 +449,15 @@ def handler(httpfile):
     current_browser.my_alert(u'我加入啦!')
     # 通知其他在线用户, 有新人加入
     disconnected = []
-    for browser in global_browsers:
+    for ibrowser in global_browsers:
         try:
             # 调用在线用户的 my_alert 函数
-            browser.my_alert(u'又有新人加入啦!')
+            ibrowser.my_alert(u'又有新人加入啦!')
         except error: # 已经断开连接
-            disconnected.append(browser)
+            disconnected.append(ibrowser)
     # 移除已经断开连接的浏览器
-    for browser in disconnected:
-        disconnected.remove(browser)
+    for ibrowser in disconnected:
+        disconnected.remove(ibrowser)
     # 将当前浏览器添加到全局浏览器对象列表中
     global_browsers.add(current_browser)
 
