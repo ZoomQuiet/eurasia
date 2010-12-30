@@ -1094,6 +1094,23 @@ sleep(0.5) # 程序暂停 0.5 秒
 ...
 }}}
 
+==创建协程==
+
+在 eurasia 中可以直接使用 greenlet 库创建协程。
+
+{{{
+from time import time
+from eurasia.greenlet import greenlet
+from eurasia.core import sleep, mainloop
+def loop():
+    while 1:
+        print time()
+        sleep(1.)
+
+greenlet(loop).switch()
+mainloop()
+}}}
+
 ==调试==
 
 通过设置 core.excepthook 安装调试钩子。
