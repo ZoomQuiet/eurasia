@@ -527,6 +527,23 @@ mainloop()
   * wsgiserver 使用和 httpserver 相同的地址描述格式
   * wsgiserver 中应使用框架自带的文件 IO 接口（见“文件”一节）
 
+或者使用 wsgi(_*app*_) 将 app 转换为普通的 http handler。
+
+{{{
+from eurasia.web import httpserver, wsgi, mainloop
+def app(environ, start_response):
+    start_response('200 OK', [('Content-Type', 'text/plain')])
+    return ['hello world!']
+
+def handler(httpfile):
+    wsgihandler = wsgi(app)
+    wsgihandler(httpfile)
+
+httpd = httpserver(':8080', handler)
+httpd.start()
+mainloop()
+}}}
+
 
 || || || ||
 || || ||
