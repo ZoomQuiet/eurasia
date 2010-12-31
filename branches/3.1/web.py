@@ -402,8 +402,8 @@ def httphandler(ctrl, env={}, **environ):
         ))
     return handler
 
-def wsgihandler(app, env={}, **environ):
-    def controller(httpfile):
+def wsgi(app):
+    def handler(httpfile):
         env = httpfile.environ
         env['wsgi.input'] = proxy(httpfile)
         def start_response(status, headers, exc_info=None):
@@ -421,7 +421,10 @@ def wsgihandler(app, env={}, **environ):
             if data:
                 httpfile.sendall(data, 15.+(len(data)>>10))
         httpfile.close(15.)
-    handler = httphandler(controller, env, **environ)
+    return handler
+
+def wsgihandler(app, env={}, **environ):
+    handler = httphandler(wsgi(app), env, **environ)
     return handler
 
 RESPONSES = dict((int(i.split(None, 1)[0]), i) for i in ('100 Continue,101 Switching '
