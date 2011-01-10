@@ -457,7 +457,7 @@ def handler(httpfile):
             disconnected.append(ibrowser)
     # 移除已经断开连接的浏览器
     for ibrowser in disconnected:
-        disconnected.remove(ibrowser)
+        global_browsers.remove(ibrowser)
     # 将当前浏览器添加到全局浏览器对象列表中
     global_browsers.add(current_browser)
 
