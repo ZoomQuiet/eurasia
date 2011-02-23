@@ -1,4 +1,5 @@
 from errno import EBADF
+from urllib import unquote
 from _weakref import proxy
 from Cookie import SimpleCookie
 from server import server, Server
@@ -62,10 +63,12 @@ class httpfile(object):
             self.left = 0
         p = uri.find('?')
         if p != -1:
-            environ['PATH_INFO'] = uri[:p]
+            environ['PATH_INFO'] = \
+                '%2F'.join(unquote(x) for x in quoted_slash_split(uri[:p]))
             environ['QUERY_STRING'] = uri[p+1:]
         else:
-            environ['PATH_INFO'] = uri
+            environ['PATH_INFO'] = \
+                '%2F'.join(unquote(x) for x in quoted_slash_split(uri))
             environ['QUERY_STRING'] = ''
         environ['SCRIPT_NAME'] = ''
         environ['REQUEST_URI'] = uri
@@ -339,6 +342,26 @@ class httpfile(object):
         greenlet(self._reuse).switch(keep_alive)
     closed = False
 
+    def raw_close(self, data, keep_alive=-1, timeout=-1):
+        if self.closed:
+            return
+        self.sockfile.sendall(data, timeout)
+        environ = self.environ
+        if 'HTTP_KEEP_ALIVE'  in  environ or  environ.get(
+           'HTTP_CONNECTION', '').lower() == 'keep-alive':
+            try:
+                seconds = int(environ.get('HTTP_KEEP_ALIVE', 300))
+                if seconds > 0 and (keep_alive == -1 or keep_alive > seconds):
+                    keep_alive = float(seconds)
+                else:
+                    return
+            except:
+                return
+        else:
+            return
+        self.closed = True
+        greenlet(self._reuse).switch(keep_alive)
+
     def _close(self, keep_alive=-1):
         if self.closed:
             return
@@ -440,6 +463,7 @@ RESPONSES = dict((int(i.split(None, 1)[0]), i) for i in ('100 Continue,101 Switc
 ' Not Supported').split(','))
 NOCACHEHEADERS = {'Pragma': 'no-cache', 'Cache-Control': 'no-cache, must-revalidate',
     'Expires': 'Mon, 26 Jul 1997 05:00:00 GMT'}
+quoted_slash_split = rcompile("(?i)%2F").split
 first  = rcompile(r'^(\w+)[\s\t]+([^\r\n]+)[\s\t]+(HTTP/[01]\.[0-9])\r?\n$', I).match
 header = rcompile(r'^[\s\t]*([^\r\n:]+)[\s\t]*:[\s\t]*([^\r\n]+)[\s\t]*\r?\n$').match
 WSGIServer = WsgiServer = wsgiserver

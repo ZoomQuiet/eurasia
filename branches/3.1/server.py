@@ -94,7 +94,15 @@ class tcpserver:
     def serve_forever(self):
         '''Handle one request at a time until shutdown.'''
         self.r_event.start()
-    start = run = serve_forever
+        mainloop()
+
+    def start(self):
+        '''Handle one request at a time until shutdown.'''
+        self.r_event.start()
+
+    def run(self):
+        '''Handle one request at a time until shutdown.'''
+        self.r_event.start()
 
     def shutdown(self):
         '''Stops the serve_forever loop.'''
