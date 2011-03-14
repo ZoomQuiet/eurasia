@@ -24,9 +24,7 @@ class tcpserver:
     '''Classic server.'''
 
     allow_reuse_address = True
-
     request_queue_size  = 4194304
-
     address_family, socket_type = AF_INET, SOCK_STREAM
 
     def __init__(self, addr, handler, bind_and_activate=True):
@@ -35,36 +33,35 @@ class tcpserver:
         self.RequestHandlerClass = handler
 
     def setup(self, addr, bind_and_activate=True):
-        info = addrinfo(addr)
-        if 'fileno' in info:
-            self.socket = fromfd(info['fileno'], info['family'], SOCK_STREAM)
+        addr, family = addrinfo(addr)
+        if isinstance(addr, int):
+            self.socket = fromfd(addr, family, SOCK_STREAM)
             self.require_bind_and_activate = False
-            self.family = info['family']
+            self.family = family
             try:
-                servaddr = self.socket.getsockname()
-            except error:
-                servaddr = None
-            if servaddr:
-                host, self.server_port = self.server_address = servaddr
+                self.server_address = self.socket.getsockname()
+                host, self.server_port = self.server_address
                 self.server_name = getfqdn(host)
-        elif 'host' in info:
-            self.socket = realsocket(info['family'], SOCK_STREAM)
-            if info['family'] == AF_INET6 and info['host'] == '::':
+            except:
+                pass
+        elif 2 == len(addr):
+            self.socket = realsocket(family, SOCK_STREAM)
+            if AF_INET6 == family and addr[0] == '::':
                 if hasattr(_socket, 'IPV6_V6ONLY'):
-                    IPV6_V6ONLY = _socket.IPV6_V6ONLY
-                    self.socket.setsockopt(IPPROTO_IPV6, IPV6_V6ONLY, 0)
+                    self.socket.setsockopt \
+                        (IPPROTO_IPV6, _socket.IPV6_V6ONLY, 0)
             self.require_bind_and_activate = True
-            self.server_address = (info['host'], info['port'])
-            self.server_name = getfqdn(info['host'])
-            self.server_port = info['port']
-            self.family = info['family']
+            self.server_address = addr
+            self.server_name = getfqdn(addr[0])
+            self.server_port = addr[1]
+            self.family = family
+            self.server_bind()
+            self.server_activate()
         else:
-            self.socket = realsocket(info['family'], SOCK_STREAM)
+            self.socket = realsocket(family, SOCK_STREAM)
             self.require_bind_and_activate = True
-            self.server_address = info['addr']
-            self.family = info['family']
-
-        if bind_and_activate and self.require_bind_and_activate:
+            self.server_address = addr
+            self.family = family
             self.server_bind()
             self.server_activate()
         self.r_event = Io(self.socket.fileno() , EV_READ , loop,
@@ -189,48 +186,39 @@ class server(tcpserver):
             fakesocket(_sock=sock), addr , self)
 
 def addrinfo(addr):
-    # String addr - "host:port"
-    # Ipv4 example: '127.0.0.1:8080'
-    # Ipv6 example: '[::1]:8080'
+    # str addr "host:port"
+    # ipv4 example: '127.0.01:8080'
+    # ipv6 example: '[::1]:8080'
     if isinstance(addr, basestring):
-        ipv6 = _is_ipv6(addr)
-        if ipv6:
-            host, port = ipv6.groups()
-            return dict(host=host, port=int(port), family=AF_INET6)
-        host, port = addr.split(':', 1)
-        return dict(host=host.strip(), port=int(port), family=AF_INET)
-    # Int addr - fromfd(fileno, AF_INET).
-    # Example: 0
+        try:
+            host, port = is_ipv6(addr).groups()
+            return (host.strip(), int(port)), AF_INET6
+        except AttributeError:
+            host, port = addr.split(':', 1)
+            return (host.strip(), int(port)), AF_INET
+    # int addr fromfd(fileno, AF_INET)
+    # example: 0
     elif isinstance(addr, int):
-        return dict(fileno=addr, family=AF_INET)
-    elif len(addr) == 2:
+        return addr, AF_INET
+    elif 2 == len(addr) and isinstance(addr[1], int):
+        # tuple addr fromfd(fileno, family)
+        # example: (0, AF_INET)
         if isinstance(addr[0], int):
-            family, addr = addr
-            # Tuple addr - fromfd(fileno, family).
-            # Example: (AF_INET, 0)
-            if isinstance(addr, int):
-                return dict(fileno=addr, family=family)
-            # Tuple addr - (host, port).
-            # Example: ('127.0.0.1', 8080)
-            if family == AF_INET or family == AF_INET6:
-                host , port = addr[0], int(addr[1])
-                return dict(host=host, port=port, family=family)
-            # Tuple addr - (addr, family)
-            # Example: (('127.0.0.1', 8080), AF_INET)
-            return dict(addr=addr, family=family)
-        # Tuple addr - (ipv6addr, port)
-        # Example: ('::1', 8080)
-        elif ':' in addr[0]:
-            host , port = addr[0].strip(), int(addr[1])
-            return dict(host=host, port=port, family=AF_INET6)
-        # Tuple addr - (host, port)
-        # Example: ('www.exam.ple', 8080)
-        host , port = addr[0].strip(), int(addr[1])
-        return dict(host=host, port=port, family=AF_INET)
-    raise ValueError('invalid address %r' %addr)
+            return addr, AF_INET
+        # tuple addr (host, port)
+        # ipv4 example: ('127.0.0.1', 8080)
+        # ipv6 example: ('::1', 8080)
+        if isinstance(addr[0], basestring):
+            if ':' in addr[0]:
+                return addr, AF_INET6
+            return addr, AF_INET
+        # tuple addr (addr, family)
+        # example: (('', 8080), AF_INET)
+        return addr
+    raise ValueError('invalid address %r' % addr)
 
 TCPServer = TcpServer = tcpserver
 SocketServer,  Server = None, server
 __all__   = ('exit mainloop install uninstall timeout server Server '
              'TCPServer TcpServer StreamRequestHandler'      ).split()
-_is_ipv6  = re.compile(r'^\s*\[([a-fA-F0-9:\s]+)]\s*:\s*([0-9]+)\s*$').match
+is_ipv6  = re.compile(r'^\s*\[([a-fA-F0-9:\s]+)]\s*:\s*([0-9]+)\s*$').match
