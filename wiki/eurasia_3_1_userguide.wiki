@@ -129,12 +129,12 @@ mainloop()
 }}}
 
   * 虽然 httpfile 形似 dict，但是读取接口仅用于读取 request，写入接口仅用于写入 response
-    # 这意味着从 httpfile`[`...`]` 获取的内容和写入 httpfile`[`...`]` 的内容_*不能保证一致*_
+    # 这意味着从 httpfile`[`...`]` 获取的内容和写入 httpfile`[`...`]` 的内容_*并不一致*_
     # httpfile.cookie 亦然
 
   * 这里直接对路径进行相加_*是不安全的*_，用于演示
   * 这里对磁盘文件的读取操作是低效的，应使用框架带有的文件 IO 接口（见“文件”一节）
-  * 可以通过 httpfile.sockfile 得到原始 socket（见“文件、文件对象接口列表”一节）
+  * 可以通过 httpfile.sockfile 得到原始 socket（见“文件 -> 文件对象接口列表”一节）
 
 
 || || || ||
