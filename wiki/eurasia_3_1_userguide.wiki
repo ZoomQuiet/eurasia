@@ -10,10 +10,10 @@
 
 =安装=
 
-需要 unix/linux 系统，在 python2.6 下经过测试。
+需要 unix/linux 系统，在 python2.6、python2.7 下经过测试。
 
   * 暂不支持 windows 系统和 python3.x
-  * python2.5 、python2.7 未经充分测试
+  * python2.5 未经充分测试
 
 ==安装过程==
 
@@ -98,7 +98,8 @@ response 操作:
 || 属性 || httpfile.cookie || 向客户端写入 Cookie（Cookie.SimpleCookie 对象） ||
 || 字典（写入） || httpfile`[`_*headername*_`]` || 设置头部 ||
 || 成员函数 || httpfile.write(_*data*_, _*timeout*=-1_) || 发送内容，默认无超时 ||
-|| 成员函数 || httpfile.close(_*timeout*=-1_) || 完成本次响应，默认无超时 ||
+|| 成员函数 || httpfile.close(_*keep_alive*_=-1, _*timeout*=-1_) || 完成本次响应，默认不设置 keep-alive 时间 ||
+|| 成员函数 || httpfile.raw_close(_*data*_, _*keep_alive*_=-1, _*timeout*_=-1) || 发送数据同时完成本次请求，data 应包含完成头部 ||
 
 下面将是一个完整的例子（文件服务器）：
 
