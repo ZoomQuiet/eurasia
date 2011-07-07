@@ -478,10 +478,10 @@ __all__  = 'exit file loop schedule timeout mainloop'.split()
 edisconn = {ECONNRESET: None, ENOTCONN: None, ESHUTDOWN: None}
 schedule = getcurrent().switch
 loop     = default_loop()
-exit     = loop.unloop
-mainloop = loop.loop
+mainloop = loop.start
+exit     = loop.stop
 
 def sigcb(w, evts):  # ctrl + c
-    w.loop.unloop()
+    w.loop.stop()
 keyboard_interrupt = Signal(SIGINT, loop, sigcb)
 keyboard_interrupt.start()
