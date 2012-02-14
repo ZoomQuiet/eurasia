@@ -251,7 +251,8 @@ class socket_wrapper:
         if buf.tell() > 0:
             buf.seek(0)
             bline = buf.readline(size)
-            if bline.endswith('\n') or len(bline) == size:
+            if bline.endswith(NEWLINE) or \
+               len(bline) == size:
                 self.buf = StringIO()
                 self.buf.write(buf.read())
                 return bline
@@ -286,7 +287,7 @@ class socket_wrapper:
             if not data:
                 break
             left = size - bufsize
-            nl = data.find('\n', 0, left)
+            nl = data.find(NEWLINE, 0, left)
             if nl >= 0:
                 nl += 1
                 self.buf.write(data[nl:])
@@ -626,14 +627,14 @@ from signal import SIGINT
 from traceback import print_exc
 from socket import error, getfqdn
 from greenlet  import greenlet, getcurrent
-try:
-    from cStringIO import StringIO
-except ImportError:
-    from io import StringIO
 if 3 == sys.version_info[0]:
     import socket as  _socket
+    from io import BytesIO as StringIO
+    NEWLINE = bytes('\n', 'ascii')
 else:
     import _socket
+    from cStringIO import StringIO
+    NEWLINE = '\n'
 ev_tstamp, ev_loop_p = c_double, c_void_p
 EV_UNDEF, EV_NONE, EV_READ, EV_WRITE, EV__IOFDSET = \
             -1, 0x00, 0x01, 0x02, 0x80
