@@ -434,6 +434,9 @@ class Client(socket_wrapper):
             s.setblocking(0)
             self.connect(addr)
 
+def mainloop():
+    ev_loop(EV_DEFAULT_UC, 0)
+
 def serve_forever():
     ev_loop(EV_DEFAULT_UC, 0)
 

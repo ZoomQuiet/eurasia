@@ -182,10 +182,3 @@ RESPONSES = dict((int(i.split(None, 1)[0]), i) for i in ('100 Continue,101 Swi'
 'e,417 Expectation Failed,500 Internal Server Error,501 Not Implemented,502 Ba'
 'd Gateway,503 Service Unavailable,504 Gateway Timeout,505 HTTP Version Not Su'
 'pported').split(','))
-
-def handler(httpfile):
-    httpfile.start_response('200 OK', [('Content-Type', 'text/html')], 10.)
-    httpfile.write('hello world!', 10.)
-    httpfile.close(10.)
-server = Server('127.0.0.1:8080', handler)
-server.serve_forever()
