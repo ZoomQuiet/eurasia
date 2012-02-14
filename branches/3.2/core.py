@@ -686,11 +686,24 @@ def interface(name, restype, *argtypes):
     func.restype, func.argtypes = restype, argtypes
     globals()[name] = func
 
-interface('ev_default_loop_init', ev_loop_p, c_uint)
+if hasattr(libev, 'ev_default_loop_init'):
+    interface('ev_default_loop_init', ev_loop_p, c_uint)
+    ev_default_loop = ev_default_loop_init
+else:
+    interface('ev_default_loop', ev_loop_p, c_uint)
+    ev_default_loop_init = ev_default_loop
 EVLOOP_NONBLOCK, EVLOOP_ONESHOT, EVUNLOOP_CANCEL, \
     EVUNLOOP_ONE, EVUNLOOP_ALL = 1, 2, 0, 1, 2
-interface('ev_loop'  , None, ev_loop_p, c_int)
-interface('ev_unloop', None, ev_loop_p, c_int)
+EVRUN_NOWAIT   ,    EVRUN_ONCE ,  EVBREAK_CANCEL, \
+    EVBREAK_ONE ,  EVBREAK_ALL = 1, 2, 0, 1, 2
+if hasattr(libev, 'ev_loop'):
+    interface('ev_loop'  , None, ev_loop_p, c_int)
+    interface('ev_unloop', None, ev_loop_p, c_int)
+    ev_run, ev_break = ev_loop, ev_unloop
+else:
+    interface('ev_run'  , None, ev_loop_p, c_int)
+    interface('ev_break', None, ev_loop_p, c_int)
+    ev_loop, ev_unloop = ev_run, ev_break
 interface('ev_io_start', None, ev_loop_p, ev_io_p)
 interface('ev_io_stop' , None, ev_loop_p, ev_io_p)
 interface('ev_timer_start', None, ev_loop_p, ev_timer_p)
@@ -708,12 +721,6 @@ class Cli(Structure):
 
 class Timeout(_socket.timeout):
     num_sent = 0
-
-def loop(flags=0):
-    ev_loop(EV_DEFAULT_UC, flags)
-
-def unloop(how=EVUNLOOP_ALL):
-    ev_unloop(EV_DEFAULT_UC, how)
 
 for type_ in 'rwx':
     exec(('c_%s_io_cb = find_cb(ev_io   )(%s_io_cb)\n'
