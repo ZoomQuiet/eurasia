@@ -1,0 +1,271 @@
+#summary One-sentence summary of this page.
+#labels Featured
+
+<wiki:toc max_depth="2" />
+
+|| || || ||
+|| || ||
+|| ||
+
+=安装=
+
+需要 unix/linux/windows 系统，需要 libev 库支持，在 python2.6、python2.7 下经过测试。
+
+ * 暂不支持 python3.x
+ * python2.5 未经过充分测试
+
+==安装过程==
+
+[http://eurasia.googlecode.com/files/eurasia-3.2.snapshot.tar.bz2 在此] 下载集成安装包：
+
+{{{
+$ tar -xjf eurasia-3.2-snapshot.tar.bz2
+$ cd eurasia-3.2-snapshot
+$ sudo /PATH/TO/DEST/bin/python2.6 setup.py install
+}}}
+
+  * 使用哪个 python 执行 setup.py 就安装到哪个 python
+  * 安装到系统 python 一般需要管理权限
+
+也可以安装到指定目录：
+
+{{{
+$ /PATH/TO/PYTHON/bin/python2.6 setup.py install /home/foo/MyProject
+}}}
+
+  * 将会安装到 `/home/foo/MyProject/eurasia`
+  * 你指定的 python 解释器将被用于编译过程，兼容此 python 版本
+  * 需要 `/home/foo/MyProject` 目录权限，方便用户权限部署
+  * 方便随项目部署
+
+
+|| || || ||
+|| || ||
+|| ||
+
+=快速开始=
+
+我们将从最简单的 hello world 开始，通过范例快速掌握 eurasia 。
+
+这首先是一个 web 程序。
+
+==hello world==
+
+{{{
+from eurasia import httpd
+
+def handler(httpfile):
+    httpfile.start_response('200 OK', headers)
+    httpfile.write('<html>hello world!</html>')
+    httpfile.close()
+headers = [('Content-Type', 'text/html;charset=utf-8')]
+
+httpserver = httpd.Server('0.0.0.0:8080', handler)
+httpserver.serve_forever()
+}}}
+
+把 handler 绑定到 8080 端口，浏览器访问该端口会得到 hello world。
+
+执行脚本，启动服务器。
+
+{{{
+$ /user/bin/python2 test.py
+}}}
+
+  * 一次可以通过 httpd.Server 创建多个 http 服务器
+  * 服务器通过 start() 启动 / 以 stop() 暂停
+  * 最后任意选择一个服务器执行 server_forever() 主循环
+
+==创建多个服务器==
+
+{{{
+from eurasia import httpd, core
+
+def handler1(httpfile):
+    httpfile.start_response('200 OK', headers)
+    httpfile.write('<html>this is handler1!</html>')
+    httpfile.close()
+
+def handler2(httpfile):
+    httpfile.start_response('200 OK', headers)
+    httpfile.write('<html>this is handler2!</html>')
+    httpfile.close()
+
+headers = [('Content-Type', 'text/html;charset=utf-8')]
+
+httpserver1 = httpd.Server('0.0.0.0:8080', handler1)
+httpserver2 = httpd.Server('0.0.0.0:8081', handler2)
+httpserver1.start()
+httpserver2.start()
+httpserver2.serve_forever() # 使用 core.mainloop() 主循环时，所有服务器必须已经启动。
+}}}
+
+==httpfile 对象==
+
+操作 httpfile 对象，获取请求，并完成相应。
+
+主要属性及成员函数：
+
+|| 字典（取出/写入） || httpfile.environ`[`_*headername*_`]` || 写入或者取得指定头部 ||
+|| 成员函数 || httpfile.start_response (_*status*_, _*headers*_) || 设置响应 http 状态 status 和 http 头 headers ||
+|| 成员函数 || httpfile.write(_*data*_, _*timeout*=-1_) || 发送内容，默认无超时 ||
+|| 成员函数 || httpfile.close(_*keep_alive*_=300, _*timeout*=-1_) || 完成本次响应，默认设置 keep-alive 时间 300 秒||
+
+
+|| || || ||
+|| || ||
+|| ||
+
+=标准服务器=
+
+框架的关键应用之一便是 web 。首先通过 httpserver(_*addr*_, _*handler*_) 创建标准 http 服务器。
+
+==地址格式==
+
+接口 httpserver 允许多种形式的 addr 参数。
+
+{{{
+httpserver('127.0.0.1:8080', handler)  # IPv4 地址，端口 8080
+}}}
+
+==启动和暂停服务器==
+
+通过 httpd.Server.start() 和 httpd.Server.stop() 启动和暂停服务器，暂停的服务器可以通过 httpd.Server.start() 重新启动。
+
+{{{
+from eurasia import core, httpd
+
+# 工作服务器，绑定到 8080
+def handler(httpfile):
+    httpfile.start_response('200 OK', [])
+    httpfile.write('hello world!')
+    httpfile.close()
+
+httpserver = httpd.Server('127.0.0.1:8080', handler)
+httpserver.start()
+
+# 管理服务器，绑定到 8090
+def manager(httpfile):
+    path_info = httpfile.environ['PATH_INFO']
+    # 如果请求地址是 /start 则启动工作服务器
+    if '/start' == path_info:
+        httpserver.start()
+   # 如果请求地址是 /pause 则停止工作服务器
+    elif '/pause' == path_info:
+        httpserver.stop()
+
+man = httpd.Server('8090', manager)
+man.start()
+core.mainloop() # 开始调度
+}}}
+
+注意区分 httpd.Server.start()、 httpd.Server.serve_forever() 和 core.mainloop()：
+  * core.mainloop() 是整个程序的调度器
+  * httpd.Server.start() 同 core.mainloop()
+  * httpd.Server.start() 是启动服务器（开始监听）
+  * httpd.Server 可以有多个，而 core.mainloop() 或 httpd.Server.serve_forever() 只有一个
+
+==CGI 规范适配==
+
+httpfile 对象是服务器关键接口，器设计在很大程度上与 CGI/1.1 规范适配，以下是一些对应关系：
+
+|| 接口类型： || 接口描述： || CGI 对应: ||
+|| 字典 （读取/设置） || httpfile.environ`[`_*envname*_`]` || 环境表量（environ） ||
+|| 成员函数 || httpfile.read(_*size*_, _*timeout*=-1_) || 标准输入（stdin）||
+|| 成员函数 || httpfile.readline(_*size*_, _*timeout*=-1_) || 标准输入（stdin） ||
+|| 成员函数 || httpfile.write(_*data*_, _*timeout*=-1_) || 标准输出（stdout） ||
+
+
+可以通过 httpfile.environ`[`_*envname*_`]` 获取的环境变量：
+
+|| 环境变量： || 变量描述： || example： ||
+|| REQUEST_METHOD || 请求的方法 || "GET"、"POST" ||
+|| SERVER_PROTOCOL || 请求协议及版本 || "HTTP/1.1" ||
+|| REMOTE_ADDR || 连入客户端的地址 || "192.168.0.2" ||
+|| REMOTE_PORT || 连入客户端的端口 || 5566 ||
+|| REQUEST_URI || 完整 uri || "/login?username=tom&passwd=***" ||
+|| PATH_INFO || 页面地址 || "/login" ||
+|| QUERY_STRING || 请求参数 || "username=tom&passwd=***" ||
+|| CONTENT_TYPE || POST 等报文类型 || "application/x-www-form-urlencoded" ||
+|| CONTENT_LENGTH || POST 等报文长度 || 999 ||
+|| HTTP{{{_}}}_*HEADERNAME*_ || 请求头部 || HTTP_REFER："http://www.google.com/" ||
+
+==解读请求==
+
+通过 httpfile.read(_*size*_, _*timeout*=-1_) 和 httpfile.readline(_*size*_, _*timeout*=-1_) 读取报文体。
+
+==完成响应==
+
+我们提供了接口 httpfile.start_response(_*status*='200 OK'_, _*response_headers*=[]_, _*timeout*=-1_) 用来设置_*响应头部*_的操作：
+
+{{{
+def handler(httpfile):
+    response_status = '200 OK'
+    response_headers = [('Content-Type', 'text/html')]
+    httpfile.start_response(response_status, response_headers)
+    httpfile.write('hello world!')
+    httpfile.close()
+}}}
+
+httpfile.start_response() 发送指定的 status 和 headers 报文头，这和 wsgi 规范（[http://www.python.org/dev/peps/pep-0333/ pep333]）中 start_response() 接口的定义比较接近。
+
+通过 httpfile.start_response() 完成报文头部以后，就可以通过 httpfile.write(_*data*_, _*timeout*=-1_) 发送报文体了。
+
+  * httpfile.write() 会判断头部如果没有发送，会首先发送 http 状态（如：200 OK）和 http 头部设置，再发送报文
+
+
+==长连接==
+
+请求将被一直保持，直到你调用 `httpfile.close()` 在此期间你可以在任何时候向用户发送内容。
+
+{{{
+# -*- coding: utf-8 -*-
+from eurasia import httpd, core
+from time import strftime
+httpfiles = set()
+def handler(current_httpfile):
+    response_headers = [('Content-Type', 'text/html; charset=utf-8')]
+    current_httpfile.start_response('200 OK', response_headers)
+    current_httpfile.write(strftime('[%a, %d-%b-%Y %H:%M:%S GMT] 我加入了<br/>'))
+    # 通知其他在线用户，有新人加入
+    disconnected_httpfile = []
+    for httpfile in httpfiles:
+        try:
+            # 告诉其他在线用户
+            httpfile.write(strftime('[%a, %d-%b-%Y %H:%M:%S GMT] 又有新人加入<br/>'))
+        except:
+            # 连接已断开
+            disconnected_httpfile.append(httpfile)
+    # 移除断开的 httpfile
+    for httpfile in disconnected_httpfile:
+        httpfiles.remove(httpfile)
+    # 将当前客户端加入全局列表中
+    httpfiles.add(current_httpfile)
+httpserver = httpd.Server('127.0.0.1:8080', handler)
+httpserver.serve_forever()
+}}}
+
+  * 请使用 firefox / chrome 浏览器观看此样例，因为缓存原因一些浏览器可能不能展现即时效果
+  * handler 结束时，如果引用为零 httpfile 对象会自动销毁，并同时断开用户连接
+  * httpfile.start_response() 与 httpfile.write() 都将立即发送数据_*没有缓存*_
+
+|| || || ||
+|| || ||
+|| ||
+
+
+=部署=
+
+eurasia 3.2 不再原生提供对多核处理器和 daemon 的支持，以下是 eurasia 3.2 推荐的部署方案。
+
+  * 支持多核
+
+    最简单的方法是在多个端口上启动多个独立的 eurasia 服务，数量与 cpu 核心相应，这样就可以充分使用 cpu 核心了。
+
+    然后通过 iptables（redirect）或者 lvs 做端口负载均衡即可。
+
+  * 启动为 daemon
+
+    eurasia 推荐使用 [http://www.libslack.org/daemon/ daemon] 命令启动服务器。
+
+    在多数 unix/linux 发行版上都可以非常方便地安装 daemon 命令。
