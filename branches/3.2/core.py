@@ -146,7 +146,7 @@ class socket_wrapper:
             id_ = c_uint(id(self)).value
             if id_ not in objects:
                 raise error(EPIPE, 'Broken pipe')
-            self.x_wait(timeout)
+            self.x_wait_with_timeout(timeout)
             e = self.s.connect_ex(addr)
         if 0 == e or EISCONN == e:
             return
