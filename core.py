@@ -636,8 +636,8 @@ else:
     from cStringIO import StringIO
     NEWLINE = '\n'
 ev_tstamp, ev_loop_p = c_double, c_void_p
-EV_UNDEF, EV_NONE, EV_READ, EV_WRITE, EV__IOFDSET = \
-            -1, 0x00, 0x01, 0x02, 0x80
+EV_UNDEF, EV_NONE, EV_READ, EV_WRITE, EV__IOFDSET, EV_ASYNC = \
+            -1, 0x00, 0x01, 0x02, 0x80, 0x00080000
 def EV_CB_DECLARE(type_):
     return CFUNCTYPE(None, c_void_p, POINTER(type_), c_int)
 
@@ -685,6 +685,13 @@ class ev_idle(Structure):
 ev_idle_p = POINTER(ev_idle)
 ev_idle._fields_ = EV_WATCHER(ev_idle)
 
+class ev_async(Structure):
+    pass
+
+ev_async_p = POINTER(ev_async)
+ev_async._fields_ = EV_WATCHER(ev_async) + \
+    [('sent', c_int)]
+
 def interface(name, restype, *argtypes):
     func = getattr(libev, name)
     func.restype, func.argtypes = restype, argtypes
@@ -717,6 +724,10 @@ interface('ev_signal_stop' , None, ev_loop_p, ev_signal_p)
 if hasattr(libev, 'ev_idle_start'):
     interface('ev_idle_start', None, ev_loop_p, ev_idle_p)
     interface('ev_idle_stop' , None, ev_loop_p, ev_idle_p)
+if hasattr(libev, 'ev_async_start'):
+    interface('ev_async_start', None, ev_loop_p, ev_async_p)
+    interface('ev_async_stop', None, ev_loop_p, ev_async_p)
+    interface('ev_async_send', None, ev_loop_p, ev_async_p)
 
 class Cli(Structure):
     _fields_ = [('r_io', ev_io), ('r_tm', ev_timer),
