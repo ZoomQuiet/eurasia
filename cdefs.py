@@ -1,7 +1,7 @@
 from ctypes import *
 
+NULL = c_void_p(None)
 c_uchar  = c_ubyte
-
 assert sizeof(c_size_t) == sizeof(c_ulong)
 c_ssize_t = c_ulong
 
@@ -19,7 +19,6 @@ if sizeof(c_long) == sizeof(c_longlong):
 elif __USE_FILE_OFFSET64():
     c_off_t = c_int64
 else:
-    c_off_t = c_long  # XXX use default
-
+    c_off_t = c_long  # XXX failback
 c_mode_t = c_uint
 c_sig_atomic_t = c_int

@@ -1,10 +1,10 @@
-import core, re
+import socket_, re
 from time import time
-from errno import ETIMEDOUT
-from sockwrap import Timeout
-from urllib.parse import unquote
+from urllib import unquote
+from errno  import ETIMEDOUT
+from exceptions import Timeout
 from greenlet import getcurrent, greenlet, GreenletExit
-from core import serve_forever, exit, run, break_, mainloop
+from socket_ import serve_forever, exit, run, break_, mainloop
 
 class httpfile:
     def __init__(self, s, reuse, **environ):
@@ -28,19 +28,17 @@ class httpfile:
         while 1:
             _ = is_header(data)
             if _ is None:
-                if b'\r\n' == data or b'\n' == data:
+                if '\r\n' == data or '\n' == data:
                     break
                 raise ValueError('invalid http header %r' % data)
             key, value = _.groups()
-            key   =   key.decode('ascii')
-            value = value.decode('ascii')
             environ['HTTP_' + key.upper().replace('-', '_')] = value
             data  = s.readline(2048, 10.)
             size += len(data)
             if size > 8192:
                 raise ValueError('request header is too large')
-        if b'POST' == method or \
-            'HTTP_CONTENT_LENGTH' in environ:
+        if 'POST' == method or \
+           'HTTP_CONTENT_LENGTH' in environ:
             environ['CONTENT_LENGTH'] = environ['HTTP_CONTENT_LENGTH']
             left = environ['HTTP_CONTENT_LENGTH'].strip()
             if len(left) > 10:
@@ -51,7 +49,6 @@ class httpfile:
             self.left = left
         else:
             self.left = 0
-        uri = uri.decode('ascii')
         p = uri.find('?')
         if p != -1:
             environ['PATH_INFO'] = '%2F'.join(
@@ -63,8 +60,8 @@ class httpfile:
             environ['QUERY_STRING'] = ''
         environ['SCRIPT_NAME'] = ''
         environ['REQUEST_URI'] = uri
-        environ['REQUEST_METHOD' ] =  method.decode('ascii')
-        environ['SERVER_PROTOCOL'] = version.decode('ascii')
+        environ['REQUEST_METHOD' ] = method
+        environ['SERVER_PROTOCOL'] = version
         environ.setdefault('CONTENT_TYPE',
         environ.setdefault('HTTP_CONTENT_TYPE', ''))
         self.closed = 0
@@ -104,9 +101,7 @@ class httpfile:
 
     def write(self, data, timeout=-1):
         assert self.headers_sent
-        data = b''.join([
-            bytes('%x' % len(data), 'ascii'),
-            b'\r\n', data, b'\r\n'])
+        data = '%x\r\n%s\r\n' %(len(data), data)
         if -1 == timeout:
             timeout = 16. + (len(data) >> 10)
         self.socket.write(data, timeout)
@@ -121,7 +116,6 @@ class httpfile:
         headers.append('Transfer-Encoding: chunked')
         headers.append('\r\n')
         headers = '\r\n'.join(headers)
-        headers = bytes(headers, 'ascii')
         if -1 == timeout:
             timeout = 16. + (len(headers) >> 10)
         self.socket.write(headers, timeout)
@@ -135,7 +129,7 @@ class httpfile:
             return self.owner.switch(0)
         if -1 == timeout:
             timeout = 16.
-        self.socket.write(b'0\r\n\r\n', timeout)
+        self.socket.write('0\r\n\r\n', timeout)
         environ = self.environ
         if 'HTTP_KEEP_ALIVE'  in  environ or environ.get(
            'HTTP_CONNECTION', '').lower() == 'keep-alive':
@@ -168,20 +162,20 @@ def httphandler(handler, **environ):
             handler(httpfile(s, handler, environ))
     return wrapper
 
-class Server(core.TCPServer):
+class Server(socket_.TCPServer):
     def __init__(self, address, handler, **environ):
         handler = httphandler(handler, **environ)
-        core.TCPServer.__init__(self, address, handler)
+        socket_.TCPServer.__init__(self, address, handler)
         environ.setdefault('SERVER_NAME', self.server_name)
         environ.setdefault('SERVER_PORT', self.server_port)
 
 HTTPServer = Server
 
-is_seconds = re.compile(r'^\s*[1-9][0-9]{0,6}\s*$').match
-is_header  = re.compile((br'^[\s\t]*([^\r\n:]+)[\s\t]*:[\s\t]*([^\r\n]+)[\s\t]'
-br'*\r?\n$')).match
-is_first   = re.compile((br'^(?:[ \t]*(\w+)[ \t]+([^\r\n]+)[ \t]+(HTTP/[01]\.['
-br'0-9])[ \t]*|[ \t]*)\r?\n$'), re.I).match
+is_seconds = re.compile((r'^\s*[1-9][0-9]{0,6}\s*$')).match
+is_header  = re.compile((r'^[\s\t]*([^\r\n:]+)[\s\t]*:[\s\t]*([^\r\n]+)[\s\t]*'
+r'\r?\n$')).match
+is_first   = re.compile((r'^(?:[ \t]*(\w+)[ \t]+([^\r\n]+)[ \t]+(HTTP/[01]\.[0'
+r'-9])[ \t]*|[ \t]*)\r?\n$'), re.I).match
 
 quoted_slash_split = re.compile('(?i)%2F').split
 RESPONSES = dict((int(i.split(None, 1)[0]), i) for i in ('100 Continue,101 Swi'

@@ -5,14 +5,14 @@ if where is None:
     import os, posixpath
     base = posixpath.abspath(posixpath.dirname(__file__))
     for fn in os.listdir(base):
-        if 'libev.so' == fn[:8]:
-            where = posixpath.join(base, fn)
-            break
+        for suffix in ['so', 'dll', 'dylib']:
+            if 'libev.' + suffix == fn[:6+len(suffix)]:
+                where = posixpath.join(base, fn)
+                break
 assert where, 'ev.py needs libev installed.'
 libev = CDLL(where)
 
 EV_ATOMIC_T = c_sig_atomic_t
-
 ev_tstamp = c_double
 ev_loop_p = c_void_p # POINTER(ev_loop)
 
@@ -108,11 +108,9 @@ interface('ev_timer_start', None, ev_loop_p, ev_timer_p)
 interface('ev_timer_stop' , None, ev_loop_p, ev_timer_p)
 interface('ev_signal_start', None, ev_loop_p, ev_signal_p)
 interface('ev_signal_stop' , None, ev_loop_p, ev_signal_p)
-
 if hasattr(libev, 'ev_idle_start'):
     interface('ev_idle_start', None, ev_loop_p, ev_idle_p)
     interface('ev_idle_stop' , None, ev_loop_p, ev_idle_p)
-
 if hasattr(libev, 'ev_async_start'):
     interface('ev_async_start', None, ev_loop_p, ev_async_p)
     interface('ev_async_stop' , None, ev_loop_p, ev_async_p)
