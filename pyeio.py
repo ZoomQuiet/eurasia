@@ -64,30 +64,34 @@ for line in interface.split('\n'):
 del interface, code, line, args, func
 
 _pread = read
-del read
-def pread(fd, length, offset, timeout):
+def read(fd, length, offset, timeout):
     buf = create_string_buffer(length)
     n = _pread(fd, buf, length, offset, timeout)
     return buf.raw[:n]
 
+pread = read
+
 _pread_without_timeout = read_without_timeout
-del read_without_timeout
-def pread_without_timeout(fd, length, offset):
+def read_without_timeout(fd, length, offset):
     buf = create_string_buffer(length)
     n = _pread_without_timeout(
         fd, buf, length, offset)
     return buf.raw[:n]
 
+pread_without_timeout = read_without_timeout
+
 _pwrite = write
-del write
-def pwrite(fd, data, offset, timeout):
+def write(fd, data, offset, timeout):
     return _pwrite(fd, data, len(data), offset, timeout)
 
+pwrite = write
+
 _pwrite_without_timeout = write_without_timeout
-del write_without_timeout
-def pwrite_without_timeout(fd, data, offset):
+def write_without_timeout(fd, data, offset):
     return _pwrite_without_timeout(
         fd, data, len(data), offset)
+
+pwrite_without_timeout = write_without_timeout
 
 def callback(req):
     contents = req.contents
