@@ -1,12 +1,15 @@
 import sys
+import kbint
 import _socket
 from pyev  import *
 from errno import *
 from weakref import ref
-from os  import strerror
+from os import strerror
 from socket import error
+from exceptions import Timeout
 from traceback import print_exc
-from greenlet  import getcurrent
+from addrinfo import addrinfo, bind
+from greenlet import greenlet, getcurrent
 if 3 == sys.version_info[0]:
     from io import BytesIO as StringIO
     from _socket import socket as realsocket
@@ -14,6 +17,49 @@ if 3 == sys.version_info[0]:
 else:
     from cStringIO import StringIO
     NEWLINE = '\n'
+
+class TCPServerWrapper:
+    def __init__(self, s, handler):
+        self.handler = handler
+        self.s = s
+        self.srv = srv = ev_io()
+        memmove(byref(srv), tcpsrv0, sizeof_io)
+        srv.fd = s.fileno()
+        id_ = c_uint(id(self)).value
+        srv.data = id_
+        objects[id_] = ref(self)
+
+    def __del__(self):
+        try:
+            if self.srv.active:
+                ev_io_stop(EV_DEFAULT_UC, byref(self.srv))
+            id_ = c_uint(id(self)).value
+            del objects[id_]
+        except:
+            pass
+
+    def fileno(self):
+        return self.s.fileno()
+
+    def close(self):
+        if self.srv.active:
+            ev_io_stop(EV_DEFAULT_UC, byref(self.srv))
+
+    def start(self):
+        if not self.srv.active:
+            ev_io_start(EV_DEFAULT_UC, byref(self.srv))
+
+    def stop(self):
+        if self.srv.active:
+            ev_io_stop(EV_DEFAULT_UC, byref(self.srv))
+
+    def serve_forever(self, flags=0):
+        self.start()
+        run(flags)
+
+    def exit(self, how=EVBREAK_ALL):
+        self.stop()
+        break_(how)
 
 class SocketWrapper:
     def __init__(self, s):
@@ -358,22 +404,69 @@ def %(type)s_wait_with_timeout(self, timeout):
         ev_io_stop(EV_DEFAULT_UC, byref(cli.%(type)s_io))
         ev_timer_stop(EV_DEFAULT_UC, byref(cli.%(type)s_tm))
         self.%(type)s_co = None'''
-
     for type_, name in [('r', 'read'), ('w', 'write'),
                         ('x', 'connect')]:
         exec(code % {'type': type_, 'name': name})
-
     del code, func, type_, name
-
     r_co = w_co = x_co = None
+
+class TCPServer(TCPServerWrapper):
+    def __init__(self, address, handler):
+        attrs = bind(address, _socket.SOCK_STREAM)
+        self.__dict__.update(attrs)
+        TCPServerWrapper.__init__(self, self.s, handler)
+
+    def start(self, request_queue_size=-1):
+        if -1 == request_queue_size:
+            request_queue_size = self.request_queue_size
+        if not self.activated:
+            self.s.listen(request_queue_size)
+            self.activated = 1
+        TCPServerWrapper.start(self)
+
+    request_queue_size, activated = 8192, 0
+
+Server = TCPServer
+
+class TCPSocket(SocketWrapper):
+    def __init__(self, address, timeout):
+        family, addr = addrinfo(address)
+        if isinstance(addr, int):
+            s = _socket.fromfd(addr, family,
+                _socket.SOCK_STREAM)
+            s.setblocking(0)
+            SocketWrapper.__init__(self, s)
+        else:
+            s = _socket.socket(family, sock_type,
+                _socket.SOCK_STREAM)
+            s.setblocking(0)
+            SocketWrapper.__init__(self, s)
+            self.connect(addr)
+
+Socket = Client = TCPServer
 
 class Cli(Structure):
     _fields_ = [('r_io', ev_io), ('r_tm', ev_timer),
                 ('w_io', ev_io), ('w_tm', ev_timer),
                 ('x_io', ev_io), ('x_tm', ev_timer)]
 
-class Timeout(_socket.timeout):
-    num_sent = 0
+if 3 == sys.version_info[0]:
+    def handle_request(l, w, e):
+        id_ = w.contents.data
+        srv = objects[id_]()
+        s = srv.s
+        fd, addr = s._accept()
+        c = realsocket(s.family, s.type, s.proto,
+                       fileno=fd)
+        c.setblocking(0)
+        greenlet(srv.handler).switch(SocketWrapper(c), addr)
+else:
+    def handle_request(l, w, e):
+        id_ = w.contents.data
+        srv = objects[id_]()
+        s, addr = srv.s.accept()
+        s.setblocking(0)
+        greenlet(srv.handler).switch(SocketWrapper(s), addr)
 
 code = '''def %(type)s_io_cb(l, w, e):
     id_ = w.contents.data
@@ -393,12 +486,34 @@ def %(type)s_tm_cb(l, w, e):
                 Timeout(ETIMEDOUT, '%(name)s timed out'))
         except:
             print_exc(file=sys.stderr)'''
-
 for type_, name in [('r', 'read'), ('w', 'write'),
                     ('x', 'connect')]:
     exec(code % {'type': type_, 'name': name})
-
 del code, name
+
+def find_cb(type_):
+    for k, v in type_._fields_:
+        if 'cb' == k:
+            return v
+
+c_handle_request = find_cb(ev_io)(handle_request)
+
+for type_ in 'rwx':
+    exec(('c_%s_io_cb = find_cb(ev_io   )(%s_io_cb)\n'
+          'c_%s_tm_cb = find_cb(ev_timer)(%s_tm_cb)'
+    ) % tuple([type_] * 4))
+del type_
+
+def get_tcpsrv0():
+    io, buf = ev_io(), create_string_buffer(sizeof_io)
+    memset(byref(io), 0, sizeof_io)
+    io.events = EV__IOFDSET | EV_READ
+    io.cb = c_handle_request
+    memmove(buf, byref(io), sizeof(ev_io))
+    return buf
+
+sizeof_io = sizeof(ev_io)
+tcpsrv0 = get_tcpsrv0(); del get_tcpsrv0
 
 def get_cli0():
     cli, buf = Cli(), create_string_buffer(sizeof_cli)
@@ -414,17 +529,9 @@ def get_cli0():
     memmove(buf, byref(cli), sizeof_cli)
     return buf
 
-def find_cb(type_):
-    for k, v in type_._fields_:
-        if 'cb' == k:
-            return v
-
-for type_ in 'rwx':
-    exec(('c_%s_io_cb = find_cb(ev_io   )(%s_io_cb)\n'
-          'c_%s_tm_cb = find_cb(ev_timer)(%s_tm_cb)'
-    ) % tuple([type_] * 4))
-
-del type_
-
 sizeof_cli = sizeof(Cli)
-objects, cli0 = {}, get_cli0()
+cli0 = get_cli0(); del get_cli0
+
+objects = {}
+exit = break_
+mainloop = serve_forever = run
