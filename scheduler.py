@@ -4,6 +4,42 @@ from weakref  import ref
 from greenlet import getcurrent
 from traceback import print_exc
 
+class Queue:
+    def __init__(self):
+        self.queue = []
+
+    def put(self, data):
+        if 1 == self._balance:
+            co = self.queue.pop(0)
+            if not self.queue:
+                self._balance = 0
+            co.switch()
+        else:
+            co = getcurrent()
+            self.queue.append((co, data))
+            if 0 == self._balance:
+                self._balance = -1
+            co.parent.switch()
+
+    def get(self, timeout=-1):
+        if -1 == self._balance:
+            co, data = self.queue.pop(0)
+            if not self.queue:
+                self._balance = 0
+            co.switch()
+            return data
+        else:
+            co = getcurrent()
+            self.queue.append(co)
+            if 0 == self._balance:
+                self._balance = 1
+            co.parent.switch()
+
+    def balance(self):
+        return self._balance * len(self.queue)
+
+    balance, _balance = property(balance), -1
+
 class Sleep:
     def __init__(self):
         co = getcurrent()
