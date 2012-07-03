@@ -8,6 +8,9 @@ class Queue:
     def __init__(self):
         self.queue = []
 
+    def __len__(self):
+        return len(self.queue)
+
     def put(self, data):
         if 1 == self._balance:
             co = self.queue.pop(0)
@@ -21,7 +24,7 @@ class Queue:
                 self._balance = -1
             co.parent.switch()
 
-    def get(self, timeout=-1):
+    def get(self):
         if -1 == self._balance:
             co, data = self.queue.pop(0)
             if not self.queue:
