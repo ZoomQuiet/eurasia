@@ -1,19 +1,20 @@
 import sys
 from pyev import *
 from weakref  import ref
+from collections import deque
 from greenlet import getcurrent
 from traceback import print_exc
 
 class Queue:
     def __init__(self):
-        self.queue = []
+        self.queue = deque()
 
     def __len__(self):
         return len(self.queue)
 
     def put(self, data):
         if 1 == self._balance:
-            co = self.queue.pop(0)
+            co = self.queue.popleft()
             if not self.queue:
                 self._balance = 0
             co.switch()
@@ -26,7 +27,7 @@ class Queue:
 
     def get(self):
         if -1 == self._balance:
-            co, data = self.queue.pop(0)
+            co, data = self.queue.popleft()
             if not self.queue:
                 self._balance = 0
             co.switch()
