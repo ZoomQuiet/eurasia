@@ -5,45 +5,6 @@ from collections import deque
 from greenlet import getcurrent
 from traceback import print_exc
 
-class Queue:
-    def __init__(self):
-        self.queue = deque()
-
-    def __len__(self):
-        return len(self.queue)
-
-    def put(self, data):
-        if 1 == self._balance:
-            co = self.queue.popleft()
-            if not self.queue:
-                self._balance = 0
-            co.switch()
-        else:
-            co = getcurrent()
-            self.queue.append((co, data))
-            if 0 == self._balance:
-                self._balance = -1
-            co.parent.switch()
-
-    def get(self):
-        if -1 == self._balance:
-            co, data = self.queue.popleft()
-            if not self.queue:
-                self._balance = 0
-            co.switch()
-            return data
-        else:
-            co = getcurrent()
-            self.queue.append(co)
-            if 0 == self._balance:
-                self._balance = 1
-            co.parent.switch()
-
-    def balance(self):
-        return self._balance * len(self.queue)
-
-    balance, _balance = property(balance), -1
-
 class Sleep:
     def __init__(self):
         co = getcurrent()
@@ -148,6 +109,70 @@ if hasattr(libev, 'ev_idle_start'):
         finally:
             ev_idle_stop(EV_DEFAULT_UC, byref(idl))
             del objects[id_]
+
+    class Queue:
+        def __init__(self):
+            self.queue = deque()
+
+        def __len__(self):
+            if -1 == self.preference:
+                return len(self.queue)
+            else:
+                return 0
+
+        def put(self, data):
+            if 1 == self.preference:
+                ro = self.queue.popleft()
+                if not self.queue:
+                    self.preference = 0
+                co  = getcurrent()
+                id_ = c_uint(id(co)).value
+                idl = ev_idle()
+                memmove(byref(idl), idle0, sizeof_idle)
+                idl.data = id_
+                objects[id_] = ref(co)
+                ev_idle_start(EV_DEFAULT_UC, byref(idl))
+                try:
+                    ro.switch(data)
+                finally:
+                    ev_idle_stop(EV_DEFAULT_UC, byref(idl))
+                    del objects[id_]
+            else:
+                co = getcurrent()
+                self.queue.append((co, data))
+                if 0 == self.preference:
+                    self.preference = -1
+                co.parent.switch()
+
+        def get(self):
+            if -1 == self.preference:
+                ro, data = self.queue.popleft()
+                if not self.queue:
+                    self.preference = 0
+                co  = getcurrent()
+                id_ = c_uint(id(co)).value
+                idl = ev_idle()
+                memmove(byref(idl), idle0, sizeof_idle)
+                idl.data = id_
+                objects[id_] = ref(co)
+                ev_idle_start(EV_DEFAULT_UC, byref(idl))
+                try:
+                    ro.switch()
+                finally:
+                    ev_idle_stop(EV_DEFAULT_UC, byref(idl))
+                    del objects[id_]
+                return data
+            else:
+                co = getcurrent()
+                self.queue.append(co)
+                if 0 == self.preference:
+                    self.preference = 1
+                return co.parent.switch()
+
+        def balance(self):
+            return self.preference * len(self.queue)
+
+        balance, preference = property(balance), 0
 
     def get_idle0():
         idl = ev_idle()
