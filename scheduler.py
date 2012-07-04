@@ -1,49 +1,184 @@
-import sys
-from pyev import *
-from weakref  import ref
-from collections import deque
-from greenlet import getcurrent
-from traceback import print_exc
-
-class Sleep:
+class Queue:
     def __init__(self):
-        co = getcurrent()
-        self.id_ = id_ = c_uint(id(co)).value
-        self.tm  = tm  = ev_timer()
-        memmove(byref(tm), timer0, sizeof_timer)
-        tm.data = id_
-        objects[id_] = ref(co)
+        self.queue = deque()
 
-    def __del__(self):
-        del objects[self.id_]
-        if self.tm.active:
-            ev_timer_stop(EV_DEFAULT_UC, byref(self.tm))
+    def __len__(self):
+        if -1 == self.preference:
+            return len(self.queue)
+        else:
+            return 0
 
-    def __call__(self, seconds):
-        assert not self.tm.active
-        co = objects[self.id_]
-        tm = self.tm
-        tm.at = seconds
-        ev_timer_start(EV_DEFAULT_UC, byref(tm))
-        try:
-            co.parent.switch()
-        finally:
-            ev_timer_stop(EV_DEFAULT_UC, byref(tm))
+    def put(self, data, timeout=-1):
+        back_ = getcurrent()
+        if 1 == self.preference:
+            goto_, timer1 = self.queue.popleft()
+            if not self.queue:
+                self.preference = 0
+            if timer1 is not None:
+                timer.stop()
+            idle_switch(back_, goto_, data)
+        else:
+            if 0 == timeout:
+                raise default_full
+            elif -1 == timeout:
+                self.queue.append((back_, None, data))
+                self.preference = -1
+                back_.parent.switch()
+            else:
+                goto_  =  back_.parent
+                item   = (back_, timer1, data)
+                timer1 =  new_timer_throw(back_)
+                self.queue.append(item)
+                self.preference = -1
+                try:
+                    timer1(goto_, timeout, Full, default_full)
+                except Full:
+                    self.queue.remove(item)
+                    if not self.queue:
+                        self.preference = 0
+                    raise
+
+    def get(self, timeout=-1):
+        back_ = getcurrent()
+        if -1 == self.preference:
+            goto_, timer1, data = self.queue.popleft()
+            if not self.queue:
+                self.preference = 0
+            if timer1 is not None:
+                timer1.stop()
+            idle_switch(back_, goto_, None)
+            return data
+        else:
+            if 0 == timeout:
+                raise default_empty
+            elif -1 == timeout:
+                self.queue.append((back_, None))
+                self.preference = 1
+                return back_.parent.switch()
+            else:
+                goto_  =  back_.parent
+                item   = (back_, timer1)
+                timer1 =  new_timer_throw(back_)
+                self.queue.append(item)
+                self.preference = 1
+                try:
+                    timer1(goto_, timeout, Empty, default_empty)
+                except Empty:
+                    self.queue.remove(item)
+                    if not self.queue:
+                        self.preference = 0
+                    raise
+
+    def full(self):
+        return self.preference != 1
+
+    def empty(self):
+        return self.preference != -1
+
+    def balance(self):
+        return self.preference * len(self.queue)
+
+    balance, preference = property(balance), 0
+
+class Full(Exception):
+    pass
+
+class Empty(Exception):
+    pass
 
 def sleep(seconds):
-    co  = getcurrent()
-    id_ = c_uint(id(co)).value
-    tm  = ev_timer()
-    memmove(byref(tm), timer0, sizeof_timer)
-    tm.at = seconds
-    tm.data = id_
-    objects[id_] = ref(co)
-    ev_timer_start(EV_DEFAULT_UC, byref(tm))
+    co = getcurrent()
+    timer_switch(co, co.parent, seconds, None)
+
+def new_sleep():
+    co = getcurrent()
+    timer_switch1 = new_timer_switch(co)
+    def sleep1(seconds):
+        return timer_switch1(co.parent, seconds)
+    return sleep1
+
+def idle():
+    co = getcurrent()
+    idle_switch(co, co.parent, None)
+
+def new_idle():
+    co = getcurrent()
+    idle_switch1 = new_idle_switch(co)
+    def idle1():
+        return idle_switch1(co.parent)
+    return idle1
+
+code = '''class new_timer_%(name)s:
+    def __init__(self, back_):
+        self.timer = timer1 = ev_timer()
+        memmove(byref(timer1), timer0, sizeof_timer)
+        timer1.data = self.id_ = id_ = c_uint(id(back_)).value
+        objects[id_] = ref(back_)
+    def __del__(self):
+        del objects[self.id_]
+        if self.timer.active:
+            ev_timer_stop(EV_DEFAULT_UC, byref(self.timer))
+    def __call__(self, goto_, seconds, %(args)s):
+        assert not self.timer.active
+        timer1 = self.timer
+        timer1.at = seconds
+        ev_timer_start(EV_DEFAULT_UC, byref(timer1))
+        try:
+            %(func)s
+        finally:
+            ev_timer_stop(EV_DEFAULT_UC, byref(timer1))
+    def stop(self):
+        if self.timer.active:
+            ev_timer_stop(EV_DEFAULT_UC, byref(self.timer))
+def timer_%(name)s(back_, goto_, seconds, %(args)s):
+    timer1 = ev_timer()
+    memmove(byref(timer1), timer0, sizeof_timer)
+    timer1.at = seconds
+    timer1.data = id_ = c_uint(id(back_)).value
+    objects[id_] = ref(back_)
+    ev_timer_start(EV_DEFAULT_UC, byref(timer1))
     try:
-        co.parent.switch()
+        %(func)s
     finally:
-        ev_timer_stop(EV_DEFAULT_UC, byref(tm))
+        ev_timer_stop(EV_DEFAULT_UC, byref(timer1))
         del objects[id_]
+class new_idle_%(name)s:
+    def __init__(self, back_):
+        self.idle = idle1 = ev_idle()
+        memmove(byref(idle1), idle0, sizeof_idle)
+        idle1.data = self.id_ = id_ = c_uint(id(back_)).value
+        objects[id_] = ref(back_)
+    def __del__(self):
+        del objects[self.id_]
+        if self.idle.active:
+            ev_idle_stop(EV_DEFAULT_UC, byref(self.idle))
+    def __call__(self, goto_, %(args)s):
+        assert not self.idle.active
+        idle1 = self.idle
+        ev_idle_start(EV_DEFAULT_UC, byref(idle1))
+        try:
+            %(func)s
+        finally:
+            ev_idle_stop(EV_DEFAULT_UC, byref(idle1))
+    def stop(self):
+        if self.idle.active:
+            ev_idle_stop(EV_DEFAULT_UC, byref(self.idle))
+def idle_%(name)s(back_, goto_, %(args)s):
+    idle1 = ev_idle()
+    memmove(byref(idle1), idle0, sizeof_idle)
+    idle1.data = id_ = c_uint(id(back_)).value
+    objects[id_] = ref(back_)
+    ev_idle_start(EV_DEFAULT_UC, byref(idle1))
+    try:
+        %(func)s
+    finally:
+        ev_idle_stop(EV_DEFAULT_UC, byref(idle1))
+        del objects[id_]'''
+for name, args, func in [
+    ('switch', 'data=None', 'goto_.switch(data)'),
+    ('throw' , '*args'    , 'goto_.throw(*args)')]:
+    exec(code % {'name': name, 'args': args, 'func': func})
+del code, name, args, func
 
 def callback(l, w, e):
     id_ = w.contents.data
@@ -59,12 +194,28 @@ def find_cb(type_):
             return v
 
 def get_timer0():
-    tm = ev_timer()
+    timer1= ev_timer()
     buf = create_string_buffer(sizeof_timer)
-    memset(byref(tm), 0, sizeof_timer)
-    tm.cb = c_sleep_cb
-    memmove(buf, byref(tm), sizeof_timer)
+    memset(byref(timer1), 0, sizeof_timer)
+    timer1.cb = c_sleep_cb
+    memmove(buf, byref(timer1), sizeof_timer)
     return buf
+
+def get_idle0():
+    idle1 = ev_idle()
+    buf = create_string_buffer(sizeof_idle)
+    memset(byref(idle1), 0, sizeof_idle)
+    idle1.cb = c_idle_cb
+    memmove(buf, byref(idle1), sizeof_idle)
+    return buf
+
+import sys
+from pyev import *
+from weakref  import ref
+from collections import deque
+from exceptions import Timeout
+from greenlet import getcurrent
+from traceback import print_exc
 
 objects = {}
 sizeof_timer = sizeof (ev_timer)
@@ -72,116 +223,8 @@ c_sleep_cb   = find_cb(ev_timer)(callback)
 timer0 = get_timer0(); del get_timer0
 
 if hasattr(libev, 'ev_idle_start'):
-    class Idle:
-        def __init__(self):
-            co = getcurrent()
-            self.id_ = id_ = c_uint(id(co)).value
-            self.idl = idl = ev_idle()
-            memmove(byref(idl), idle0, sizeof_idle)
-            idl.data = id_
-            objects[id_] = ref(co)
-
-        def __del__(self):
-            del objects[self.id_]
-            if self.idl.active:
-                ev_idle_stop(EV_DEFAULT_UC, byref(self.idl))
-
-        def __call__(self):
-            assert not self.idl.active
-            co  = objects[self.id_]
-            idl = self.idl
-            ev_idle_start(EV_DEFAULT_UC, byref(idl))
-            try:
-                co.parent.switch()
-            finally:
-                ev_idle_stop(EV_DEFAULT_UC, byref(idl))
-
-    def idle():
-        co  = getcurrent()
-        id_ = c_uint(id(co)).value
-        idl = ev_idle()
-        memmove(byref(idl), idle0, sizeof_idle)
-        idl.data = id_
-        objects[id_] = ref(co)
-        ev_idle_start(EV_DEFAULT_UC, byref(idl))
-        try:
-            co.parent.switch()
-        finally:
-            ev_idle_stop(EV_DEFAULT_UC, byref(idl))
-            del objects[id_]
-
-    class Queue:
-        def __init__(self):
-            self.queue = deque()
-
-        def __len__(self):
-            if -1 == self.preference:
-                return len(self.queue)
-            else:
-                return 0
-
-        def put(self, data):
-            if 1 == self.preference:
-                ro = self.queue.popleft()
-                if not self.queue:
-                    self.preference = 0
-                co  = getcurrent()
-                id_ = c_uint(id(co)).value
-                idl = ev_idle()
-                memmove(byref(idl), idle0, sizeof_idle)
-                idl.data = id_
-                objects[id_] = ref(co)
-                ev_idle_start(EV_DEFAULT_UC, byref(idl))
-                try:
-                    ro.switch(data)
-                finally:
-                    ev_idle_stop(EV_DEFAULT_UC, byref(idl))
-                    del objects[id_]
-            else:
-                co = getcurrent()
-                self.queue.append((co, data))
-                if 0 == self.preference:
-                    self.preference = -1
-                co.parent.switch()
-
-        def get(self):
-            if -1 == self.preference:
-                ro, data = self.queue.popleft()
-                if not self.queue:
-                    self.preference = 0
-                co  = getcurrent()
-                id_ = c_uint(id(co)).value
-                idl = ev_idle()
-                memmove(byref(idl), idle0, sizeof_idle)
-                idl.data = id_
-                objects[id_] = ref(co)
-                ev_idle_start(EV_DEFAULT_UC, byref(idl))
-                try:
-                    ro.switch()
-                finally:
-                    ev_idle_stop(EV_DEFAULT_UC, byref(idl))
-                    del objects[id_]
-                return data
-            else:
-                co = getcurrent()
-                self.queue.append(co)
-                if 0 == self.preference:
-                    self.preference = 1
-                return co.parent.switch()
-
-        def balance(self):
-            return self.preference * len(self.queue)
-
-        balance, preference = property(balance), 0
-
-    def get_idle0():
-        idl = ev_idle()
-        buf = create_string_buffer(sizeof_idle)
-        memset(byref(idl), 0, sizeof_idle)
-        idl.cb = c_idle_cb
-        memmove(buf, byref(idl), sizeof_idle)
-        return buf
-
+    default_full  = Full()
+    default_empty = Empty()
     sizeof_idle = sizeof (ev_idle)
-    c_idle_cb   = find_cb(ev_idle)(callback)
+    c_idle_cb = find_cb(ev_idle)(callback)
     idle0 = get_idle0(); del get_idle0
