@@ -101,7 +101,7 @@ class SocketWrapper:
             if id_ not in objects:
                 raise error(EPIPE, 'Broken pipe')
             s = self.s
-            self.r_wait_with_timeout(timeout)
+            self.r_wait(timeout)
             try:
                 fd, addr = s._accept()
             except error as e:
@@ -116,7 +116,7 @@ class SocketWrapper:
             id_ = c_uint(id(self)).value
             if id_ not in objects:
                 raise error(EPIPE, 'Broken pipe')
-            self.r_wait_with_timeout(timeout)
+            self.r_wait(timeout)
             try:
                 s, addr = self.s.accept()
             except error as e:
@@ -132,7 +132,7 @@ class SocketWrapper:
             id_ = c_uint(id(self)).value
             if id_ not in objects:
                 raise error(EPIPE, 'Broken pipe')
-            self.x_wait_with_timeout(timeout)
+            self.x_wait(timeout)
             e = self.s.connect_ex(addr)
         if 0 == e or EISCONN == e:
             return
@@ -142,21 +142,21 @@ class SocketWrapper:
         id_ = c_uint(id(self)).value
         if id_ not in objects:
             raise error(EPIPE, 'Broken pipe')
-        self.r_wait_with_timeout(timeout)
+        self.r_wait(timeout)
         self.s.recvfrom(size)
 
     def sendto(self, data, addr, timeout):
         id_ = c_uint(id(self)).value
         if id_ not in objects:
             raise error(EPIPE, 'Broken pipe')
-        self.w_wait_with_timeout(timeout)
+        self.w_wait(timeout)
         self.s.sendto(data, addr)
 
     def recv(self, size, timeout):
         id_ = c_uint(id(self)).value
         if id_ not in objects:
             return ''
-        self.r_wait_with_timeout(timeout)
+        self.r_wait(timeout)
         try:
             return self.s.recv(size)
         except error as e:
@@ -171,7 +171,7 @@ class SocketWrapper:
         while 1:
             if id_ not in objects:
                 raise error(EPIPE, 'Broken pipe')
-            self.w_wait_with_timeout(timeout)
+            self.w_wait(timeout)
             try:
                 return self.s.send(data)
             except error as e:
@@ -179,9 +179,24 @@ class SocketWrapper:
                     self.handle_w_error()
                     raise
 
-    def read(self, size, timeout):
-        return self.r_apply(self._read,
-            timeout, [size], {})
+    def read(self, size, timeout=-1):
+        if -1 == timeout:
+            self.r_co = getcurrent()
+            try:
+                return self._read(size)
+            finally:
+                self.r_co = None
+        else:
+            assert self.r_co is not None, 'read conflict'
+            cli = self.cli
+            self.r_co = getcurrent()
+            cli.r_tm.at = timeout
+            ev_timer_start(EV_DEFAULT_UC, byref(cli.r_tm))
+            try:
+                return self._read(size)
+            finally:
+                ev_timer_stop(EV_DEFAULT_UC, byref(cli.r_tm))
+                self.r_co = None
 
     def _read(self, size):
         buf = self.buf
@@ -200,7 +215,7 @@ class SocketWrapper:
                 return buf.getvalue()
             left = size - bufsize
             try:
-                self.r_wait()
+                self._r_wait()
             except Timeout:
                 self.buf = buf
                 raise
@@ -227,9 +242,24 @@ class SocketWrapper:
             del data
         return buf.getvalue()
 
-    def readline(self, size, timeout):
-        return self.r_apply(self._readline,
-            timeout, [size], {})
+    def readline(self, size, timeout=-1):
+        if -1 == timeout:
+            self.r_co = getcurrent()
+            try:
+                return self._readline(size)
+            finally:
+                self.r_co = None
+        else:
+            assert self.r_co is not None, 'read conflict'
+            cli = self.cli
+            self.r_co = getcurrent()
+            cli.r_tm.at = timeout
+            ev_timer_start(EV_DEFAULT_UC, byref(cli.r_tm))
+            try:
+                return self._readline(size)
+            finally:
+                ev_timer_stop(EV_DEFAULT_UC, byref(cli.r_tm))
+                self.r_co = None
 
     def _readline(self, size):
         buf = self.buf
@@ -257,7 +287,7 @@ class SocketWrapper:
             if id_ not in objects:
                 return buf.getvalue()
             try:
-                self.r_wait()
+                self._r_wait()
             except Timeout:
                 self.buf = buf
                 raise
@@ -293,35 +323,53 @@ class SocketWrapper:
             bufsize += n
         return buf.getvalue()
 
-    def write(self, data, timeout):
-        cli = self.cli
-        assert not cli.w_tm.active, 'write conflict'
+    def write(self, data, timeout=-1):
+        assert self.w_co is not None, 'write conflict'
+        pos  = 0
+        cli  = self.cli
+        left = len(data)
         self.w_co = getcurrent()
-        cli.w_tm.at = timeout
-        ev_timer_start(EV_DEFAULT_UC, byref(cli.w_tm))
-        try:
-            pos  = 0
-            left = len(data)
-            while pos < left:
-                ev_io_start(EV_DEFAULT_UC, byref(cli.w_io))
-                try:
+        if -1 == timeout:
+            try:
+                while pos < left:
+                    ev_io_start(EV_DEFAULT_UC, byref(cli.w_io))
                     try:
                         self.w_co.switch()
-                    except Timeout as e:
-                        e.num_sent = pos
-                        raise e
+                        try:
+                            pos += self.s.send(
+                                data[pos:pos+8192])
+                        except error as e:
+                            if EWOULDBLOCK != e.errno:
+                                self.close()
+                                raise
+                    finally:
+                        ev_io_stop(EV_DEFAULT_UC, byref(cli.w_io))
+            finally:
+                self.w_co = None
+        else:
+            cli.w_tm.at = timeout
+            ev_timer_start(EV_DEFAULT_UC, byref(cli.w_tm))
+            try:
+                while pos < left:
+                    ev_io_start(EV_DEFAULT_UC, byref(cli.w_io))
                     try:
-                        pos += self.s.send(
-                            data[pos:pos+8192])
-                    except error as e:
-                        if EWOULDBLOCK != e.errno:
-                            self.close()
-                            raise
-                finally:
-                    ev_io_stop(EV_DEFAULT_UC, byref(cli.w_io))
-        finally:
-            ev_timer_stop(EV_DEFAULT_UC, byref(cli.w_tm))
-            self.w_co = None
+                        try:
+                            self.w_co.switch()
+                        except Timeout as e:
+                            e.num_sent = pos
+                            raise e
+                        try:
+                            pos += self.s.send(
+                                data[pos:pos+8192])
+                        except error as e:
+                            if EWOULDBLOCK != e.errno:
+                                self.close()
+                                raise
+                    finally:
+                        ev_io_stop(EV_DEFAULT_UC, byref(cli.w_io))
+            finally:
+                ev_timer_stop(EV_DEFAULT_UC, byref(cli.w_tm))
+                self.w_co = None
 
     def flush(self, timeout=-1):
         pass
@@ -371,29 +419,16 @@ class SocketWrapper:
     for func in ['__del__', 'close']:
         exec(code % func)
 
-    code = '''def %(type)s_wait(self):
+    code = '''def _%(type)s_wait(self):
     ev_io_start(EV_DEFAULT_UC, byref(self.cli.%(type)s_io))
     try:
         self.%(type)s_co.parent.switch()
     finally:
         ev_io_stop(EV_DEFAULT_UC,
             byref(self.cli.%(type)s_io))
-
-def %(type)s_apply(self, func, timeout, args=[], kwargs={}):
+def %(type)s_wait(self, timeout):
+    assert self.%(type)s_co is not None, '%(name)s conflict'
     cli = self.cli
-    assert not cli.%(type)s_tm.active, '%(name)s conflict'
-    self.%(type)s_co = getcurrent()
-    cli.%(type)s_tm.at = timeout
-    ev_timer_start(EV_DEFAULT_UC, byref(cli.%(type)s_tm))
-    try:
-        return func(*args, **kwargs)
-    finally:
-        ev_timer_stop(EV_DEFAULT_UC, byref(cli.%(type)s_tm))
-        self.%(type)s_co = None
-
-def %(type)s_wait_with_timeout(self, timeout):
-    cli = self.cli
-    assert not cli.%(type)s_tm.active, '%(name)s conflict'
     self.%(type)s_co = co = getcurrent()
     cli.%(type)s_tm.at = timeout
     ev_timer_start(EV_DEFAULT_UC, byref(cli.%(type)s_tm))

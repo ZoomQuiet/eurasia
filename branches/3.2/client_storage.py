@@ -11,7 +11,7 @@ else:
 del _socket, StorageServer
 
 class ClientStorage(Storage):
-    def __init__(self, address=DEFAULT_ADDRESS):
+    def __init__(self, address=default_address):
         self.s = Socket(address)
         self.durus_id_pool = []
         self.durus_id_pool_size = 32
