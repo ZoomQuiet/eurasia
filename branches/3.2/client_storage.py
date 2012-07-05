@@ -1,5 +1,15 @@
 import _socket
-from durus.storage_server import StorageServer
+from socket_ import Socket
+from struct import pack, unpack
+from durus.storage import Storage
+from durus.serialize import split_durus_ids
+from durus.utils import as_bytes, iteritems, join_bytes
+from durus.storage_server import StorageServer, \
+    DEFAULT_HOST, DEFAULT_PORT, \
+    STATUS_OKAY, STATUS_INVALID, STATUS_KEYERROR
+from durus.error import ProtocolError, DurusKeyError, \
+    ConflictError, ReadConflictError, WriteConflictError
+
 protocol = StorageServer.protocol
 assert len(protocol) == 4
 if ':' in DEFAULT_HOST:
@@ -129,13 +139,3 @@ class ClientStorage(Storage):
     def close(self):
         self.s.write('.')
         self.s.close()
-
-from socket_ import Socket
-from struct import pack, unpack
-from durus.storage import Storage
-from durus.serialize import split_durus_ids
-from durus.utils import as_bytes, iteritems, join_bytes
-from durus.error import ProtocolError, DurusKeyError, \
-    ConflictError, ReadConflictError, WriteConflictError
-from durus.storage_server import DEFAULT_HOST, DEFAULT_PORT, \
-    STATUS_OKAY, STATUS_INVALID, STATUS_KEYERROR

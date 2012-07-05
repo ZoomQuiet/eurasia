@@ -2,7 +2,7 @@ import socket_, re
 from time import time
 from urllib import unquote
 from errno  import ETIMEDOUT
-from exceptions import Timeout
+from exceptions_ import Timeout
 from greenlet import getcurrent, greenlet, GreenletExit
 from socket_ import serve_forever, exit, run, break_, mainloop
 
