@@ -153,7 +153,7 @@ class httpfile:
     def _reuse(self, keep_alive):
         s = self.socket
         reuse = self.reuse
-        s.r_wait_with_timeout(keep_alive)
+        s.r_wait(keep_alive)
         reuse(httpfile(s, reuse, **self.bgenv))
 
     closed = headers_sent = 0
