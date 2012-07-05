@@ -443,7 +443,7 @@ class TCPSocket(SocketWrapper):
             SocketWrapper.__init__(self, s)
             self.connect(addr)
 
-Socket = Client = TCPServer
+Socket = Client = TCPSocket
 
 class Cli(Structure):
     _fields_ = [('r_io', ev_io), ('r_tm', ev_timer),
