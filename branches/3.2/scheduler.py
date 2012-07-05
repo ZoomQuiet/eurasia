@@ -80,12 +80,6 @@ class Queue:
 
     balance, preference = property(balance), 0
 
-class Full(Exception):
-    pass
-
-class Empty(Exception):
-    pass
-
 def sleep(seconds):
     co = getcurrent()
     timer_switch(co, co.parent, seconds, None)
@@ -213,9 +207,9 @@ import sys
 from pyev import *
 from weakref  import ref
 from collections import deque
-from exceptions import Timeout
 from greenlet import getcurrent
 from traceback import print_exc
+from exceptions import Empty, Full, Timeout
 
 objects = {}
 sizeof_timer = sizeof (ev_timer)
