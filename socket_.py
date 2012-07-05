@@ -6,8 +6,8 @@ from errno import *
 from weakref import ref
 from os import strerror
 from socket import error
-from exceptions import Timeout
 from traceback import print_exc
+from exceptions_ import Timeout
 from addrinfo import addrinfo, bind
 from greenlet import greenlet, getcurrent
 if 3 == sys.version_info[0]:
