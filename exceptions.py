@@ -1,3 +1,9 @@
+class Full(Exception):
+    pass
+
+class Empty(Exception):
+    pass
+
 import _socket
 
 class Timeout(_socket.timeout):
