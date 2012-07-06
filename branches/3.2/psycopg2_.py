@@ -10,42 +10,54 @@ from psycopg2 import _param_escape, InterfaceError, OperationalError
 
 class cursor(_psycopg.cursor):
     def execute(self, operation, *args):
+        connection1 = self.connection
+        assert connection1.x_co is None, 'execute conflict'
         cursor_execute(self, operation, *args)
-        self.connection.wait()
+        connection1.wait()
 
     def executemany(self, operation, seq_of_parameters):
+        connection1 = self.connection
+        assert connection1.x_co is None, 'execute conflict'
         cursor_executemany(self, operation, seq_of_parameters)
-        self.connection.wait()
+        connection1.wait()
 
     def callproc(self, procname, *args):
+        connection1 = self.connection
+        assert connection1.x_co is None, 'execute conflict'
         cursor_callproc(self, procname, *args)
-        self.connection.wait()
-
-    def mogrify(self, operation, *args):
-        cursor_mogrify(self, operation, *args)
-        self.connection.wait()
+        connection1.wait()
 
 class connection(_psycopg.connection):
-    def commit(self):
-        connection_commit(self)
-        self.wait()
-
-    def rollback(self):
-        connection_rollback(self)
-        self.wait()
-
-    def cursor(self, **kwargs):
-        cursor1 = cursor(self, **kwargs)
-        return cursor1
-
-    def wait(self):
-        co = getcurrent()
-        conn1 = Conn()
+    def __init__(self, dsn):
+        connect_init(self, dsn, async=1)
+        self.conn = conn1 = Conn()
         memmove(byref(conn1), conn0, sizeof_conn)
         conn1.r_io.fd   = conn1.w_io.fd   = self.fileno()
-        conn1.r_io.data = conn1.w_io.data = \
-            id_ = c_uint(id(co)).value
-        objects[id_] = ref(co)
+        conn1.r_io.data = conn1.w_io.data = self.id_ = \
+                id_ = c_uint(id(self)).value
+        objects[id_] = ref(self)
+        self.wait()
+
+    def __del__(self):
+        try:
+            del objects[self.id_]
+        except KeyError:
+            pass
+
+    def begin(self):
+        cursor = self.cursor()
+        cursor.execute('BEGIN')
+
+    def commit(self):
+        cursor = self.cursor()
+        cursor.execute('COMMIT')
+
+    def rollback(self):
+        cursor = self.cursor()
+        cursor.execute('ROLLBACK')
+
+    def wait(self):
+        self.x_co = co = getcurrent()
         try:
             while 1:
                 state = self.poll()
@@ -67,7 +79,9 @@ class connection(_psycopg.connection):
                     raise OperationalError(
                         'poll() returned %s' % state)
         finally:
-            del objects[id_]
+            self.x_co = None
+
+    cursor, x_co = cursor, None
 
 def connect(dsn=None,
         database=None, user=None, password=None,
@@ -90,18 +104,20 @@ def connect(dsn=None,
             for (k, v) in items])
         if not dsn:
             raise InterfaceError('missing dsn and no parameters')
-    return _connect(dsn, connection_factory=connection, async=True)
+    return _connect(dsn, connection_factory=connection)
 
 class Conn(Structure):
     _fields_ = [('r_io', ev_io), ('w_io', ev_io)]
 
 def callback(l, w, e):
     id_ = w.contents.data
-    co  = objects[id_]()
-    try:
-        co.switch()
-    except:
-        print_exc(file=sys.stderr)
+    connection1  = objects[id_]()
+    if connection1  is not None and \
+       connection1.x_co is not None:
+        try:
+            connection1.x_co.switch()
+        except:
+            print_exc(file=sys.stderr)
 
 def find_cb(type_):
     for k, v in type_._fields_:
@@ -110,7 +126,7 @@ def find_cb(type_):
 
 def get_conn0():
     conn1, buf = Conn(), create_string_buffer(sizeof_conn)
-    conn1.r_io.cb, conn1.w_io.cb = c_r_io_cb, c_w_io_cb
+    conn1.r_io.cb = conn1.w_io.cb = c_callback
     conn1.r_io.events = EV__IOFDSET | EV_READ
     conn1.w_io.events = EV__IOFDSET | EV_WRITE
     memmove(buf, byref(conn1), sizeof_conn)
@@ -118,12 +134,9 @@ def get_conn0():
 
 objects = {}
 sizeof_conn = sizeof(Conn)
-c_callback = find_cb(ev_io)(callback)
+c_callback  = find_cb(ev_io)(callback)
 conn0 = get_conn0(); del get_conn0
 cursor_execute     = _psycopg.cursor.execute
 cursor_executemany = _psycopg.cursor.executemany
 cursor_callproc    = _psycopg.cursor.callproc
-cursor_mogrify     = _psycopg.cursor.mogrify
 connect_init       = _psycopg.connection.__init__
-connect_commit     = _psycopg.connection.commit
-connect_rollback   = _psycopg.connection.rollback
