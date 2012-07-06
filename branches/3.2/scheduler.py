@@ -191,7 +191,7 @@ def get_timer0():
     timer1= ev_timer()
     buf = create_string_buffer(sizeof_timer)
     memset(byref(timer1), 0, sizeof_timer)
-    timer1.cb = c_sleep_cb
+    timer1.cb = c_timer_cb
     memmove(buf, byref(timer1), sizeof_timer)
     return buf
 
@@ -213,7 +213,7 @@ from exceptions_ import Empty, Full, Timeout
 
 objects = {}
 sizeof_timer = sizeof (ev_timer)
-c_sleep_cb   = find_cb(ev_timer)(callback)
+c_timer_cb   = find_cb(ev_timer)(callback)
 timer0 = get_timer0(); del get_timer0
 
 if hasattr(libev, 'ev_idle_start'):
