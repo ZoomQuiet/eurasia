@@ -95,25 +95,18 @@ def connect(dsn=None,
 class Conn(Structure):
     _fields_ = [('r_io', ev_io), ('w_io', ev_io)]
 
-code = '''def %(type)s_io_cb(l, w, e):
+def callback(l, w, e):
     id_ = w.contents.data
-    conn = objects[id_]()
-    if conn is not None and conn.x_co is not None:
-        try:
-            conn.x_co.switch()
-        except:
-            print_exc(file=sys.stderr)'''
-for type_ in 'rw':
-    exec(code % {'type': type_})
+    co  = objects[id_]()
+    try:
+        co.switch()
+    except:
+        print_exc(file=sys.stderr)
 
 def find_cb(type_):
     for k, v in type_._fields_:
         if 'cb' == k:
             return v
-
-for type_ in 'rw':
-    exec('c_%s_io_cb = find_cb(ev_io)(%s_io_cb)' % tuple([type_] * 2))
-del code, type_
 
 def get_conn0():
     conn1, buf = Conn(), create_string_buffer(sizeof_conn)
@@ -125,6 +118,7 @@ def get_conn0():
 
 objects = {}
 sizeof_conn = sizeof(Conn)
+c_callback = find_cb(ev_io)(callback)
 conn0 = get_conn0(); del get_conn0
 cursor_execute     = _psycopg.cursor.execute
 cursor_executemany = _psycopg.cursor.executemany
