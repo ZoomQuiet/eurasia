@@ -161,7 +161,7 @@ interface('eio_grp', eio_req_p, eio_cb, c_void_p)
 interface('eio_grp_add', None, eio_req_p, eio_req_p)
 interface('eio_grp_cancel', None, eio_req_p)
 # OTHER
-interface('eio_wd_open', eio_req, c_char_p,
+interface('eio_wd_open', eio_req_p, c_char_p,
     c_int, eio_cb, c_void_p)
 interface('eio_wd_close', eio_wd,
     c_int, eio_cb, c_void_p)

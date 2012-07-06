@@ -187,7 +187,7 @@ class SocketWrapper:
             finally:
                 self.r_co = None
         else:
-            assert self.r_co is not None, 'read conflict'
+            assert self.r_co is None, 'read conflict'
             cli = self.cli
             self.r_co = getcurrent()
             cli.r_tm.at = timeout
@@ -250,7 +250,7 @@ class SocketWrapper:
             finally:
                 self.r_co = None
         else:
-            assert self.r_co is not None, 'read conflict'
+            assert self.r_co is None, 'read conflict'
             cli = self.cli
             self.r_co = getcurrent()
             cli.r_tm.at = timeout
@@ -324,7 +324,7 @@ class SocketWrapper:
         return buf.getvalue()
 
     def write(self, data, timeout=-1):
-        assert self.w_co is not None, 'write conflict'
+        assert self.w_co is None, 'write conflict'
         pos  = 0
         cli  = self.cli
         left = len(data)
@@ -427,7 +427,7 @@ class SocketWrapper:
         ev_io_stop(EV_DEFAULT_UC,
             byref(self.cli.%(type)s_io))
 def %(type)s_wait(self, timeout):
-    assert self.%(type)s_co is not None, '%(name)s conflict'
+    assert self.%(type)s_co is None, '%(name)s conflict'
     cli = self.cli
     self.%(type)s_co = co = getcurrent()
     cli.%(type)s_tm.at = timeout
