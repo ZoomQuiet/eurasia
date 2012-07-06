@@ -9,31 +9,30 @@ from psycopg2.extensions import POLL_OK, POLL_WRITE, POLL_READ
 from psycopg2 import _param_escape, InterfaceError, OperationalError
 
 class cursor(_psycopg.cursor):
-    for func in ['execute' 'executemany', 'callproc', 'mogrify']:
-        exec('''def %s(self, *args):
-    cursor_%s(self, *args)
-    self.connection.wait()''' % (func, func))
+    def execute(self, operation, *args):
+        cursor_execute(self, operation, *args)
+        self.connection.wait()
+
+    def executemany(self, operation, seq_of_parameters):
+        cursor_executemany(self, operation, seq_of_parameters)
+        self.connection.wait()
+
+    def callproc(self, procname, *args):
+        cursor_callproc(self, procname, *args)
+        self.connection.wait()
+
+    def mogrify(self, operation, *args):
+        cursor_mogrify(self, operation, *args)
+        self.connection.wait()
 
 class connection(_psycopg.connection):
-    def __init__(self, connection_factory, async):
-        connect_init(self, connection_factory, async)
-        self.conn = conn1 = Conn()
-        memmove(byref(conn1), conn0, sizeof_conn)
-        conn1.r_io.fd = conn1.w_io.fd = self.fileno()
-        conn1.r_io.data = conn1.w_io.data = self.id_ = \
-                id_ = c_uint(id(self)).value
-        objects[id_] = ref(self)
+    def commit(self):
+        connection_commit(self)
+        self.wait()
 
-    def __del__(self):
-        try:
-            del objects[self.id_]
-        except KeyError:
-            pass
-
-    for func in ['commit' 'rollback']:
-        exec('''def %s(self, *args):
-    connection_%s(self, *args)
-    self.wait()'''  % (func, func))
+    def rollback(self):
+        connection_rollback(self)
+        self.wait()
 
     def cursor(self, **kwargs):
         cursor1 = cursor(self, **kwargs)
@@ -41,32 +40,34 @@ class connection(_psycopg.connection):
 
     def wait(self):
         co = getcurrent()
-        conn1 = self.conn
-        while 1:
-            state = self.poll()
-            if POLL_OK == state:
-                break
-            elif POLL_WRITE == state:
-                assert self.w_co is not None, 'write conflict'
-                self.w_co = co
-                ev_io_start(EV_DEFAULT_UC, byref(conn.w_io))
-                try:
-                    co.parent.switch()
-                finally:
-                    ev_io_stop(EV_DEFAULT_UC, byref(conn.w_io))
-                    self.w_co = None
-            elif POLL_READ == state:
-                assert self.r_co is not None, 'read conflict'
-                self.r_co = co
-                try:
-                    co.parent.switch()
-                finally:
-                    ev_io_stop(EV_DEFAULT_UC, byref(conn.r_io))
-                    self.r_co = None
-            else:
-                raise OperationalError('poll() returned %s' % state)
-
-    close, r_co, w_co = __del__, None, None
+        conn1 = Conn()
+        memmove(byref(conn1), conn0, sizeof_conn)
+        conn1.r_io.fd   = conn1.w_io.fd   = self.fileno()
+        conn1.r_io.data = conn1.w_io.data = \
+            id_ = c_uint(id(co)).value
+        objects[id_] = ref(co)
+        try:
+            while 1:
+                state = self.poll()
+                if POLL_OK == state:
+                    break
+                elif POLL_WRITE == state:
+                    ev_io_start(EV_DEFAULT_UC, byref(conn1.w_io))
+                    try:
+                        co.parent.switch()
+                    finally:
+                        ev_io_stop(EV_DEFAULT_UC, byref(conn1.w_io))
+                elif POLL_READ == state:
+                    ev_io_start(EV_DEFAULT_UC, byref(conn1.r_io))
+                    try:
+                        co.parent.switch()
+                    finally:
+                        ev_io_stop(EV_DEFAULT_UC, byref(conn1.r_io))
+                else:
+                    raise OperationalError(
+                        'poll() returned %s' % state)
+        finally:
+            del objects[id_]
 
 def connect(dsn=None,
         database=None, user=None, password=None,
@@ -97,9 +98,9 @@ class Conn(Structure):
 code = '''def %(type)s_io_cb(l, w, e):
     id_ = w.contents.data
     conn = objects[id_]()
-    if conn is not None and conn.%(type)s_co is not None:
+    if conn is not None and conn.x_co is not None:
         try:
-            conn.%(type)s_co.switch()
+            conn.x_co.switch()
         except:
             print_exc(file=sys.stderr)'''
 for type_ in 'rw':
@@ -112,6 +113,7 @@ def find_cb(type_):
 
 for type_ in 'rw':
     exec('c_%s_io_cb = find_cb(ev_io)(%s_io_cb)' % tuple([type_] * 2))
+del code, type_
 
 def get_conn0():
     conn1, buf = Conn(), create_string_buffer(sizeof_conn)
@@ -124,9 +126,10 @@ def get_conn0():
 objects = {}
 sizeof_conn = sizeof(Conn)
 conn0 = get_conn0(); del get_conn0
-connect_init     = _psycopg.connection.__init__
-connect_commit   = _psycopg.connection.commit
-connect_rollback = _psycopg.connection.rollback
-for func in ['execute', 'executemany', 'callproc', 'mogrify']:
-    exec('%s = _psycopg.cursor.%s' % (func, func))
-del code, type_, func
+cursor_execute     = _psycopg.cursor.execute
+cursor_executemany = _psycopg.cursor.executemany
+cursor_callproc    = _psycopg.cursor.callproc
+cursor_mogrify     = _psycopg.cursor.mogrify
+connect_init       = _psycopg.connection.__init__
+connect_commit     = _psycopg.connection.commit
+connect_rollback   = _psycopg.connection.rollback
