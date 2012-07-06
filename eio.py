@@ -100,9 +100,11 @@ interface('eio_fchown', eio_req_p, c_int, c_int, c_int,
     c_int, eio_cb, c_void_p)
 interface('eio_dup2', eio_req_p, c_int, c_int,
     c_int, eio_cb, c_void_p)
-interface('eio_read', eio_req_p, c_int, c_void_p, c_size_t, c_off_t,
+interface('eio_read',
+    eio_req_p, c_int, c_void_p, c_size_t, c_off_t,
     c_int, eio_cb, c_void_p)
-interface('eio_write', eio_req_p, c_int, c_void_p, c_size_t, c_off_t,
+interface('eio_write',
+    eio_req_p, c_int, c_void_p, c_size_t, c_off_t,
     c_int, eio_cb, c_void_p)
 interface('eio_mlockall', eio_req_p, c_int,
     c_int, eio_cb, c_void_p)
