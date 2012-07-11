@@ -3,6 +3,7 @@ from time import time
 from errno import ETIMEDOUT
 from exceptions_  import Timeout
 from urllib.parse import unquote
+from scheduler import idle_switch
 from greenlet import getcurrent, greenlet, GreenletExit
 from socket_ import serve_forever, exit, run, break_, mainloop
 
@@ -144,11 +145,13 @@ class httpfile:
                 seconds = float(seconds)
                 if -1 == keep_alive or keep_alive > seconds:
                     keep_alive = seconds
-                greenlet(self._reuse).switch(keep_alive)
+                back_ = getcurrent()
+                goto_ = greenlet(self._reuse, back_.parent)
+                idle_switch(back_, goto_, keep_alive)
             else:
-                return self.owner.switch(0)
+                return idle_switch(getcurrent(), self.owner, 0)
         else:
-            return self.owner.switch(0)
+            return idle_switch(getcurrent(), self.owner, 0)
 
     def _reuse(self, keep_alive):
         s = self.socket
