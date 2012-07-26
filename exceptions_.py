@@ -1,3 +1,6 @@
+class Cancelled(Exception):
+    pass
+
 class Full(Exception):
     pass
 

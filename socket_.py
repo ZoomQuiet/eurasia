@@ -507,16 +507,24 @@ code = '''def %(type)s_io_cb(l, w, e):
     id_ = w.contents.data
     cli = objects[id_]()
     if cli is not None and cli.%(type)s_co is not None:
+        co     = getcurrent()
+        goto_  = cli.%(type)s_co
+        co.parent = goto_.parent
+        goto_.parent = co
         try:
-            cli.%(type)s_co.switch()
+            goto_.switch()
         except:
             print_exc(file=sys.stderr)
 def %(type)s_tm_cb(l, w, e):
     id_ = w.contents.data
     cli = objects[id_]()
     if cli is not None and cli.%(type)s_co is not None:
+        co     = getcurrent()
+        goto_  = cli.%(type)s_co
+        co.parent = goto_.parent
+        goto_.parent = co
         try:
-            cli.%(type)s_co.throw(
+            goto_.throw(
                 Timeout,
                 Timeout(ETIMEDOUT, '%(name)s timed out'))
         except:
