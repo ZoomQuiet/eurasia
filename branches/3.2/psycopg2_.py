@@ -29,7 +29,7 @@ class cursor(_psycopg.cursor):
 
 class connection(_psycopg.connection):
     def __init__(self, dsn):
-        connect_init(self, dsn, async=1)
+        connection_init(self, dsn, async=1)
         self.conn = conn1 = Conn()
         memmove(byref(conn1), conn0, sizeof_conn)
         conn1.r_io.fd   = conn1.w_io.fd   = self.fileno()
@@ -139,4 +139,4 @@ conn0 = get_conn0(); del get_conn0
 cursor_execute     = _psycopg.cursor.execute
 cursor_executemany = _psycopg.cursor.executemany
 cursor_callproc    = _psycopg.cursor.callproc
-connect_init       = _psycopg.connection.__init__
+connection_init    = _psycopg.connection.__init__

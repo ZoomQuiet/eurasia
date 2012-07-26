@@ -168,7 +168,7 @@ def httphandler(handler, **environ):
                 REMOTE_ADDR=addr[0],
                 REMOTE_PORT=addr[1], **environ))
         else:
-            handler(httpfile(s, handler, environ))
+            handler(httpfile(s, handler, **environ))
     return wrapper
 
 class Server(socket_.TCPServer):
