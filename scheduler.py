@@ -114,12 +114,9 @@ code = '''class new_timer_%(name)s:
             ev_timer_stop(EV_DEFAULT_UC, byref(self.timer))
     def __call__(self, goto_, seconds, %(args)s):
         assert not self.timer.active
-        co  =  getcurrent()
         timer1 = self.timer
         timer1.at = seconds
         ev_timer_start(EV_DEFAULT_UC, byref(timer1))
-        co.parent = goto_.parent
-        goto_.parent = co
         try:
             %(func)s
         finally:
@@ -128,15 +125,12 @@ code = '''class new_timer_%(name)s:
         if self.timer.active:
             ev_timer_stop(EV_DEFAULT_UC, byref(self.timer))
 def timer_%(name)s(back_, goto_, seconds, %(args)s):
-    co  =  getcurrent()
     timer1 = ev_timer()
     memmove(byref(timer1), timer0, sizeof_timer)
     timer1.at = seconds
     timer1.data = id_ = c_uint(id(back_)).value
     objects[id_] = ref(back_)
     ev_timer_start(EV_DEFAULT_UC, byref(timer1))
-    co.parent = goto_.parent
-    goto_.parent = co
     try:
         %(func)s
     finally:
@@ -154,11 +148,8 @@ class new_idle_%(name)s:
             ev_idle_stop(EV_DEFAULT_UC, byref(self.idle))
     def __call__(self, goto_, %(args)s):
         assert not self.idle.active
-        co = getcurrent()
         idle1 = self.idle
         ev_idle_start(EV_DEFAULT_UC, byref(idle1))
-        co.parent = goto_.parent
-        goto_.parent = co
         try:
             %(func)s
         finally:
@@ -167,14 +158,11 @@ class new_idle_%(name)s:
         if self.idle.active:
             ev_idle_stop(EV_DEFAULT_UC, byref(self.idle))
 def idle_%(name)s(back_, goto_, %(args)s):
-    co = getcurrent()
     idle1 = ev_idle()
     memmove(byref(idle1), idle0, sizeof_idle)
     idle1.data = id_ = c_uint(id(back_)).value
     objects[id_] = ref(back_)
     ev_idle_start(EV_DEFAULT_UC, byref(idle1))
-    co.parent = goto_.parent
-    goto_.parent = co
     try:
         %(func)s
     finally:
@@ -187,13 +175,10 @@ for name, args, func in [
 del code, name, args, func
 
 def callback(l, w, e):
-    id_    = w.contents.data
-    back_  =  objects[id_]()
-    co     =    getcurrent()
-    co.parent = back_.parent
-    back_.parent = co
+    id_   = w.contents.data
+    back_ =  objects[id_]()
     try:
-        co.switch()
+        back_.switch()
     except:
         print_exc(file=sys.stderr)
 

@@ -1,23 +1,23 @@
-code = '''def %(name)s(%(args)s timeout=-1):
+code = '''def %(name1)s(%(args1)s timeout=-1):
     co  = getcurrent()
     id_ = c_uint(id(co)).value
-    if -1 == timeout:%(s8)s
+    if -1 == timeout:%(prepare)s
         objects[id_] = ref(co)
-        req = %(eio_name)s(%(eio_args)s 0, c_callback, id_)
+        req = eio_%(name2)s(%(args2)s 0, c_callback, id_)
         try:
             co.parent.switch()
             contents = req.contents
             if contents.cancelled:
-                raise default_cancelled%(s12)s
+                raise default_cancelled%(result)s
         finally:
             del objects[id_]
-    else:%(s8)s
+    else:%(prepare)s
         objects[id_] = ref(co)
         timer1 = ev_timer()
         memmove(byref(timer1), timer0, sizeof_timer)
         timer1.at = timeout
         ev_timer_start(EV_DEFAULT_UC, byref(timer1))
-        req = %(eio_name)s(%(eio_args)s 0, c_callback, id_)
+        req = eio_%(name2)s(%(args2)s 0, c_callback, id_)
         try:
             contents = req.contents
             try:
@@ -26,103 +26,95 @@ code = '''def %(name)s(%(args)s timeout=-1):
                 if contents.cancelled:
                     raise default_cancelled
                 eio_cancel(req)
-                raise%(s12)s
+                raise%(result)s
         finally:
             ev_timer_stop(EV_DEFAULT_UC, byref(timer1))
             del objects[id_]
     return contents'''
 
-def s_n(n, lines):
-    lines = lines.rstrip()
-    if not lines:
-        return '\n'
-    return ''.join(['\n%s%s' % (' '*n, s
-        ) for s in lines.split('\n')])
+prepare = '''
+        buf = create_string_buffer(length)'''
+result  = '''
+            return buf.raw'''
+exec code % {
+    'name1' : 'read',
+    'name2' : 'read',
+    'args1' : 'fd,length,offset,',
+    'args2' : 'fd,buf,length,offset,',
+    'result':  result, 'prepare': prepare}
+result = '''
+            return contents.size'''
+exec code % {
+    'name1' : 'write',
+    'name2' : 'write',
+    'args1' : 'fd,data,offset,',
+    'args2' : 'fd,data,len(data),offset,',
+    'result':  result , 'prepare': ''}
+result = '''
+            return cast(contents.ptr2, c_char_p).value'''
+name, args = 'readlink', 'path,'
+exec code % {
+    'name1' : name  , 'name2': name,
+    'args1' : args  , 'args2': args,
+    'result': result, 'prepare': ''}
+result = '''
+            res  = contents.result
+            data = cast(contents.ptr2, POINTER(c_char*(res*0xfe))
+                ).contents.raw
+            return data.split('\\x00')'''
+args = 'path,flags,'
+exec code % {
+    'name1' : 'readdir', 'name2'  : 'readdir',
+    'args1' :  args    , 'args2'  :  args    ,
+    'result':  result  , 'prepare': ''}
+result = '''
+            st = cast(contents.ptr2, c_stat_p).contents
+            return pystat(
+                st.st_mode , st.st_ino  , st.st_dev  ,
+                st.st_nlink, st.st_uid  , st.st_gid  , st.st_size,
+                st.st_atime, st.st_mtime, st.st_ctime)'''
+for name, args in [( 'stat', 'path,'), ('lstat', 'path,'), ('fstat', 'fd,')]:
+    exec code % {
+        'name1' : name  , 'name2': name,
+        'args1' : args  , 'args2': args,
+        'result': result, 'prepare': ''}
+result = '''
+            st = cast(contents.ptr2, c_stat_p).contents
+            return pystatvfs(
+                st.f_bsize , st.f_frsize, st.f_blocks,
+                st.f_bfree , st.f_bavail, st.f_files , st.f_ffree,
+                st.f_favail, st.f_flag  , st.f_namemax)'''
+for name, args in [('statvfs', 'path,'), ('fstatvfs', 'fd,')]:
+    exec code % {
+        'name1' : name  , 'name2': name,
+        'args1' : args  , 'args2': args,
+        'result': result, 'prepare': ''}
+result = '''
+            return contents.result'''
+for s in '''open path,flags,mode|truncate path,offset|chown path,uid,gid|chmod\
+ path,mode|mkdir path,mode|rmdir path|unlink path|utime path,atime,mtime|mknod\
+ path,mode,dev|link path,new_path|symlink path,new_path|rename path,new_path|m\
+lock addr,length|close fd|sync|fsync fd|fdatasync fd|futime fd,atime,mtime|ftr\
+uncate fd,offset|fchmod fd,mode|fchown fd,uid,gid|dup2 fd,fd2|mlockall flags|m\
+sync addr,length,flags|realpath path|sendfile out_fd,in_fd,in_offset,length|re\
+adahead fd,offset,length|syncfs fd|sync_file_range fd,offset,nbytes,flags|fall\
+ocate fd,mode,offset,len_|mtouch addr,length,flags|busy delay'''.split('|'):
+    args = s.split(None, 1)
+    if len(args) == 1:
+        name, args = args[0], ''
+    else:
+        name, args = args[0], args[1] + ','
+    exec code % {
+        'name1' : name  , 'name2': name,
+        'args1' : args  , 'args2': args,
+        'result': result, 'prepare': ''}
 
-for lines, args in [
-    ('''\
-st = cast(contents.ptr2, c_stat_p).contents
-return pystatvfs(
-    st.f_bsize , st.f_frsize, st.f_blocks,
-    st.f_bfree , st.f_bavail, st.f_files , st.f_ffree,
-    st.f_favail, st.f_flag  , st.f_namemax)''', [
-        ('statvfs'  , 'path,'),
-        ('fstatvfs' , 'fd,')]),
-    ('''\
-st = cast(contents.ptr2, c_stat_p).contents
-return pystat(
-    st.st_mode , st.st_ino  , st.st_dev  ,
-    st.st_nlink, st.st_uid  , st.st_gid  , st.st_size,
-    st.st_atime, st.st_mtime, st_ctime)''', [
-        ( 'stat'    , 'path,'),
-        ('lstat'    , 'path,'),
-        ('fstat'    , 'fd,')]),
-    ('''\
-res  = contents.result
-data = cast(contents.ptr2, POINTER(c_char*(res*0xfe))
-    ).contents.raw
-return data.split('\x00')''', [
-        ('readdir'  , 'path, flags,')]),
-    ('''\
-return cast(contents.ptr2, c_char_p).value''', [
-        ('readlink' , 'path')]),
-    ('''\
-return contents.result''', [
-        ('open'     , 'path, flags, mode,'),
-        ('truncate' , 'path, offset,' ),
-        ('chown'    , 'path, uid, gid,'),
-        ('chmod'    , 'path, mode,'),
-        ('mkdir'    , 'path, mode,'),
-        ('rmdir'    , 'path,'),
-        ('unlink'   , 'path,'),
-        ('utime'    , 'path, atime, mtime,'),
-        ('mknod'    , 'path, mode, dev,'),
-        ('link'     , 'path, new_path,'),
-        ('symlink'  , 'path, new_path,'),
-        ('rename'   , 'path, new_path,'),
-        ('mlock'    , 'addr, length,'),
-        ('close'    , 'fd'),
-        ('sync'     , ''),
-        ('fsync'    , 'fd,'),
-        ('fdatasync', 'fd,'),
-        ('futime'   , 'fd, atime, mtime,'),
-        ('ftruncate', 'fd, offset,'),
-        ('fchmod'   , 'fd, mode,'),
-        ('fchown'   , 'fd, uid, gid,'),
-        ('dup2'     , 'fd, fd2,'),
-        ('mlockall' , 'flags,'),
-        ('msync'    , 'addr, length, flags,'),
-        ('realpath' , 'path,'),
-        ('sendfile' , 'out_fd, in_fd, in_offset, length,'),
-        ('readahead', 'fd, offset, length,'),
-        ('syncfs'   , 'fd,'),
-        ('sync_file_range', 'fd, offset, nbytes, flags,')
-        ('fallocate', 'fd, mode, offset, len_,')
-        ('mtouch'   , 'addr, length, flags,'),
-        ('busy'     , 'delay,'),
-        ('nop'      , '')])]:
-    for name, args in args:
-        exec code % {
-            's12' : s_n(12, lines),
-            's8'  : s_n(8 , ''),
-            'name': name, 'eio_name': 'eio_' + name,
-            'args': args, 'eio_args':  args }
-exec code % {
-    's12' :  s_n(12, 'return buf.raw'),
-    's8'  : 'buf = create_string_buffer(length)',
-    'name': 'read' , 'eio_name': 'eio_read',
-    'args': 'fd, length, offset',
-    'eio_args': 'fd, buf, length, offset,' }
-exec code % {
-    's12' : s_n(12, 'return contents.size'),
-    's8'  : '',
-    'name': 'write', 'eio_name': 'eio_write',
-    'args': 'fd, data, offset',
-    'eio_args': 'fd, buf, len(data), offset,'}
-del args, code, name, lines, sn
+del args, code, name, prepare, result, s
+pread, pwrite, listdir = read, write, readdir
 
 import sys
-from pyev import *
+from pyev  import *
+from pyeio import *
 from os import strerror
 from weakref import ref
 from errno import ETIMEDOUT
@@ -137,9 +129,6 @@ def callback(req):
     back_ = objects[id_]()
     if back_ is None:
         return 0
-    co = getcurrent()
-    co.parent = back_.parent
-    back_.parent = co
     errorno = contents.errorno
     if 0 == errorno:
         try:
@@ -159,9 +148,6 @@ def timer_cb(l, w, e):
     id_   = w.contents.data
     back_ = objects[id_]()
     if back_ is not None:
-        co = getcurrent()
-        co.parent = back_.parent
-        back_.parent = co
         try:
             back_.throw(
                 Timeout,
@@ -181,18 +167,12 @@ for k, v in ev_timer._fields_:
     if 'cb' == k:
         c_timer_cb = v(timer_cb)
 
-pystat = namedtuple('pystat', [
-    'st_mode' , 'st_ino'  , 'st_dev'  ,
-    'st_nlink', 'st_uid'  , 'st_gid'  , 'st_size',
-    'st_atime', 'st_mtime', 'st_ctime'])
-
-pystatvfs = namedtuple('pystatvfs', [
-    'f_bsize' , 'f_frsize', 'f_blocks',
-    'f_bfree' , 'f_bavail', 'f_files' , 'f_ffree',
-    'f_favail', 'f_flag'  , 'f_namemax'])
-
 objects = {}
 c_callback = eio_cb(callback)
+default_cancelled = Cancelled()
 sizeof_timer = sizeof(ev_timer)
 timer0 = get_timer0(); del get_timer0
-default_cancelled = Cancelled()
+pystat = namedtuple('pystat', '''st_mode st_ino st_dev st_nlink st_uid st_gid \
+st_size st_atime st_mtime st_ctime'''.split())
+pystatvfs = namedtuple('pystatvfs', '''f_bsize f_frsize f_blocks f_bfree f_bav\
+ail f_files f_ffree f_favail f_flag f_namemax'''.split())
