@@ -15,13 +15,14 @@ libeio = CDLL(where)
 eio_ssize_t = c_ssize_t
 eio_tstamp  = c_double
 # eio_wd = c_void_p  # POINTER(eio_pwd)
+
+class eio_pwd(Structure):
+    pass
+
 eio_wd = POINTER(eio_pwd)
 eio_pwd._fields_ = [('len', c_int), ('str', c_char_p)]
 # if HAVE_AT in config.h:
 #     eio_pwd._fields_.insert(0, ('fd', c_int))
-
-class eio_pwd(Structure):
-    pass
 
 class eio_req(Structure):
     pass
@@ -45,9 +46,13 @@ eio_req._fields_ = [
     ('grp_next' , eio_req_p  ), ('grp_first', eio_req_p )]
 
 def interface(name, restype, *argtypes):
-    func = getattr(libeio, name)
-    func.restype, func.argtypes = restype, argtypes
-    globals()[name] = func
+    try:
+        func = getattr(libeio, name)
+    except AttributeError:
+        pass
+    else:
+        func.restype, func.argtypes = restype, argtypes
+        globals()[name] = func
 
 # INITIALISATION/INTEGRATION
 interface('eio_init'  , c_int, CFUNCTYPE(None), CFUNCTYPE(None))
