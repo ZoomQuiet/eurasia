@@ -172,7 +172,7 @@ class Server(socket_.TCPServer):
         environ.setdefault('SERVER_NAME', self.server_name)
         environ.setdefault('SERVER_PORT', self.server_port)
 
-HTTPServer = Server
+server = HTTPServer = Server
 
 is_seconds = re.compile((r'^\s*[1-9][0-9]{0,6}\s*$')).match
 is_header  = re.compile((r'^[\s\t]*([^\r\n:]+)[\s\t]*:[\s\t]*([^\r\n]+)[\s\t]*'
