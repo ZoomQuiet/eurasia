@@ -461,7 +461,7 @@ class TCPServer(TCPServerWrapper):
 
     request_queue_size, activated = 8192, 0
 
-Server = TCPServer
+server = Server = TCPServer
 
 class TCPSocket(SocketWrapper):
     def __init__(self, address, timeout):
@@ -478,7 +478,7 @@ class TCPSocket(SocketWrapper):
             SocketWrapper.__init__(self, s)
             self.connect(addr)
 
-Socket = TCPSocket
+socket = Socket = TCPSocket
 
 class Cli(Structure):
     _fields_ = [('r_io', ev_io), ('r_tm', ev_timer),
