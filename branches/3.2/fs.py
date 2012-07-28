@@ -89,17 +89,27 @@ for name, args in [('statvfs', 'path,'), ('fstatvfs', 'fd,')]:
         'name1' : name  , 'name2': name,
         'args1' : args  , 'args2': args,
         'result': result, 'prepare': ''}
-result = '''
+result  = '''
             return contents.result'''
-for s in '''open path,flags,mode|truncate path,offset|chown path,uid,gid|chmod\
- path,mode|mkdir path,mode|rmdir path|unlink path|utime path,atime,mtime|mknod\
- path,mode,dev|link path,new_path|symlink path,new_path|rename path,new_path|m\
-lock addr,length|close fd|sync|fsync fd|fdatasync fd|futime fd,atime,mtime|ftr\
-uncate fd,offset|fchmod fd,mode|fchown fd,uid,gid|dup2 fd,fd2|mlockall flags|m\
-sync addr,length,flags|realpath path|sendfile out_fd,in_fd,in_offset,length|re\
-adahead fd,offset,length|syncfs fd|sync_file_range fd,offset,nbytes,flags|fall\
-ocate fd,mode,offset,len_|mtouch addr,length,flags|busy delay'''.split('|'):
-    args = s.split(None, 1)
+for args in '''open path,flags,mode=0777:path,flags,mode|mkdir path,mode=0777:\
+path,mode|mknod path,mode=0600,dev=0:path,mode,dev'''.split('|'):
+    name, args = args.split(None, 1)
+    args       = args.split( ':', 1)
+    exec code % {
+        'name1' : name,
+        'name2' : name,
+        'args1' : args[0]+',',
+        'args2' : args[1]+',',
+        'result': result, 'prepare': ''}
+for args in '''truncate path,offset|chown path,uid,gid|chmod path,mode|rmdir p\
+ath|unlink path|utime path,atime,mtime|link path,new_path|symlink path,new_pat\
+h|rename path,new_path|mlock addr,length|close fd|sync|fsync fd|fdatasync fd|f\
+utime fd,atime,mtime|ftruncate fd,offset|fchmod fd,mode|fchown fd,uid,gid|dup2\
+ fd,fd2|mlockall flags|msync addr,length,flags|realpath path|sendfile out_fd,i\
+n_fd,in_offset,length|readahead fd,offset,length|syncfs fd|sync_file_range fd,\
+offset,nbytes,flags|fallocate fd,mode,offset,len_|mtouch addr,length,flags|bus\
+y delay'''.split('|'):
+    args = args.split(None, 1)
     if len(args) == 1:
         name, args = args[0], ''
     else:
@@ -109,7 +119,7 @@ ocate fd,mode,offset,len_|mtouch addr,length,flags|busy delay'''.split('|'):
         'args1' : args  , 'args2': args,
         'result': result, 'prepare': ''}
 
-del args, code, name, prepare, result, s
+del args, code, name, prepare, result
 pread, pwrite, listdir = read, write, readdir
 
 import sys
