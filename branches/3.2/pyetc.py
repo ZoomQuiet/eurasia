@@ -11,6 +11,7 @@ def load(filename, **args):
     return module
 
 def restricted(code):
+
     _ = black(white('', code))
     if _:
         raise SyntaxError('invalid statement "%s"' \
@@ -20,6 +21,6 @@ def restricted(code):
 import imp, re
 black = re.compile(( r'((?:^|[\s])(?:import|from|as|with|'
     r'def|lambda|class|if|for|while|print|exec)[\s\\():]|'
-    r'[^\w\s=()\-[\]{},#])')).search
+    r'[^\w\s=()\-[\]{},#:])')).search
 white = re.compile(( r'(?:"(?:(?:\\\\)?(?:\\")?[^"]?)*")?'
     r"(?:'(?:(?:\\\\)?(?:\\')?[^']?)*')?")).sub; del re
