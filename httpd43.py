@@ -136,7 +136,8 @@ class httpfile:
             return self.owner.switch(0)
         if -1 == timeout:
             timeout = 16.
-        self.socket.write(b'0\r\n\r\n', timeout)
+        if self.headers_sent:
+            self.socket.write(b'0\r\n\r\n', timeout)
         environ = self.environ
         if 'HTTP_KEEP_ALIVE'  in  environ or environ.get(
            'HTTP_CONNECTION', '').lower() == 'keep-alive':
