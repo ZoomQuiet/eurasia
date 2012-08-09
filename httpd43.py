@@ -158,18 +158,30 @@ class httpfile:
         s = self.socket
         reuse = self.reuse
         s.r_wait(keep_alive)
-        reuse(httpfile(s, reuse, **self.bgenv))
+        try:
+            http = httpfile(s, reuse, **self.bgenv)
+        except:
+            return
+        reuse(http)
 
     closed = headers_sent = 0
 
 def httphandler(handler, **environ):
     def wrapper(s, addr):
         if isinstance(addr, tuple):
-            handler(httpfile(s, handler,
-                REMOTE_ADDR=addr[0],
-                REMOTE_PORT=addr[1], **environ))
+            try:
+                http = httpfile(s, handler,
+                    REMOTE_ADDR=addr[0],
+                    REMOTE_PORT=addr[1], **environ)
+            except:
+                return
+            handler(http)
         else:
-            handler(httpfile(s, handler, **environ))
+            try:
+                http = httpfile(s, handler, **environ)
+            except:
+                return
+            handler(http)
     return wrapper
 
 class Server(socket_.TCPServer):
