@@ -28,7 +28,8 @@ class eio_req(Structure):
     pass
 
 eio_req_p = POINTER(eio_req)
-eio_cb = CFUNCTYPE(c_int, eio_req_p)
+eio_cb  = CFUNCTYPE(c_int, eio_req_p)
+execute = CFUNCTYPE( None, eio_req_p)
 eio_req._fields_ = [
     ('next'     , eio_req_p  ), ('wd'       , eio_wd    ),
     ('result'   , eio_ssize_t), ('offs'     , c_off_t   ),
@@ -155,7 +156,7 @@ if hasattr(libeio, 'eio_fallocate'):
 # LIBEIO-SPECIFIC REQUESTS
 interface('eio_mtouch', eio_req_p, c_char_p, c_size_t, c_int,
     c_int, eio_cb, c_void_p)
-interface('eio_custom', eio_req_p, eio_req_p,
+interface('eio_custom', eio_req_p, execute,
     c_int, eio_cb, c_void_p)
 interface('eio_busy', eio_req_p, c_double,
     c_int, eio_cb, c_void_p)
@@ -172,3 +173,7 @@ interface('eio_wd_close', eio_wd,
     c_int, eio_cb, c_void_p)
 interface('eio_seek', eio_req_p, c_int, c_off_t, c_int,
     c_int, eio_cb, c_void_p)
+# MISC GARBAGE
+if hasattr(libeio, 'eio_sendfile_sync'):
+    interface('eio_sendfile_sync', eio_ssize_t,
+        c_int, c_int, c_off_t, c_size_t)
