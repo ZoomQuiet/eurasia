@@ -148,11 +148,11 @@ class httpfile:
                     keep_alive = seconds
                 back_ = getcurrent()
                 goto_ = greenlet(self._reuse, back_.parent)
-                idle_switch(back_, goto_, keep_alive)
+                idle_switch(back_, goto_, (keep_alive, ))
             else:
-                return idle_switch(getcurrent(), self.owner, 0)
+                return idle_switch(getcurrent(), self.owner, (0, ))
         else:
-            return idle_switch(getcurrent(), self.owner, 0)
+            return idle_switch(getcurrent(), self.owner, (0, ))
 
     def _reuse(self, keep_alive):
         s = self.socket
