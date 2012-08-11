@@ -169,8 +169,8 @@ def idle_%(name)s(back_, goto_, %(args)s):
         ev_idle_stop(EV_DEFAULT_UC, byref(idle1))
         del objects[id_]'''
 for name, args, func in [
-    ('switch', 'data=None', 'goto_.switch(data)'),
-    ('throw' , '*args'    , 'goto_.throw(*args)')]:
+    ('switch', 'args', 'goto_.switch(*args)'),
+    ('throw' , 'args', 'goto_.throw(*args)')]:
     exec(code % {'name': name, 'args': args, 'func': func})
 del code, name, args, func
 

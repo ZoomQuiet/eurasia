@@ -1,3 +1,4 @@
+from pool   import apply
 from errno  import EBADF
 from ctypes import get_errno
 from fcntl  import fcntl, F_SETFL
@@ -34,8 +35,11 @@ class fakesocket:
         self.fd = -1
 
 def popen3(*args):
-    _ = Popen(args, stdin=PIPE, stdout=PIPE, stderr=PIPE)
-    stdin  = SocketWrapper(fakesocket(_.stdin ))
-    stdout = SocketWrapper(fakesocket(_.stdout))
-    stderr = SocketWrapper(fakesocket(_.stderr))
+    result = apply(Popen, args, {
+        'stdin' : PIPE,
+        'stdout': PIPE,
+        'stderr': PIPE })
+    stdin  = SocketWrapper(fakesocket(result.stdin ))
+    stdout = SocketWrapper(fakesocket(result.stdout))
+    stderr = SocketWrapper(fakesocket(result.stderr))
     return stdin, stdout, stderr
