@@ -102,10 +102,10 @@ def new_idle():
         return idle_switch1(co.parent)
     return idle1
 
-code = '''class new_timer_%(name)s:
+code = '''class new_timer_%(name)s%(desc)s:
     def __init__(self, back_):
         self.timer = timer1 = ev_timer()
-        memmove(byref(timer1), timer0, sizeof_timer)
+        memmove(byref(timer1), %(timer0)s, sizeof_timer)
         timer1.data = self.id_ = id_ = c_uint(id(back_)).value
         objects[id_] = ref(back_)
     def __del__(self):
@@ -124,9 +124,9 @@ code = '''class new_timer_%(name)s:
     def stop(self):
         if self.timer.active:
             ev_timer_stop(EV_DEFAULT_UC, byref(self.timer))
-def timer_%(name)s(back_, goto_, seconds, %(args)s):
+def timer_%(name)s%(desc)s(back_, goto_, seconds, %(args)s):
     timer1 = ev_timer()
-    memmove(byref(timer1), timer0, sizeof_timer)
+    memmove(byref(timer1), %(timer0)s, sizeof_timer)
     timer1.at = seconds
     timer1.data = id_ = c_uint(id(back_)).value
     objects[id_] = ref(back_)
@@ -135,8 +135,16 @@ def timer_%(name)s(back_, goto_, seconds, %(args)s):
         %(func)s
     finally:
         ev_timer_stop(EV_DEFAULT_UC, byref(timer1))
-        del objects[id_]
-class new_idle_%(name)s:
+        del objects[id_]'''
+for desc, timer0 in [('', 'timer00'), ('_raise', 'timer01')]:
+    for name, args, func in [
+        ('switch', 'args=()', 'goto_.switch(*args)'),
+        ('throw' , 'args=()', 'goto_.throw (*args)')]:
+        exec(code % {
+            'args': args, 'desc': desc, 'func': func,
+                'name': name, 'timer0': timer0})
+
+code = '''class new_idle_%(name)s:
     def __init__(self, back_):
         self.idle = idle1 = ev_idle()
         memmove(byref(idle1), idle0, sizeof_idle)
@@ -172,7 +180,7 @@ for name, args, func in [
     ('switch', 'args=()', 'goto_.switch(*args)'),
     ('throw' , 'args=()', 'goto_.throw (*args)')]:
     exec(code % {'name': name, 'args': args, 'func': func})
-del code, name, args, func
+del args, code, desc, func, name, timer0
 
 def callback(l, w, e):
     id_   = w.contents.data
@@ -182,16 +190,26 @@ def callback(l, w, e):
     except:
         print_exc(file=sys.stderr)
 
+def timer_cb(l, w, e):
+    id_   = w.contents.data
+    back_ =  objects[id_]()
+    try:
+        back_.throw(
+            Timeout,
+            Timeout(ETIMEDOUT, 'operation timed out'))
+    except:
+        print_exc(file=sys.stderr)
+
 def find_cb(type_):
     for k, v in type_._fields_:
         if 'cb' == k:
             return v
 
-def get_timer0():
+def get_timer0(c_callback):
     timer1 = ev_timer()
     buf = create_string_buffer(sizeof_timer)
     memset(byref(timer1), 0, sizeof_timer)
-    timer1.cb = c_timer_cb
+    timer1.cb = c_callback
     memmove(buf, byref(timer1), sizeof_timer)
     return buf
 
@@ -206,6 +224,7 @@ def get_idle0():
 import sys
 from pyev import *
 from weakref  import ref
+from errno import ETIMEDOUT
 from collections import deque
 from greenlet import getcurrent
 from traceback import print_exc
@@ -213,8 +232,10 @@ from exceptions_ import Empty, Full, Timeout
 
 objects = {}
 sizeof_timer = sizeof (ev_timer)
-c_timer_cb   = find_cb(ev_timer)(callback)
-timer0 = get_timer0(); del get_timer0
+c_timer_cb00 = find_cb(ev_timer)(callback)
+c_timer_cb01 = find_cb(ev_timer)(timer_cb)
+timer00 = get_timer0(c_timer_cb00);
+timer01 = get_timer0(c_timer_cb01); del get_timer0
 
 if hasattr(libev, 'ev_idle_start'):
     default_full  = Full()
