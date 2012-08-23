@@ -1,7 +1,7 @@
 def apply(func, args=(), kwargs={}, timeout=-1):
     back_ = getcurrent()
     id_   = c_uint(id(back_)).value
-    data  = stack()
+    data  = frame()
     data.back_  = back_
     data.func   = func
     data.args   = args
@@ -34,7 +34,7 @@ def apply(func, args=(), kwargs={}, timeout=-1):
             except Timeout:
                 if 1 == data.readystate:
                     wait = Wait()
-                    wait.get_stack = ref(data)
+                    wait.get_frame = ref(data)
                     raise wait
                 if 0 == data.readystate:
                     if contents.cancelled:
@@ -50,7 +50,7 @@ def apply(func, args=(), kwargs={}, timeout=-1):
             ev_timer_stop (EV_DEFAULT_UC, byref(timer1))
             del objects[id_]
 
-class stack:
+class frame:
     back_  = func = args = kwargs = None
     result = exception = None
     readystate = 0

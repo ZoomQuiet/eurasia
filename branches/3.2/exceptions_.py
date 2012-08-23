@@ -19,8 +19,8 @@ from greenlet import getcurrent
 
 class Wait(Timeout):
     def __call__(self):
-        data = self.get_stack()
+        data = self.get_frame()
         data.back_ = back_ = getcurrent()
         back_.parent.switch()
 
-    get_stack = None
+    get_frame = None

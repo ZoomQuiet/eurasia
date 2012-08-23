@@ -78,7 +78,7 @@ class httpfile:
     def read(self, size, timeout=-1):
         if size > self.left:
             if -1 == timeout:
-                timeout = 16. + (size >> 10)
+                timeout = 16. + (self.left >> 10)
             data = self.socket.read(self.left, timeout)
             self.left = 0
             return data
@@ -92,13 +92,14 @@ class httpfile:
     def readline(self, size, timeout=-1):
         if size > self.left:
             if -1 == timeout:
-                timeout = 16. + (size >> 10)
+                timeout = 16. + (self.left >> 10)
             data = self.socket.readline(self.left, timeout)
         else:
             if -1 == timeout:
                 timeout = 16. + (size >> 10)
             data = self.socket.readline(size, timeout)
         self.left -= len(data)
+        return data
 
     def write(self, data, timeout=-1):
         assert self.headers_sent
@@ -151,10 +152,13 @@ class httpfile:
     def _reuse(self, keep_alive):
         s = self.socket
         reuse = self.reuse
-        s.r_wait(keep_alive)
+        try:
+            s.r_wait(keep_alive)
+        except Timeout:
+            return
         try:
             http = httpfile(s, reuse, **self.bgenv)
-        except:
+        except Timeout:
             return
         reuse(http)
 
