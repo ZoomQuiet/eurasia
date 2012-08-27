@@ -81,25 +81,36 @@ class Queue:
     balance, preference = property(balance), 0
 
 def sleep(seconds):
-    co = getcurrent()
-    timer_switch(co, co.parent, seconds, None)
+    back_ = getcurrent()
+    timer_switch(back_, v.parent, seconds, None)
+
+def sleep_raise(seconds):
+    back_ = getcurrent()
+    timer_switch_raise(back_, v.parent, seconds, None)
 
 def new_sleep():
-    co = getcurrent()
-    timer_switch1 = new_timer_switch(co)
+    back_ = getcurrent()
+    timer_switch1 = new_timer_switch(back_)
     def sleep1(seconds):
-        return timer_switch1(co.parent, seconds)
+        return timer_switch1(back_.parent, seconds)
+    return sleep1
+
+def new_sleep_raise():
+    back_ = getcurrent()
+    timer_switch1 = new_timer_switch_raise(back_)
+    def sleep1(seconds):
+        return timer_switch1(back_.parent, seconds)
     return sleep1
 
 def idle():
-    co = getcurrent()
-    idle_switch(co, co.parent, None)
+    back_ = getcurrent()
+    idle_switch(back_, back_.parent, None)
 
 def new_idle():
-    co = getcurrent()
-    idle_switch1 = new_idle_switch(co)
+    back_ = getcurrent()
+    idle_switch1 = new_idle_switch(back_)
     def idle1():
-        return idle_switch1(co.parent)
+        return idle_switch1(back_.parent)
     return idle1
 
 code = '''class new_timer_%(name)s%(desc)s:
