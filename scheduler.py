@@ -82,12 +82,12 @@ class Queue:
 
 def sleep(seconds):
     back_ = getcurrent()
-    timer_switch(back_, v.parent, seconds, None)
+    timer_switch(back_, back_.parent, seconds)
     return back_
 
 def sleep_raise(seconds):
     back_ = getcurrent()
-    timer_switch_raise(back_, v.parent, seconds, None)
+    timer_switch_raise(back_, back_.parent, seconds)
     return back_
 
 def new_sleep():
