@@ -134,7 +134,7 @@ class httpfile:
             return
         self.closed = 1
         if 0 == keep_alive:
-            return self.owner.switch(0)
+            return self.socket.close()
         if -1 == timeout:
             timeout = 16.
         if self.headers_sent:
@@ -151,9 +151,9 @@ class httpfile:
                 goto_ = greenlet(self._reuse, back_.parent)
                 idle_switch(back_, goto_, (keep_alive, ))
             else:
-                return idle_switch(getcurrent(), self.owner, (0, ))
+                return self.socket.close()
         else:
-            return idle_switch(getcurrent(), self.owner, (0, ))
+            return self.socket.close()
 
     def _reuse(self, keep_alive):
         s = self.socket
