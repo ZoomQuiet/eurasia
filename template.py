@@ -1,4 +1,4 @@
-def template(text, environ={}):
+def Template(text, environ={}):
     code = compile(text)
     module = new_module('<string>')
     module.__dict__.update(environ)
@@ -170,7 +170,6 @@ def tokenize(code):
 indent = u'\t'
 header = u'''\
 from json import dumps
-write = writelines = lambda *args: None
 def _str_(obj):
     if   isinstance(obj, basestring):
         return obj
