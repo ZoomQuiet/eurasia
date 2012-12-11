@@ -1,4 +1,4 @@
-#summary One-sentence summary of this page.
+#summary EURASIA 用户手册（3.2 版）
 
 <wiki:toc max_depth="2" />
 
@@ -6,79 +6,74 @@
 || || ||
 || ||
 
-=安装=
+= 安装 =
 
-需要 unix/linux/windows 系统，需要 libev 库支持，在 python2.6、python2.7 下经过测试。
+需要 unix/linux/windows 系统，需要 greenlet、libev 和 libeio 库支持，在 python2.7 下经过测试。
 
  * 暂不支持 python3.x
  * python2.5 未经过充分测试
 
-==安装过程==
+== 安装过程 ==
 
-[http://eurasia.googlecode.com/files/eurasia-3.2.snapshot.tar.bz2 在此] 下载集成安装包：
+[# 在此] 下载 eurasia.py 文件。
 
-{{{
-$ tar -xjf eurasia-3.2-snapshot.tar.bz2
-$ cd eurasia-3.2-snapshot
-$ sudo /PATH/TO/DEST/bin/python2.6 setup.py install
-}}}
+下载安装 [http://software.schmorp.de/pkg/libeio.html libeio]、 [http://software.schmorp.de/pkg/libev.html libev] 和 greenlet。
 
-  * 使用哪个 python 执行 setup.py 就安装到哪个 python
-  * 安装到系统 python 一般需要管理权限
+如错误提示找不到链接库文件，那么，需要自己添加查找路径。
 
-也可以安装到指定目录：
+例，将 libeio.so、libev.so、greenlet.so 与 eurasia.py 放在同一目录下，然后设置：
 
 {{{
-$ /PATH/TO/PYTHON/bin/python2.6 setup.py install /home/foo/MyProject
+$ export LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH
+$ python demo.py
 }}}
-
-  * 将会安装到 `/home/foo/MyProject/eurasia`
-  * 你指定的 python 解释器将被用于编译过程，兼容此 python 版本
-  * 需要 `/home/foo/MyProject` 目录权限，方便用户权限部署
-  * 方便随项目部署
-
 
 || || || ||
 || || ||
 || ||
 
-=快速开始=
+= 快速开始 =
 
 我们将从最简单的 hello world 开始，通过范例快速掌握 eurasia 。
 
 这首先是一个 web 程序。
 
-==hello world==
+== Hello world ==
 
 {{{
-from eurasia import httpd
+
+from eurasia import httpserver
 
 def handler(httpfile):
     httpfile.start_response('200 OK', headers)
-    httpfile.write('<html>hello world!</html>')
+    httpfile.write('<html>Hello world</html>')
     httpfile.close()
+
 headers = [('Content-Type', 'text/html;charset=utf-8')]
 
-httpserver = httpd.Server('0.0.0.0:8080', handler)
-httpserver.serve_forever()
+server = httpserver('0.0.0.0:8080', handler)
+server.serve_forever()
+
 }}}
 
-把 handler 绑定到 8080 端口，浏览器访问该端口会得到 hello world。
+把 handler 绑定到 8080 端口，浏览器访问该端口会得到 Hello world。
 
 执行脚本，启动服务器。
 
 {{{
-$ /user/bin/python2 test.py
-}}}
 
-  * 一次可以通过 httpd.Server 创建多个 http 服务器
-  * 服务器通过 start() 启动 / 以 stop() 暂停
-  * 最后任意选择一个服务器执行 server_forever() 主循环
+$ python helloworld.py
+
+}}}
 
 ==创建多个服务器==
 
+ * 一次可以通过 httpserver 创建多个 http 服务器
+ * 服务器通过 start() 启动 / 以 stop() 暂停
+ * 最后任意选择一个服务器执行 server_forever() 主循环或者运行 eurasia.run()
+
 {{{
-from eurasia import httpd, core
+from eurasia import httpserver
 
 def handler1(httpfile):
     httpfile.start_response('200 OK', headers)
@@ -92,11 +87,11 @@ def handler2(httpfile):
 
 headers = [('Content-Type', 'text/html;charset=utf-8')]
 
-httpserver1 = httpd.Server('0.0.0.0:8080', handler1)
-httpserver2 = httpd.Server('0.0.0.0:8081', handler2)
-httpserver1.start()
-httpserver2.start()
-httpserver2.serve_forever() # 使用 core.mainloop() 主循环时，所有服务器必须已经启动。
+server1 = httpserver('0.0.0.0:8080', handler1)
+server2 = httpserver('0.0.0.0:8081', handler2)
+server1.start()
+server2.start()
+server2.serve_forever() # 使用 eurasia.run() 主循环时，所有服务器必须已经 start。
 }}}
 
 ==httpfile 对象==
@@ -109,7 +104,6 @@ httpserver2.serve_forever() # 使用 core.mainloop() 主循环时，所有服务
 || 成员函数 || httpfile.start_response (_*status*_, _*headers*_) || 设置响应 http 状态 status 和 http 头 headers ||
 || 成员函数 || httpfile.write(_*data*_, _*timeout*=-1_) || 发送内容，默认无超时 ||
 || 成员函数 || httpfile.close(_*keep_alive*_=300, _*timeout*=-1_) || 完成本次响应，默认设置 keep-alive 时间 300 秒||
-
 
 || || || ||
 || || ||
@@ -124,15 +118,15 @@ httpserver2.serve_forever() # 使用 core.mainloop() 主循环时，所有服务
 接口 httpserver 允许多种形式的 addr 参数。
 
 {{{
-httpserver('127.0.0.1:8080', handler)  # IPv4 地址，端口 8080
+server = httpserver('127.0.0.1:8080', handler)  # IPv4 地址，端口 8080
 }}}
 
-==启动和暂停服务器==
+==启动、暂停和退出服务器==
 
-通过 httpd.Server.start() 和 httpd.Server.stop() 启动和暂停服务器，暂停的服务器可以通过 httpd.Server.start() 重新启动。
+通过 server.start() 和 server.stop() 启动和暂停服务器，暂停的服务器可以通过 server.start() 重新启动，退出服务器进程可以使用 eurasia.break_()。
 
 {{{
-from eurasia import core, httpd
+from eurasia import httpserver, run, break_
 
 # 工作服务器，绑定到 8080
 def handler(httpfile):
@@ -140,29 +134,32 @@ def handler(httpfile):
     httpfile.write('hello world!')
     httpfile.close()
 
-httpserver = httpd.Server('127.0.0.1:8080', handler)
-httpserver.start()
+server = httpserver('127.0.0.1:8080', handler)
+server.start()
 
 # 管理服务器，绑定到 8090
 def manager(httpfile):
     path_info = httpfile.environ['PATH_INFO']
     # 如果请求地址是 /start 则启动工作服务器
     if '/start' == path_info:
-        httpserver.start()
-   # 如果请求地址是 /pause 则停止工作服务器
+        server.start()
+    # 如果请求地址是 /pause 则停止工作服务器
     elif '/pause' == path_info:
-        httpserver.stop()
+        server.stop()
+    # 如果请求地址是 /break 则退出 eurasia 工作服务器进程
+    elif '/break' == path_info:
+        break_()
 
-man = httpd.Server('8090', manager)
+man = httpserver('127.0.0.1:8090', manager)
 man.start()
-core.mainloop() # 开始调度
+run() # 开始调度
 }}}
 
-注意区分 httpd.Server.start()、 httpd.Server.serve_forever() 和 core.mainloop()：
-  * core.mainloop() 是整个程序的调度器
-  * httpd.Server.start() 同 core.mainloop()
-  * httpd.Server.start() 是启动服务器（开始监听）
-  * httpd.Server 可以有多个，而 core.mainloop() 或 httpd.Server.serve_forever() 只有一个
+注意区分 server.start()、 server.serve_forever() 和 eurasia.run()：
+  * eurasia.run() 是整个程序的调度器
+  * server.serve_forever() 同 eurasia.run()
+  * server.start() 是启动服务器（开始监听）
+  * server 可以有多个，而 eurasia.run() 或 server.serve_forever() 只有一个
 
 ==CGI 规范适配==
 
@@ -219,7 +216,7 @@ httpfile.start_response() 发送指定的 status 和 headers 报文头，这和 
 
 {{{
 # -*- coding: utf-8 -*-
-from eurasia import httpd, core
+from eurasia import httpserver
 from time import strftime
 httpfiles = set()
 def handler(current_httpfile):
@@ -240,13 +237,119 @@ def handler(current_httpfile):
         httpfiles.remove(httpfile)
     # 将当前客户端加入全局列表中
     httpfiles.add(current_httpfile)
-httpserver = httpd.Server('127.0.0.1:8080', handler)
-httpserver.serve_forever()
+server = httpserver('127.0.0.1:8080', handler)
+server.serve_forever()
 }}}
 
   * 请使用 firefox / chrome 浏览器观看此样例，因为缓存原因一些浏览器可能不能展现即时效果
   * handler 结束时，如果引用为零 httpfile 对象会自动销毁，并同时断开用户连接
   * httpfile.start_response() 与 httpfile.write() 都将立即发送数据_*没有缓存*_
+
+== keep-alive ==
+
+如果浏览器支持 keep-alive 特性，服务器将会自动以 keep-alive 方式处理浏览器请求。
+
+ * 服务器以 keep-alive 方式处理每一个请求
+ * 默认情况下使用 httpfile.close() 接口完成本次请求，并继续保持连接
+ * 使用 httpfile.close(0) 强制断开连接（无论是否完成）
+
+== tcpserver ==
+
+使用 tcpserver(addr, app) 创建 tcp 服务器。
+
+以下有两种可用的创建 tcp 服务器的方法：
+
+方法一：
+
+{{{
+from eurasia import tcpserver
+
+def handler(sock, addr):
+    pass
+
+server = tcpserver('0.0.0.0:8080', handler)
+server.serve_forever()
+}}}
+
+方法二：
+
+{{{
+import socket
+from eurasia import tcpserver
+
+def handler(sock, addr):
+    pass
+
+server = tcpserver((socket.AF_INET, ('0.0.0.0', 8080)), handler)
+server.serve_forever()
+}}}
+
+== 超时处理 ==
+
+多数 web 接口可以通过 timeout 参数设置超时，timeout 是以秒为单位的浮点数（float），默认 -1 意思是无超时。
+
+{{{
+from eurasia import httpserver, Timeout
+
+def handler(httpfile):
+    httpfile.start_response('200 OK', [])
+    try:
+        httpfile.write(data, 10.)
+    except Timeout as e:
+        print e.num_sent # 返回已经发送的字节数
+
+server = httpserver('0.0.0.0:8080', handler)
+server.serve_forever()
+}}}
+
+ * 发生超时，会抛出 eurasia.Timeout 异常，但是连接并不会随之中断
+ * 用户仍然可以恢复因为超时中断的工作，这可能会导致一些潜在问题，因此建议断开连接并重试
+ * 和 web 服务器不同，socket 服务器可以有效恢复因 timeout 而中断的工作，这将在后面的章节详解
+ * 如果不捕获 timeout，异常将会传递到顶层，自动终止本次请求，断开连接
+
+= 框架功能 =
+
+== popen3 ==
+
+popen3 用法与通用 popen 一致。
+
+{{{
+from eurasia import popen3
+stdin, stdout, stderr = popen3('ls', '-al')
+}}}
+
+== 异步文件读写 ==
+
+我们通过使用 eurasia 提供的函数 apply_ 来实现异步文件读写。
+
+{{{
+from eurasia import apply_
+
+fileobj = apply_(open, ('filename', 'r'))
+data = apply_(fileobj.read, (200, ))
+}}}
+
+== 系统工具函数 ==
+
+|| 接口：|| 说明：||
+|| cpu_count() || 返回所有 cpu 核心总数 ||
+|| setuid(_*user*_) || 设定运行时身份，可以指定用户名或者用户 id ||
+|| setprocname(_*procname*_) || 指定进程名 ||
+
+{{{
+from eurasia import setprocname, setuid
+setprocname('hello')
+
+...
+
+sock.bind(('', 80)) # bind 到 80 需要 root 权限
+setuid('nobody') # 以 nobody 身份运行
+
+...
+}}}
+
+ * setprocname() 需写在程序最前面
+
 
 || || || ||
 || || ||
