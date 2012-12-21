@@ -8,7 +8,7 @@
 
 = 安装 =
 
-[http://eurasia.googlecode.com/svn/branches/3.2/eurasia.py 下载] [[http://eurasia.googlecode.com/svn/branches/3.2/eurasia.py eurasia.py] 即可，无需安装。
+[http://eurasia.googlecode.com/svn/branches/3.2/eurasia.py 下载] [http://eurasia.googlecode.com/svn/branches/3.2/eurasia.py eurasia.py] 即可，无需安装。
 
 {{{
 $ wget http://eurasia.googlecode.com/svn/branches/3.2/eurasia.py
@@ -73,62 +73,39 @@ server.serve_forever()
 
 执行脚本，使用浏览器访问 http://127.0.0.1:8080/ 即可。
 
-==地址格式==
+== 地址格式 ==
 
-接口 httpserver 允许多种形式的 addr 参数。
+接口 httpserver 允许多种形式的 addr 参数，例如字符串格式的 addr ：
 
 {{{
 server = httpserver('127.0.0.1:8080', handler)  # IPv4 地址，端口 8080
 }}}
 
-==创建多个服务器==
-
- * 通过 httpserver 创建多个 http 服务器
- * 服务器通过 start() 启动 / 以 stop() 暂停
- * 最后任意选择一个服务器执行 server_forever() 主循环或者运行 eurasia.run()
- * server 可以有多个，而 eurasia.run() 或 server.serve_forever() 只有一个
+"(family, addr)" 格式的 addr ：
 
 {{{
-from eurasia import httpserver
-def handler_1(http):
-    http.start_response('200 OK', [('Content-Type', 'text/html')])
-    http.write('<html>hello 1!</html>')
-    http.close()
-
-def handler_2(http):
-    http.start_response('200 OK', [('Content-Type', 'text/html')])
-    http.write('<html>hello 2!</html>')
-    http.close()
-
-server_1 = httpserver('0.0.0.0:8080', handler_1)
-server_2 = httpserver('0.0.0.0:8081', handler_2)
-server_1.start()
-server_2.start()
-server_2.serve_forever()
+server = httpserver((socket.AF_UNIX, '/run/demo.sock'), handler)  # UNIX SOCK 地址
+server = httpserver((socket.AF_AF_INET6, ('::', 8080)), handler)  # IPv$ 地址，端口 8080
 }}}
 
-==http 对象==
+|| || || ||
+|| || ||
+|| ||
 
-操作 http 对象，获取请求，并完成相应。
+= http 对象 =
 
-主要属性及成员函数：
+|| http.environ`[`_*headername*_`]` || 与 cgi/1.1 协议适配的 cgi 环境变量 ||
+|| http.start_response (_*status*_, _*headers*_, _*timeout=-1*_) || 与 wsgi 协议适配的响应头发送函数 ||
+|| http.read(_*size*_, _*timeout*=-1_) || 读取 http request content ||
+|| http.readline(_*size*_, _*timeout*=-1_) || 读取 http request content ||
+|| http.write(_*data*_, _*timeout*=-1_) || 发送 http response content ||
+|| http.close(_*keep_alive*_=300, _*timeout*=-1_) || 完成 HTTP 响应 ||
 
-|| 字典（取出/写入） || httpfile.environ`[`_*headername*_`]` || 写入或者取得指定头部 ||
-|| 成员函数 || httpfile.start_response (_*status*_, _*headers*_) || 设置响应 http 状态 status 和 http 头 headers ||
-|| 成员函数 || httpfile.write(_*data*_, _*timeout*=-1_) || 发送内容，默认无超时 ||
-|| 成员函数 || httpfile.close(_*keep_alive*_=300, _*timeout*=-1_) || 完成本次响应，默认设置 keep-alive 时间 300 秒||
+ * http.write() 必须在 http.start_response() 后使用
 
-==CGI 协议适配==
+== http.environ ==
 
-http 对象在设计上与 CGI/1.1 规范适配，以下是一些对应关系：
-
-|| 接口类型： || 接口描述： || CGI 对应: ||
-|| 字典 （读取/设置） || http.environ`[`_*envname*_`]` || 环境表量（environ） ||
-|| 成员函数 || http.read(_*size*_, _*timeout*=-1_) || 标准输入（stdin）||
-|| 成员函数 || http.readline(_*size*_, _*timeout*=-1_) || 标准输入（stdin） ||
-|| 成员函数 || http.write(_*data*_, _*timeout*=-1_) || 标准输出（stdout） ||
-
-可以通过 http.environ`[`_*envname*_`]` 获取的环境变量：
+可以通过 http.environ`[`_*envname*_`]` 获取的环境变量举例：
 
 || 环境变量： || 变量描述： || example： ||
 || REQUEST_METHOD || 请求的方法 || "GET"、"POST" ||
@@ -140,178 +117,73 @@ http 对象在设计上与 CGI/1.1 规范适配，以下是一些对应关系：
 || QUERY_STRING || 请求参数 || "username=tom&passwd=***" ||
 || CONTENT_TYPE || POST 等报文类型 || "application/x-www-form-urlencoded" ||
 || CONTENT_LENGTH || POST 等报文长度 || 999 ||
-|| HTTP{{{_}}}_*HEADERNAME*_ || 请求头部 || HTTP_REFER："http://www.google.com/" ||
+|| HTTP{{{_}}}_*HEADERNAME*_ || 普通头部 || HTTP_REFER："http://www.google.com/" ||
 
-==解读请求==
-
-通过 http.read(_*size*_, _*timeout*=-1_) 和 http.readline(_*size*_, _*timeout*=-1_) 读取报文体。
-
-==完成响应==
-
-通过接口 http.start_response(_*status*='200 OK'_, _*response_headers*=[]_, _*timeout*=-1_) 来设置_*响应头部*_：
-
-{{{
-def handler(http):
-    response_status = '200 OK'
-    response_headers = [('Content-Type', 'text/html')]
-    http.start_response(response_status, response_headers)
-    http.write('hello world!')
-    http.close()
-}}}
-
-http.start_response() 发送指定的 status 和 headers 报文头，这和 wsgi 规范（[http://www.python.org/dev/peps/pep-0333/ pep333]）中 start_response() 接口的定义相近。
-
-通过 http.start_response() 完成报文头部以后，就可以通过 httpfile.write(_*data*_, _*timeout*=-1_) 发送报文体了。
-
- * http.write() 必须在 http.start_response() 后使用
-
-==长连接==
-
-请求将被一直保持，直到你调用 `httpfile.close()` 在此期间你可以在任何时候向用户发送内容。
-
-{{{
-# -*- coding: utf-8 -*-
-from eurasia import httpserver
-from time import strftime
-httpfiles = set()
-def handler(current_http):
-    response_headers = [('Content-Type', 'text/html; charset=utf-8')]
-    current_http.start_response('200 OK', response_headers)
-    current_http.write(strftime('[%a, %d-%b-%Y %H:%M:%S GMT] 我加入了<br/>'))
-    # 通知其他在线用户，有新人加入
-    disconnected_http = []
-    for http in all_httpfiles:
-        try:
-            # 告诉其他在线用户
-            httpfile.write(strftime('[%a, %d-%b-%Y %H:%M:%S GMT] 又有新人加入<br/>'))
-        except:
-            # 连接已断开
-            disconnected_httpfile.append(httpfile)
-    # 移除断开的 httpfile
-    for httpfile in disconnected_httpfile:
-        httpfiles.remove(httpfile)
-    # 将当前客户端加入全局列表中
-    httpfiles.add(current_httpfile)
-server = httpserver('127.0.0.1:8080', handler)
-server.serve_forever()
-}}}
-
-  * 请使用 firefox / chrome 浏览器观看此样例，因为缓存原因一些浏览器可能不能展现即时效果
-  * handler 结束时，如果引用为零 httpfile 对象会自动销毁，并同时断开用户连接
-  * httpfile.start_response() 与 httpfile.write() 都将立即发送数据_*没有缓存*_
-
-== keep-alive ==
+== http.close() 与 长连接 ==
 
 如果浏览器支持 keep-alive 特性，服务器将会自动以 keep-alive 方式处理浏览器请求。
 
  * 服务器以 keep-alive 方式处理每一个请求
- * 默认情况下使用 httpfile.close() 接口完成本次请求，并继续保持连接
- * 使用 httpfile.close(0) 强制断开连接（无论是否完成）
+ * 默认情况下使用 http.close() 接口完成本次请求，并继续保持连接
+ * 使用 http.close(0) 强制断开连接（无论是否完成）
+ * http.close() 的 `keep_alive` 参数用于指定等待下次 http 请求所需的时间
+ * http.close() 的 `timeout` 参数用于设定结束当次 http 请求所需的超时时间
 
-== tcpserver ==
+== 超时 ==
 
-使用 tcpserver(addr, app) 创建 tcp 服务器。
-
-以下有两种可用的创建 tcp 服务器的方法：
-
-方法一：
-
-{{{
-from eurasia import tcpserver
-
-def handler(sock, addr):
-    pass
-
-server = tcpserver('0.0.0.0:8080', handler)
-server.serve_forever()
-}}}
-
-方法二：
-
-{{{
-import socket
-from eurasia import tcpserver
-
-def handler(sock, addr):
-    pass
-
-server = tcpserver((socket.AF_INET, ('0.0.0.0', 8080)), handler)
-server.serve_forever()
-}}}
-
-== 超时处理 ==
-
-多数 web 接口可以通过 timeout 参数设置超时，timeout 是以秒为单位的浮点数（float），默认 -1 意思是无超时。
+多数 io 接口可以通过 timeout 参数设置超时，默认 -1 意为无超时。
 
 {{{
 from eurasia import httpserver, Timeout
-
 def handler(http):
     http.start_response('200 OK', [])
     try:
-        http.write(data, 10.)
+        http.write(data, 10.) # 10 秒超时
     except Timeout as e:
-        print e.num_sent # 返回已经发送的字节数
+        pass
 
 server = httpserver('0.0.0.0:8080', handler)
 server.serve_forever()
 }}}
 
- * 发生超时，会抛出 eurasia.Timeout 异常，但是连接并不会随之中断
- * 用户仍然可以恢复因为超时中断的工作，这可能会导致一些潜在问题，因此建议断开连接并重试
- * 和 web 服务器不同，socket 服务器可以有效恢复因 timeout 而中断的工作，这将在后面的章节详解
- * 如果不捕获 timeout，异常将会传递到顶层，自动终止本次请求，断开连接
+== 启动多个服务器 ==
 
-= 框架功能 =
-
-== popen3 ==
-
-使用 popen3 来操作管道。
+在需要启动多个服务器的时候，使用 server.start()、eurasia.run() 来代替 server.serve_forever() 。
 
 {{{
-from eurasia import popen3
-stdin, stdout, stderr = popen3('ls', '-al')
+import eurasia
+server1 = eurasia.httpserver('0.0.0.0:8080', handler1)
+server2 = eurasia.httpserver('0.0.0.0:8090', handler2)
+server1.start()
+server2.start()
+eurasia.run()
 }}}
 
-== 线程池 ==
+ * 可以通过 server.stop() 来暂停服务器，暂停的服务器可以通过 server.start() 再次启动。
 
-通过 apply_ 函数来实现异步文件读写。
+|| || || ||
+|| || ||
+|| ||
+
+= 线程池 =
+
+因为 eurasia 是基于协程实现的单进程、单线程服务器，因此需要借助线程池来完成阻塞调用。
+
+在 eurasia 程序中，所有阻塞操作（包括文件、数据库等），必须通过 apply_ 函数来调用。
 
 {{{
 from eurasia import apply_
 
-fileobj = apply_(open, ('filename', 'r'))
-data = apply_(fileobj.read, (200, ))
+file = apply_(open, ('filename', 'r'))
+data = apply_(file.read, (200, ))
 }}}
-
-== 系统工具函数 ==
-
-|| 接口：|| 说明：||
-|| cpu_count() || 返回所有 cpu 核心总数 ||
-|| setuid(_*user*_) || 设定运行时身份，可以指定用户名或者用户 id ||
-|| setprocname(_*procname*_) || 指定进程名 ||
-
-{{{
-from eurasia import setprocname, setuid
-setprocname('hello')
-
-...
-
-sock.bind(('', 80)) # bind 到 80 需要 root 权限
-setuid('nobody') # 以 nobody 身份运行
-
-...
-}}}
-
- * setprocname() 需写在程序最前面
-
 
 || || || ||
 || || ||
 || ||
 
 
-=部署=
+= 部署 =
 
 eurasia 3.2 不再原生提供对多核处理器和 daemon 的支持，以下是 eurasia 3.2 推荐的部署方案。
 
@@ -319,10 +191,10 @@ eurasia 3.2 不再原生提供对多核处理器和 daemon 的支持，以下是
 
     最简单的方法是在多个端口上启动多个独立的 eurasia 服务，数量与 cpu 核心相应，这样就可以充分使用 cpu 核心了。
 
-    然后通过 iptables（redirect）或者 lvs 做端口负载均衡即可。
+    并通过 iptables（redirect）或者 lvs 做端口负载均衡。
 
   * 启动为 daemon
 
-    eurasia 推荐使用 [http://www.libslack.org/daemon/ daemon] 命令启动服务器。
+    推荐使用 [http://www.libslack.org/daemon/ daemon] 命令启动服务器。
 
     在多数 unix/linux 发行版上都可以非常方便地安装 daemon 命令。
