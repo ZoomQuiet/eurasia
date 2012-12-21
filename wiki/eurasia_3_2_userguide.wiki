@@ -107,6 +107,7 @@ eurasia.run()
 }}}
 
  * 可以通过 server.stop() 来暂停服务器，暂停的服务器可以通过 server.start() 再次启动。
+ * server.stop() 和 server.start() 是非阻塞的，server.serve_forever() 和 eurasia.run() 将使整个程序进入主循环
 
 || || || ||
 || || ||
@@ -122,6 +123,7 @@ eurasia.run()
 || http.close(_*keep_alive*_=300, _*timeout*=-1_) || 完成 HTTP 响应 ||
 
  * http.write() 必须在 http.start_response() 后使用
+ * 必须使用 http.close() 结束整个 http 请求
 
 == http.environ ==
 
@@ -166,7 +168,7 @@ server = httpserver('0.0.0.0:8080', handler)
 server.serve_forever()
 }}}
 
- * 带有超时的函数分别是 start_response()、read()、readline()、write()、close()
+ * 超时适用于 start_response()、read()、readline()、write()、close()
 
 || || || ||
 || || ||
