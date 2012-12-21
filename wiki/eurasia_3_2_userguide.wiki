@@ -8,24 +8,50 @@
 
 = 安装 =
 
-需要 unix/linux/windows 系统，需要 greenlet、libev 和 libeio 库支持，在 python2.7 下经过测试。
-
- * 暂不支持 python3.x
- * python2.5 未经过充分测试
-
-== 安装过程 ==
-
-[# 在此] 下载 eurasia.py 文件。
-
-下载安装 [http://software.schmorp.de/pkg/libeio.html libeio]、 [http://software.schmorp.de/pkg/libev.html libev] 和 greenlet。
-
-如错误提示找不到链接库文件，那么，需要自己添加查找路径。
-
-例，将 libeio.so、libev.so、greenlet.so 与 eurasia.py 放在同一目录下，然后设置：
+[http://eurasia.googlecode.com/svn/branches/3.2/eurasia.py 下载 eurasia.py] 即可，无需安装。
 
 {{{
-$ export LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH
-$ python demo.py
+$ wget http://eurasia.googlecode.com/svn/branches/3.2/eurasia.py
+}}}
+
+ * 需要 unix/linux 系统
+ * 需要 libev、libeio 库和 greenlet 模块的支持
+ * 在 python2.7 下测试通过（不支持 python3）
+
+== 安装依赖 ==
+
+安装 libev 库（将 libev.so 与 eurasia.py 放在同一目录即可）：
+
+{{{
+$ cvs -z3 -d :pserver:anonymous@cvs.schmorp.de/schmorpforge co libev
+$ cd libev
+$ chmod +x autogen.sh
+$ ./autogen.sh
+$ ./configure
+$ make
+$ cp -a .libs/libev.so.4.0.0 /WHERE/IS/EURASIA_PY
+}}}
+
+安装 libeio 库（将 libeio.so 与 eurasia.py 放在同一目录即可）：
+
+{{{
+$ cvs -z3 -d :pserver:anonymous@cvs.schmorp.de/schmorpforge co libeio
+$ cd libeio
+$ chmod +x autogen.sh
+$ ./autogen.sh
+$ ./configure
+$ make
+$ cp -a .libs/libeio.so.1.0.0 /WHERE/IS/EURASIA_PY
+}}}
+
+安装 greenlet 模块：
+
+{{{
+$ wget http://pypi.python.org/packages/source/g/greenlet/greenlet-0.4.0.zip
+$ unzip greenlet-0.4.0.zip
+$ cd greenlet-0.4.0
+$ /PATH/TO/PYTHON setup.py build_ext --inplace
+$ cp greenlet.so /WHERE/IS/EURASIA_PY
 }}}
 
 || || || ||
@@ -34,84 +60,18 @@ $ python demo.py
 
 = 快速开始 =
 
-我们将从最简单的 hello world 开始，通过范例快速掌握 eurasia 。
-
-这首先是一个 web 程序。
-
-== Hello world ==
-
 {{{
-
 from eurasia import httpserver
-
-def handler(httpfile):
-    httpfile.start_response('200 OK', headers)
-    httpfile.write('<html>Hello world</html>')
-    httpfile.close()
-
-headers = [('Content-Type', 'text/html;charset=utf-8')]
+def handler(http):
+    http.start_response('200 OK', [('Content-Type', 'text/html')])
+    http.write('<html>Hello world</html>')
+    http.close()
 
 server = httpserver('0.0.0.0:8080', handler)
 server.serve_forever()
-
 }}}
 
-把 handler 绑定到 8080 端口，浏览器访问该端口会得到 Hello world。
-
-执行脚本，启动服务器。
-
-{{{
-
-$ python helloworld.py
-
-}}}
-
-==创建多个服务器==
-
- * 一次可以通过 httpserver 创建多个 http 服务器
- * 服务器通过 start() 启动 / 以 stop() 暂停
- * 最后任意选择一个服务器执行 server_forever() 主循环或者运行 eurasia.run()
-
-{{{
-from eurasia import httpserver
-
-def handler1(httpfile):
-    httpfile.start_response('200 OK', headers)
-    httpfile.write('<html>this is handler1!</html>')
-    httpfile.close()
-
-def handler2(httpfile):
-    httpfile.start_response('200 OK', headers)
-    httpfile.write('<html>this is handler2!</html>')
-    httpfile.close()
-
-headers = [('Content-Type', 'text/html;charset=utf-8')]
-
-server1 = httpserver('0.0.0.0:8080', handler1)
-server2 = httpserver('0.0.0.0:8081', handler2)
-server1.start()
-server2.start()
-server2.serve_forever() # 使用 eurasia.run() 主循环时，所有服务器必须已经 start。
-}}}
-
-==httpfile 对象==
-
-操作 httpfile 对象，获取请求，并完成相应。
-
-主要属性及成员函数：
-
-|| 字典（取出/写入） || httpfile.environ`[`_*headername*_`]` || 写入或者取得指定头部 ||
-|| 成员函数 || httpfile.start_response (_*status*_, _*headers*_) || 设置响应 http 状态 status 和 http 头 headers ||
-|| 成员函数 || httpfile.write(_*data*_, _*timeout*=-1_) || 发送内容，默认无超时 ||
-|| 成员函数 || httpfile.close(_*keep_alive*_=300, _*timeout*=-1_) || 完成本次响应，默认设置 keep-alive 时间 300 秒||
-
-|| || || ||
-|| || ||
-|| ||
-
-=标准服务器=
-
-框架的关键应用之一便是 web 。首先通过 httpserver(_*addr*_, _*handler*_) 创建标准 http 服务器。
+执行脚本，使用浏览器访问 http://127.0.0.1:8080/ 即可。
 
 ==地址格式==
 
@@ -121,58 +81,54 @@ server2.serve_forever() # 使用 eurasia.run() 主循环时，所有服务器必
 server = httpserver('127.0.0.1:8080', handler)  # IPv4 地址，端口 8080
 }}}
 
-==启动、暂停和退出服务器==
+==创建多个服务器==
 
-通过 server.start() 和 server.stop() 启动和暂停服务器，暂停的服务器可以通过 server.start() 重新启动，退出服务器进程可以使用 eurasia.break_()。
+ * 通过 httpserver 创建多个 http 服务器
+ * 服务器通过 start() 启动 / 以 stop() 暂停
+ * 最后任意选择一个服务器执行 server_forever() 主循环或者运行 eurasia.run()
+ * server 可以有多个，而 eurasia.run() 或 server.serve_forever() 只有一个
 
 {{{
-from eurasia import httpserver, run, break_
+from eurasia import httpserver
+def handler_1(http):
+    http.start_response('200 OK', [('Content-Type', 'text/html')])
+    http.write('<html>hello 1!</html>')
+    http.close()
 
-# 工作服务器，绑定到 8080
-def handler(httpfile):
-    httpfile.start_response('200 OK', [])
-    httpfile.write('hello world!')
-    httpfile.close()
+def handler_2(http):
+    http.start_response('200 OK', [('Content-Type', 'text/html')])
+    http.write('<html>hello 2!</html>')
+    http.close()
 
-server = httpserver('127.0.0.1:8080', handler)
-server.start()
-
-# 管理服务器，绑定到 8090
-def manager(httpfile):
-    path_info = httpfile.environ['PATH_INFO']
-    # 如果请求地址是 /start 则启动工作服务器
-    if '/start' == path_info:
-        server.start()
-    # 如果请求地址是 /pause 则停止工作服务器
-    elif '/pause' == path_info:
-        server.stop()
-    # 如果请求地址是 /break 则退出 eurasia 工作服务器进程
-    elif '/break' == path_info:
-        break_()
-
-man = httpserver('127.0.0.1:8090', manager)
-man.start()
-run() # 开始调度
+server_1 = httpserver('0.0.0.0:8080', handler_1)
+server_2 = httpserver('0.0.0.0:8081', handler_2)
+server_1.start()
+server_2.start()
+server_2.serve_forever()
 }}}
 
-注意区分 server.start()、 server.serve_forever() 和 eurasia.run()：
-  * eurasia.run() 是整个程序的调度器
-  * server.serve_forever() 同 eurasia.run()
-  * server.start() 是启动服务器（开始监听）
-  * server 可以有多个，而 eurasia.run() 或 server.serve_forever() 只有一个
+==http 对象==
 
-==CGI 规范适配==
+操作 http 对象，获取请求，并完成相应。
 
-httpfile 对象是服务器关键接口，器设计在很大程度上与 CGI/1.1 规范适配，以下是一些对应关系：
+主要属性及成员函数：
+
+|| 字典（取出/写入） || httpfile.environ`[`_*headername*_`]` || 写入或者取得指定头部 ||
+|| 成员函数 || httpfile.start_response (_*status*_, _*headers*_) || 设置响应 http 状态 status 和 http 头 headers ||
+|| 成员函数 || httpfile.write(_*data*_, _*timeout*=-1_) || 发送内容，默认无超时 ||
+|| 成员函数 || httpfile.close(_*keep_alive*_=300, _*timeout*=-1_) || 完成本次响应，默认设置 keep-alive 时间 300 秒||
+
+==CGI 协议适配==
+
+http 对象在设计上与 CGI/1.1 规范适配，以下是一些对应关系：
 
 || 接口类型： || 接口描述： || CGI 对应: ||
-|| 字典 （读取/设置） || httpfile.environ`[`_*envname*_`]` || 环境表量（environ） ||
-|| 成员函数 || httpfile.read(_*size*_, _*timeout*=-1_) || 标准输入（stdin）||
-|| 成员函数 || httpfile.readline(_*size*_, _*timeout*=-1_) || 标准输入（stdin） ||
-|| 成员函数 || httpfile.write(_*data*_, _*timeout*=-1_) || 标准输出（stdout） ||
+|| 字典 （读取/设置） || http.environ`[`_*envname*_`]` || 环境表量（environ） ||
+|| 成员函数 || http.read(_*size*_, _*timeout*=-1_) || 标准输入（stdin）||
+|| 成员函数 || http.readline(_*size*_, _*timeout*=-1_) || 标准输入（stdin） ||
+|| 成员函数 || http.write(_*data*_, _*timeout*=-1_) || 标准输出（stdout） ||
 
-
-可以通过 httpfile.environ`[`_*envname*_`]` 获取的环境变量：
+可以通过 http.environ`[`_*envname*_`]` 获取的环境变量：
 
 || 环境变量： || 变量描述： || example： ||
 || REQUEST_METHOD || 请求的方法 || "GET"、"POST" ||
@@ -188,27 +144,26 @@ httpfile 对象是服务器关键接口，器设计在很大程度上与 CGI/1.1
 
 ==解读请求==
 
-通过 httpfile.read(_*size*_, _*timeout*=-1_) 和 httpfile.readline(_*size*_, _*timeout*=-1_) 读取报文体。
+通过 http.read(_*size*_, _*timeout*=-1_) 和 http.readline(_*size*_, _*timeout*=-1_) 读取报文体。
 
 ==完成响应==
 
-我们提供了接口 httpfile.start_response(_*status*='200 OK'_, _*response_headers*=[]_, _*timeout*=-1_) 用来设置_*响应头部*_的操作：
+通过接口 http.start_response(_*status*='200 OK'_, _*response_headers*=[]_, _*timeout*=-1_) 来设置_*响应头部*_：
 
 {{{
-def handler(httpfile):
+def handler(http):
     response_status = '200 OK'
     response_headers = [('Content-Type', 'text/html')]
-    httpfile.start_response(response_status, response_headers)
-    httpfile.write('hello world!')
-    httpfile.close()
+    http.start_response(response_status, response_headers)
+    http.write('hello world!')
+    http.close()
 }}}
 
-httpfile.start_response() 发送指定的 status 和 headers 报文头，这和 wsgi 规范（[http://www.python.org/dev/peps/pep-0333/ pep333]）中 start_response() 接口的定义比较接近。
+http.start_response() 发送指定的 status 和 headers 报文头，这和 wsgi 规范（[http://www.python.org/dev/peps/pep-0333/ pep333]）中 start_response() 接口的定义相近。
 
-通过 httpfile.start_response() 完成报文头部以后，就可以通过 httpfile.write(_*data*_, _*timeout*=-1_) 发送报文体了。
+通过 http.start_response() 完成报文头部以后，就可以通过 httpfile.write(_*data*_, _*timeout*=-1_) 发送报文体了。
 
-  * httpfile.write() 会判断头部如果没有发送，会首先发送 http 状态（如：200 OK）和 http 头部设置，再发送报文
-
+ * http.write() 必须在 http.start_response() 后使用
 
 ==长连接==
 
@@ -219,13 +174,13 @@ httpfile.start_response() 发送指定的 status 和 headers 报文头，这和 
 from eurasia import httpserver
 from time import strftime
 httpfiles = set()
-def handler(current_httpfile):
+def handler(current_http):
     response_headers = [('Content-Type', 'text/html; charset=utf-8')]
-    current_httpfile.start_response('200 OK', response_headers)
-    current_httpfile.write(strftime('[%a, %d-%b-%Y %H:%M:%S GMT] 我加入了<br/>'))
+    current_http.start_response('200 OK', response_headers)
+    current_http.write(strftime('[%a, %d-%b-%Y %H:%M:%S GMT] 我加入了<br/>'))
     # 通知其他在线用户，有新人加入
-    disconnected_httpfile = []
-    for httpfile in httpfiles:
+    disconnected_http = []
+    for http in all_httpfiles:
         try:
             # 告诉其他在线用户
             httpfile.write(strftime('[%a, %d-%b-%Y %H:%M:%S GMT] 又有新人加入<br/>'))
@@ -291,10 +246,10 @@ server.serve_forever()
 {{{
 from eurasia import httpserver, Timeout
 
-def handler(httpfile):
-    httpfile.start_response('200 OK', [])
+def handler(http):
+    http.start_response('200 OK', [])
     try:
-        httpfile.write(data, 10.)
+        http.write(data, 10.)
     except Timeout as e:
         print e.num_sent # 返回已经发送的字节数
 
@@ -311,16 +266,16 @@ server.serve_forever()
 
 == popen3 ==
 
-popen3 用法与通用 popen 一致。
+使用 popen3 来操作管道。
 
 {{{
 from eurasia import popen3
 stdin, stdout, stderr = popen3('ls', '-al')
 }}}
 
-== 异步文件读写 ==
+== 线程池 ==
 
-我们通过使用 eurasia 提供的函数 apply_ 来实现异步文件读写。
+通过 apply_ 函数来实现异步文件读写。
 
 {{{
 from eurasia import apply_
