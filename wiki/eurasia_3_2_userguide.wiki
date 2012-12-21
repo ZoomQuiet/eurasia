@@ -8,7 +8,7 @@
 
 = 安装 =
 
-[http://eurasia.googlecode.com/svn/branches/3.2/eurasia.py 下载 eurasia.py] 即可，无需安装。
+[http://eurasia.googlecode.com/svn/branches/3.2/eurasia.py 下载] [[http://eurasia.googlecode.com/svn/branches/3.2/eurasia.py eurasia.py] 即可，无需安装。
 
 {{{
 $ wget http://eurasia.googlecode.com/svn/branches/3.2/eurasia.py
@@ -29,7 +29,7 @@ $ chmod +x autogen.sh
 $ ./autogen.sh
 $ ./configure
 $ make
-$ cp -a .libs/libev.so.4.0.0 /WHERE/IS/EURASIA_PY
+$ cp .libs/libev.so /WHERE/IS/EURASIA_PY
 }}}
 
 安装 libeio 库（将 libeio.so 与 eurasia.py 放在同一目录即可）：
@@ -41,7 +41,7 @@ $ chmod +x autogen.sh
 $ ./autogen.sh
 $ ./configure
 $ make
-$ cp -a .libs/libeio.so.1.0.0 /WHERE/IS/EURASIA_PY
+$ cp .libs/libeio.so /WHERE/IS/EURASIA_PY
 }}}
 
 安装 greenlet 模块：
