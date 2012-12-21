@@ -88,6 +88,26 @@ server = httpserver((socket.AF_UNIX, '/run/demo.sock'), handler)  # UNIX SOCK �
 server = httpserver((socket.AF_AF_INET6, ('::', 8080)), handler)  # IPv$ 地址，端口 8080
 }}}
 
+== 启动多个服务器 ==
+
+在需要启动多个服务器的时候，使用 server.start()、eurasia.run() 来代替 server.serve_forever() 。
+
+{{{
+import eurasia
+
+    ...
+
+server1 = eurasia.httpserver('0.0.0.0:8080', handler1)
+server1.start()
+
+server2 = eurasia.httpserver('0.0.0.0:8090', handler2)
+server2.start()
+
+eurasia.run()
+}}}
+
+ * 可以通过 server.stop() 来暂停服务器，暂停的服务器可以通过 server.start() 再次启动。
+
 || || || ||
 || || ||
 || ||
@@ -146,20 +166,7 @@ server = httpserver('0.0.0.0:8080', handler)
 server.serve_forever()
 }}}
 
-== 启动多个服务器 ==
-
-在需要启动多个服务器的时候，使用 server.start()、eurasia.run() 来代替 server.serve_forever() 。
-
-{{{
-import eurasia
-server1 = eurasia.httpserver('0.0.0.0:8080', handler1)
-server2 = eurasia.httpserver('0.0.0.0:8090', handler2)
-server1.start()
-server2.start()
-eurasia.run()
-}}}
-
- * 可以通过 server.stop() 来暂停服务器，暂停的服务器可以通过 server.start() 再次启动。
+ * 带有超时的函数分别是 start_response()、read()、readline()、write()、close()
 
 || || || ||
 || || ||
@@ -174,8 +181,30 @@ eurasia.run()
 {{{
 from eurasia import apply_
 
-file = apply_(open, ('filename', 'r'))
-data = apply_(file.read, (200, ))
+def handler(http):
+    ...
+
+    file = apply_(open, ('filename', 'r'))
+    data = apply_(file.read, (200, ))
+
+    ...
+}}}
+
+= 管道 =
+
+可以使用 eurasia 提供的 popen3() 函数来操作协程管道，eurasia.popen3() 接口在操作上与 os.popen3() 类似。
+
+{{{
+from eurasia import popen3
+
+def handler(http):
+    ...
+
+    stdin, stdout, stderr = popen3('ls', '-al')
+    data = stdin.readline(1024, 10.) # 超时设为 10 秒
+    stdout.write(data, 10.)
+
+    ...
 }}}
 
 || || || ||
