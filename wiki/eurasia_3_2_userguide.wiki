@@ -18,6 +18,7 @@ $ wget http://eurasia.googlecode.com/svn/branches/3.2/eurasia.py
  * 需要 unix/linux 系统
  * 需要 libev、libeio 库和 greenlet 模块的支持
  * 在 python2.7 下测试通过（不支持 python3）
+ * 在高并发情况下 pypy 会崩溃，且性能不如 cpython
 
 == 安装依赖 ==
 
@@ -30,7 +31,7 @@ $ chmod +x autogen.sh
 $ ./autogen.sh
 $ ./configure
 $ make
-$ cp .libs/libev.so /WHERE/IS/EURASIA_PY
+$ cp .libs/libev.so /PATH/TO/EURASIA_PY
 }}}
 
 安装 libeio 库（将 libeio.so 与 eurasia.py 放在同一目录即可）：
@@ -42,17 +43,17 @@ $ chmod +x autogen.sh
 $ ./autogen.sh
 $ ./configure
 $ make
-$ cp .libs/libeio.so /WHERE/IS/EURASIA_PY
+$ cp .libs/libeio.so /PATH/TO/EURASIA_PY
 }}}
 
-安装 greenlet 模块：
+安装 greenlet 模块（将 greenlet.so 与 eurasia.py 放在同一目录即可）：
 
 {{{
 $ wget http://pypi.python.org/packages/source/g/greenlet/greenlet-0.4.0.zip
 $ unzip greenlet-0.4.0.zip
 $ cd greenlet-0.4.0
 $ /PATH/TO/PYTHON setup.py build_ext --inplace
-$ cp greenlet.so /WHERE/IS/EURASIA_PY
+$ cp greenlet.so /PATH/TO/EURASIA_PY
 }}}
 
 || || || ||
@@ -79,36 +80,15 @@ server.serve_forever()
 接口 httpserver 允许多种形式的 addr 参数，例如字符串格式的 addr ：
 
 {{{
-server = httpserver('127.0.0.1:8080', handler)  # IPv4 地址，端口 8080
+server = httpserver('127.0.0.1:8080', handler)  # IPv4 8080 端口
 }}}
 
 "(family, addr)" 格式的 addr ：
 
 {{{
 server = httpserver((socket.AF_UNIX, '/run/demo.sock'), handler)  # UNIX SOCK 地址
-server = httpserver((socket.AF_AF_INET6, ('::', 8080)), handler)  # IPv$ 地址，端口 8080
+server = httpserver((socket.AF_AF_INET6, ('::', 8080)), handler)  # IPv6 8080 端口
 }}}
-
-== 启动多个服务器 ==
-
-在需要启动多个服务器的时候，使用 server.start()、eurasia.run() 来代替 server.serve_forever() 。
-
-{{{
-import eurasia
-
-    ...
-
-server1 = eurasia.httpserver('0.0.0.0:8080', handler1)
-server1.start()
-
-server2 = eurasia.httpserver('0.0.0.0:8090', handler2)
-server2.start()
-
-eurasia.run()
-}}}
-
- * 可以通过 server.stop() 来暂停服务器，暂停的服务器可以通过 server.start() 再次启动。
- * server.stop() 和 server.start() 是非阻塞的，server.serve_forever() 和 eurasia.run() 将使整个程序进入主循环
 
 || || || ||
 || || ||
@@ -116,19 +96,19 @@ eurasia.run()
 
 = http 对象 =
 
-|| http.environ`[`_*headername*_`]` || 与 cgi/1.1 协议适配的 cgi 环境变量 ||
-|| http.start_response (_*status*_, _*headers*_, _*timeout=-1*_) || 与 wsgi 协议适配的响应头发送函数 ||
-|| http.read(_*size*_, _*timeout*=-1_) || 读取 http request content ||
-|| http.readline(_*size*_, _*timeout*=-1_) || 读取 http request content ||
-|| http.write(_*data*_, _*timeout*=-1_) || 发送 http response content ||
-|| http.close(_*keep_alive*_=300, _*timeout*=-1_) || 完成 HTTP 响应 ||
+|| http.environ`[`_*headername*_`]` || 与 cgi/1.1 协议适配的环境变量 ||
+|| http.start_response (_*status*_, _*headers*_, _*timeout=-1*_) || 与 wsgi 协议适配的响应发起函数 ||
+|| http.read(_*size*_, _*timeout*=-1_) || 读取 http 请求内容 ||
+|| http.readline(_*size*_, _*timeout*=-1_) || 读取 http 请求内容 ||
+|| http.write(_*data*_, _*timeout*=-1_) || 发送 http 响应内容 ||
+|| http.close(_*keep_alive*_=300, _*timeout*=-1_) || 完成 http 响应 ||
 
  * http.write() 必须在 http.start_response() 后使用
- * 必须使用 http.close() 结束整个 http 请求
+ * 必须使用 http.close() 结束当前这一轮 http 请求
 
 == http.environ ==
 
-可以通过 http.environ`[`_*envname*_`]` 获取的环境变量举例：
+可以通过 http.environ`[`_*envname*_`]` 获取的环境变量示范如下：
 
 || 环境变量： || 变量描述： || example： ||
 || REQUEST_METHOD || 请求的方法 || "GET"、"POST" ||
@@ -142,44 +122,31 @@ eurasia.run()
 || CONTENT_LENGTH || POST 等报文长度 || 999 ||
 || HTTP{{{_}}}_*HEADERNAME*_ || 普通头部 || HTTP_REFER："http://www.google.com/" ||
 
-== http.close() 与 长连接 ==
+== http.close() 与长连接 ==
 
-如果浏览器支持 keep-alive 特性，服务器将会自动以 keep-alive 方式处理浏览器请求。
+|| http.close(_*keep_alive*_=300, _*timeout*=-1_) ||
 
- * 服务器以 keep-alive 方式处理每一个请求
- * 默认情况下使用 http.close() 接口完成本次请求，并继续保持连接
- * 使用 http.close(0) 强制断开连接（无论是否完成）
+ * 如果浏览器支持 keep-alive 特性，服务器将以 keep-alive 方式处理所有求
+ * 默认情况下 http.close() 可用于完成当次请求，并维持当前的（socket）连接
+ * 使用 http.close(0) 强制断开（socket）连接（无论是否完成）
  * http.close() 的 `keep_alive` 参数用于指定等待下次 http 请求所需的时间
  * http.close() 的 `timeout` 参数用于设定结束当次 http 请求所需的超时时间
-
-== 超时 ==
-
-多数 io 接口可以通过 timeout 参数设置超时，默认 -1 意为无超时。
-
-{{{
-from eurasia import httpserver, Timeout
-def handler(http):
-    http.start_response('200 OK', [])
-    try:
-        http.write(data, 10.) # 10 秒超时
-    except Timeout as e:
-        pass
-
-server = httpserver('0.0.0.0:8080', handler)
-server.serve_forever()
-}}}
-
- * 超时适用于 start_response()、read()、readline()、write()、close()
 
 || || || ||
 || || ||
 || ||
 
-= 线程池 =
+= 输入输出 =
 
-因为 eurasia 是基于协程实现的单进程、单线程服务器，因此需要借助线程池来完成阻塞调用。
+eurasia 是基于协程的单进程、单线程服务器，涉及 “文件”、“数据库”、“管道”、“socket” 等阻塞操作会卡住整个服务器。
 
-在 eurasia 程序中，所有阻塞操作（包括文件、数据库等），必须通过 apply_ 函数来调用。
+所有阻塞操作必须使用 eurasia 所提供的 “线程池”、“管道”、“socket” 接口之一来完成。
+
+ * 本节所涉 {{{apply_}}}、popen3、socket 等接口必须在服务器 handler 中使用
+
+== 线程池 ==
+
+线程池以 {{{apply_}}}(_*func*_, _*args*=()_, _*kwargs*={}_) 的形式提供，尤适用于阻塞的文件及数据库操作。
 
 {{{
 from eurasia import apply_
@@ -193,9 +160,13 @@ def handler(http):
     ...
 }}}
 
-= 管道 =
+ * 需要注意的是，通过 {{{apply_}}} 提交的任务没有超时，也不能撤销
+ * {{{apply_}}} 返回所提交任务的返回值，或抛出其异常
+ * 通过 {{{apply_}}} 提交的任务中，不能存在非阻塞调用（eurasia 提供的接口全是非阻塞的）
 
-可以使用 eurasia 提供的 popen3() 函数来操作协程管道，eurasia.popen3() 接口在操作上与 os.popen3() 类似。
+== 管道 ==
+
+可以使用 eurasia 提供的 popen3({{{*args}}}) 函数来操作协程管道，eurasia.popen3() 在操作上与 os.popen3() 类似。
 
 {{{
 from eurasia import popen3
@@ -209,6 +180,10 @@ def handler(http):
 
     ...
 }}}
+
+== socket ==
+
+
 
 || || || ||
 || || ||
@@ -230,3 +205,46 @@ eurasia 3.2 不再原生提供对多核处理器和 daemon 的支持，以下是
     推荐使用 [http://www.libslack.org/daemon/ daemon] 命令启动服务器。
 
     在多数 unix/linux 发行版上都可以非常方便地安装 daemon 命令。
+
+== 启动多个服务器 ==
+
+需要启动多个服务器的时候，使用 server.start()、eurasia.run() 来代替 server.serve_forever() 。
+
+{{{
+from eurasia import httpserver, run, break_
+
+    ...
+
+server1 = eurasia.httpserver('0.0.0.0:8080', handler1)
+server1.start()
+
+server2 = eurasia.httpserver('0.0.0.0:8090', handler2)
+server2.start()
+
+run() # 进入主循环
+}}}
+
+ * server.stop() 和 server.start() 是非阻塞的，server.serve_forever() 和 eurasia.run() 将使程序进入主循环
+ * 可以通过 server.stop() 来暂停服务器，暂停的服务器可以通过 server.start() 再次启动
+ * 可以调用 eurasia.{{{break_()}}} 退出主循环
+
+= 高级主题 =
+
+== 超时控制 ==
+
+eurasia 中的多数读写接口可以通过 timeout 参数设置超时，默认 -1 意为无超时。
+
+{{{
+from eurasia import httpserver, Timeout
+def handler(http):
+    http.start_response('200 OK', [])
+    try:
+        http.write(data, 10.) # 10 秒超时
+    except Timeout as e:
+        pass
+
+server = httpserver('0.0.0.0:8080', handler)
+server.serve_forever()
+}}}
+
+ * 超时适用于 start_response()、read()、readline()、write()、close()
