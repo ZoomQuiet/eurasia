@@ -77,6 +77,8 @@ server.serve_forever()
 
 == 地址格式 ==
 
+|| eurasia.httpserver(_*addr*_, _*handler*_) ||
+
 接口 httpserver 允许多种形式的 addr 参数，例如字符串格式的 addr ：
 
 {{{
@@ -101,6 +103,7 @@ server = httpserver((socket.AF_AF_INET6, ('::', 8080)), handler)  # IPv6 8080 �
 || http.read(_*size*_, _*timeout*=-1_) || 读取 http 请求内容 ||
 || http.readline(_*size*_, _*timeout*=-1_) || 读取 http 请求内容 ||
 || http.write(_*data*_, _*timeout*=-1_) || 发送 http 响应内容 ||
+|| http.flush() || 将写缓冲区中的数据发生 ||
 || http.close(_*keep_alive*_=300, _*timeout*=-1_) || 完成 http 响应 ||
 
  * http.write() 必须在 http.start_response() 后使用
@@ -146,7 +149,7 @@ eurasia 提供 sleep() 和 idle() 这两种简单的调度工具。
 
 || eurasia.idle() ||
 
- * 通过 idle() 调用临时交出 cpu ，意义上与 sleep(0) 类似
+ * 通过 idle() 调用临时交出 cpu ，意义上与 sleep(0) 类似（但此时应总是使用 idle）
 
 || || || ||
 || || ||
@@ -204,7 +207,70 @@ def handler(http):
 
 == socket ==
 
+|| eurasia.socket(_*family*={{{AF_INET}}}_) ||
 
+eurasia 提供了 socket 对象的协程版本，可用于创建 tcp 连接。
+
+{{{
+from eurasia import socket
+from socket import AF_INET
+
+def handler(...):
+    ...
+
+    s = socket(AF_INET)
+    s.connect(('127.0.0.1', 8080), 10.) # 10 秒超时
+    s.write('GET / HTTP/1.0\r\n\r\n')
+    print s.readline(1024)
+
+    ...
+}}}
+
+== socket 对象 ==
+
+|| socket.connect(_*addr*_, _*timeout*_) || 连接到 addr ||
+|| socket.recv(_*size*_, _*timeout*_) || 读取（不超过 size 大小的）数据 ||
+|| socket.send(_*data*_, _*timeout*_) || 发送数据，返回发送的字节数 ||
+|| socket.read(_*size*_, _*timeout*=-1_) || 读取（连接断开前）指定 size 大小的数据 ||
+|| socket.readline(_*size*_, _*timeout*=-1_) || 读取（连接断开前）指定 size 大小的数据，直至 {{{\n}}} ||
+|| socket.write(_*data*_, _*timeout*=-1_) || 向连接完整发送 data ||
+|| socket.close() || 断开连接 ||
+
+ * recv() 不会操作读缓存，不能和 read() / readline() 混用
+ * send() 不会操作写缓存，不能和 write() 混用
+ * 同一时间只能执行一个读函数（“recv()”、“read()” 或 “readline()”），对同一 socket 对象不能并发读
+ * 同一时间只能执行一个写函数（“send()” 或 “write()”）}，对同一 socket 对象不能并发写
+ * 当连接断开时 read() / readline() 可能会返回小于 size 的数据，但不会抛出异常（如同收到 EOF）
+ * 当连接断开时 write() 会抛出异常 “socket.error(EPIPE, 'Broken pipe')”
+
+|| || || ||
+|| || ||
+|| ||
+
+= 高级主题 =
+
+== 超时 ==
+
+eurasia 中的多数读写接口可以通过 timeout 参数设置超时，默认 -1 意为无超时。
+
+超时将抛出 eurasia.Timeout 异常。
+
+{{{
+from eurasia import httpserver, Timeout
+def handler(http):
+    http.start_response('200 OK', [])
+    try:
+        http.write(data, 10.) # 10 秒超时
+    except Timeout as e:
+        pass
+
+server = httpserver('0.0.0.0:8080', handler)
+server.serve_forever()
+}}}
+
+ * 通常情况下超时会破坏 http 对象，一旦超时发生应停止处理该 http 请求并丢弃该 http 对象
+
+== 从超时恢复 ==
 
 || || || ||
 || || ||
@@ -213,9 +279,14 @@ def handler(http):
 
 = 部署 =
 
-
-
 == 多服务器 ==
+
+|| server.{{{serve_forever}}}() || 启动服务器，并进入主循环（会阻塞程序） ||
+|| server.start() || 启动服务器（不会进入主循环，不会阻塞程序） ||
+|| server.stop() || 暂停/停止服务器（不会退出主循环） ||
+
+|| eurasia.run() || 进入主循环（会阻塞程序） ||
+|| eurasia.{{{break_()}}} || 退出主循环 ||
 
 需要在一个线程中启动多个服务器的时候，使用 server.start()、eurasia.run() 来代替 server.serve_forever() 。
 
@@ -233,9 +304,9 @@ server2.start()
 run() # 进入主循环
 }}}
 
- * server.stop() 和 server.start() 是非阻塞的，server.serve_forever() 和 eurasia.run() 将使程序进入主循环
+ * server.stop() 和 server.start() 是非阻塞的，server.{{{serve_forever}}}() 和 eurasia.run() 将使程序进入主循环
  * 可以通过 server.stop() 来暂停服务器，暂停的服务器可以通过 server.start() 再次启动
- * 可以调用 eurasia.{{{break_()}}} 退出主循环
+ * 可以调用 eurasia.{{{break_()}}} 退出主循环（server.{{serve_forever}}}() / eurasia.run() 会退出）
 
 == 部署工具 ==
 
@@ -258,28 +329,3 @@ run() # 进入主循环
 推荐使用 [http://www.libslack.org/daemon/ daemon] 命令启动服务器，使 eurasia 服务器运行于后台。
 
 在多数 unix/linux 发行版上都可以非常方便地安装 daemon 命令。
-
-|| || || ||
-|| || ||
-|| ||
-
-= 高级主题 =
-
-== 超时控制 ==
-
-eurasia 中的多数读写接口可以通过 timeout 参数设置超时，默认 -1 意为无超时。
-
-{{{
-from eurasia import httpserver, Timeout
-def handler(http):
-    http.start_response('200 OK', [])
-    try:
-        http.write(data, 10.) # 10 秒超时
-    except Timeout as e:
-        pass
-
-server = httpserver('0.0.0.0:8080', handler)
-server.serve_forever()
-}}}
-
- * 超时适用于 start_response()、read()、readline()、write()、close()
