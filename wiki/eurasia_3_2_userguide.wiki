@@ -75,11 +75,11 @@ server.serve_forever()
 
 执行脚本，使用浏览器访问 http://127.0.0.1:8080/ 即可。
 
-== 地址格式 ==
+== http 服务器 ==
 
 || eurasia.httpserver(_*addr*_, _*handler*_) ||
 
-接口 httpserver 允许多种形式的 addr 参数，例如字符串格式的 addr ：
+httpserver 允许多种形式的 addr 参数，例如字符串格式的 addr ：
 
 {{{
 server = httpserver('127.0.0.1:8080', handler)  # IPv4 8080 端口
@@ -226,6 +226,38 @@ def handler(...):
     ...
 }}}
 
+ * socket 对象使用详见 “tcp 服务器” 一节
+
+|| || || ||
+|| || ||
+|| ||
+
+= tcp 服务器 =
+
+|| eurasia.tcpserver(_*addr*_, _*handler*_) ||
+
+tcpserver 允许多种形式的 addr 参数（参见 httpserver）。
+
+|| def handler(_*sock*_, _*addr*_): return None ||
+
+tcp handler 接受一个 socket 对象和一个客户端 addr 作为参数。
+
+{{{
+# echo 服务
+from eurasia import tcpserver
+
+def handler(sock, addr):
+    while 1:
+        data = sock.readline(1024, 60.)
+        if 'quit' == data.strip():
+            sock.close()
+            break
+        sock.write(data)
+
+server = tcpserver('0.0.0.0:8080', handler)
+server.serve_forever()
+}}}
+
 == socket 对象 ==
 
 || socket.connect(_*addr*_, _*timeout*_) || 连接到 addr ||
@@ -309,7 +341,7 @@ def handler(sock):
 == 协程调度 ==
 
  * 阅读本节需要有关于 greenlet 模块的完整知识
- * 本节所涉 eurasia 的底层调度接口通常不会经常用到
+ * 本节所涉 eurasia 的底层调度接口并不会经常用到
 
 === 基本原理 ===
 
@@ -410,6 +442,7 @@ server2.start()
 run() # 进入主循环
 }}}
 
+ * httpserver 与 tcpserver 都支持 stop()、start()、serve_forever()
  * server.stop() 和 server.start() 是非阻塞的，server.{{{serve_forever}}}() 和 eurasia.run() 将使程序进入主循环
  * 可以通过 server.stop() 来暂停服务器，暂停的服务器可以通过 server.start() 再次启动
  * 可以调用 eurasia.{{{break_()}}} 退出主循环（server.{{serve_forever}}}() / eurasia.run() 会退出）
@@ -442,13 +475,29 @@ run() # 进入主循环
 
 = 开发者 =
 
+== 协程服务器 ==
+
+eurasia 是一种基于协程的服务器框架，协程服务器能让开发者以多线程逻辑来开发单线程的异步程序。
+
+以下是几种典型的服务器框架，便于开发者了解协程服务器的特点（其中 gevent 是 python 下另一款受欢迎的协程框架）。
+
+|| 服务器框架：|| 异步（核心调度模式）：|| 多线程（核心调度模式）：|| 多线程（应用层运行模式）：|| 应用层 IO 工作模式：|| 理论性能：|| 并发：||
+|| paste || × || ○ || ○ || 多线程 || 中 || 低 ||
+|| twisted || ○ || × || × || 异步回调 || 高 || 高 ||
+|| nodejs || ○ || × || × || 异步回调 || 高 || 高 ||
+|| tornado || ○ || × || ○ || 多线程 || 高 || 高（Non-IO） ||
+|| fapws3 || ○ || × || ○ || 多线程 || 高 || 中 ||
+|| gevent || ○ || × || × || 多线程 || 高 || 高 ||
+
+ * “多线程逻辑” 和 “回调逻辑” 在开发效率上的差别，开发者可以自己体会
+ * 实际性能取决于框架的实际设计，有时设计糟糕的框架在性能上会远低于其理论上应能达到的性能
+ * 由于 IO 操作在应用层会阻塞整个服务器，故在无法使用协程交出当前运行栈的情况下，tornado 的应用层实际上是多线程模型
+
 == 源码阅读及调试向导 ==
 
 在源码文件 “eurasia.py” 中有大量实现是由代码模板生成的，代码模板通常以多行字符串的形式出现。
 
 在源码阅读中，如果发现整段 base64 编码的字符串，须以 base64 将其解码以后用 zlib 解压，即可得到原始的代码模板。
-
-建议以得到的代码模板创建为新文件，便于阅读，并有助于调试中获得正确的代码行号（代码模板的运行位置是临时的 “<string>” 模块）。
 
 {{{
 # 如何从 base64 得到原始的代码模板
@@ -458,6 +507,8 @@ eNrtWG1v2zYQ/u5fwaEILCGOEPfTaswB1sTDigV20TjrB88QZJluuKikQdHWsl8/HknJpN7sGM4y
     ...
 6Ku67qUGv4Y1gzNpMz/zlGfZ4kr6jwc8OwDwrBXw7DUAz14P8H8ApS6xVQ=='''))
 }}}
+
+ * 将得到的代码模板创建为新文件有助于调试中获得正确的代码行号（因为代码模板的执行位置是 {{{“<string>”}}} 临时模块）。
 
 == 提交 BUG 及建议 ==
 
