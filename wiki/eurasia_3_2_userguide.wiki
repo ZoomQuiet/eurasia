@@ -139,7 +139,7 @@ server = httpserver((socket.AF_AF_INET6, ('::', 8080)), handler)  # IPv6 8080 �
 || || ||
 || ||
 
-= sleep() =
+= sleep() & idle() =
 
 eurasia 提供 sleep() 和 idle() 这两种简单的调度工具。
 
@@ -149,7 +149,7 @@ eurasia 提供 sleep() 和 idle() 这两种简单的调度工具。
 
 || eurasia.idle() ||
 
- * 通过 idle() 调用临时交出 cpu ，意义上与 sleep(0) 类似（但此时应总是使用 idle）
+ * 临时切出当前栈（“greenlet.getcurrent()”）系统空闲时返回
 
 || || || ||
 || || ||
@@ -268,9 +268,115 @@ server = httpserver('0.0.0.0:8080', handler)
 server.serve_forever()
 }}}
 
- * 通常情况下超时会破坏 http 对象，一旦超时发生应停止处理该 http 请求并丢弃该 http 对象
+ * 对 http 对象而言，通常情况下一旦超时发生，应停止处理该 http 请求并丢弃该 http 对象
 
-== 从超时恢复 ==
+=== 从超时恢复 ===
+
+{{{
+from eurasia import tcpserver, Timeout
+
+def handler(sock):
+    while 1:
+        try:
+            data = sock.recv(1024, 10.)
+        except Timeout:
+            continue # tcp 的 recv() 超时可以直接重试
+        break
+    while 1:
+        try:
+            data = sock.read(10, 10.)
+        except Timeout:
+            continue # tcp 的 read() 超时可以直接重试
+        break
+    while 1:
+        try:
+            num_sent = sock.send('hello', 10.)
+        except Timeout:
+            continue # tcp 的 send() 超时可以直接重试
+        break
+
+    # 当 tcp write() 发生超时时，可以通过 Timeout 异常的
+    # num_sent 属性得到已经发送的字节数
+    try:
+        sock.write('hello', 10.)
+    except Timeout as e:
+        print 'sent:', e.num_sent
+}}}
+
+ * 对 tcp socket 而言 connect()、recv()、send()、read()、readline() 等方法的超时是可以直接重试的
+ * tcp socket 的 write() 发生超时时需要读取 Timeout.num_sent 以获得已发送字符数
+
+== 协程调度 ==
+
+ * 阅读本节需要有关于 greenlet 模块的完整知识
+ * 本节所涉 eurasia 的底层调度接口通常不会经常用到
+
+=== 基本原理 ===
+
+eurasia 使用 greenlet 模块提供的栈切换功能，并在此基础上实现了极其简单的协程调度。
+
+eurasia 中并不存在复杂的协程调度器，使用 eurasia 的底层调度接口，切出当前栈时一般只要切换到上一级的父栈即可。
+
+ * 如果不能确信，应*总是*切换到父栈，否则极易发生栈泄漏
+ * 如不能理解本段内容，请阅读下面的具体说明和范例
+
+=== eurasia.idle_switch() ===
+
+|| eurasia.idle_switch(_*back{{{_}}}*_, _*goto{{{_}}}*_), _*args*=()_ ||
+
+idle_switch() 用来临时切出当前栈（即 “greenlet.getcurrent()”）到 goto{{{_}}}
+（这一步可以直译为 {{{ goto_.switch(*args) }}}）。当系统空闲时，再切回 back{{{_}}}。
+
+{{{
+# 使用 idle_switch() 实现 eurasia.idle()
+# （当然 eurasia.idle() 确实是这样实现的）
+
+from eurasia import idle_switch
+from greenlet import getcurrent
+
+def idle():
+    back_ = getcurrent()  # 返回到当前栈
+    goto_ = back_.parent  # 通常都是切换到上一级的父栈
+    idle_switch(back_, goto_)  # goto_.switch() 空闲时切回 back_
+}}}
+
+=== eurasia.timer_switch() ===
+
+|| eurasia.timer_switch(_*back{{{_}}}*_, _*goto{{{_}}}*_, _*seconds*_, _*args*=()_) ||
+
+切出当前栈到 goto{{{_}}}，在指定时间（seconds）后再切回 back{{{_}}}。
+
+{{{
+# 使用 timer_switch() 实现 eurasia.sleep()
+# （当然 eurasia.sleep() 确实是这样实现的）
+
+from eurasia import idle_switch
+from greenlet import getcurrent
+
+def sleep(seconds):
+    back_ = getcurrent()  # 返回到当前栈
+    goto_ = back_.parent  # 通常都是切换到上一级的父栈
+    timer_switch(back_, goto_, seconds) # seconds 后切回 back_
+}}}
+
+=== eurasia.timer_raise() ===
+
+|| eurasia.timer_raise(_*back{{{_}}}*_, _*goto{{{_}}}*_, _*seconds*_, _*args*=()_) ||
+
+timer_raise() 与 timer_switch() 的区别在于 timer_raise() 是以抛出 eurasia.Timeout 异常结束的。
+
+{{{
+from greenlet import getcurrent
+from eurasia import idle_switch, Timeout
+
+def sleep(seconds):
+    back_ = getcurrent()  # 返回到当前栈
+    goto_ = back_.parent  # 通常都是切换到上一级的父栈
+    try:
+        timer_switch(back_, goto_, seconds) # seconds 后切回 back_
+    except Timeout:
+        return
+}}}
 
 || || || ||
 || || ||
@@ -329,3 +435,30 @@ run() # 进入主循环
 推荐使用 [http://www.libslack.org/daemon/ daemon] 命令启动服务器，使 eurasia 服务器运行于后台。
 
 在多数 unix/linux 发行版上都可以非常方便地安装 daemon 命令。
+
+|| || || ||
+|| || ||
+|| ||
+
+= 开发者 =
+
+== 源码阅读及调试向导 ==
+
+在源码文件 “eurasia.py” 中有大量实现是由代码模板生成的，代码模板通常以多行字符串的形式出现。
+
+在源码阅读中，如果发现整段 base64 编码的字符串，须以 base64 将其解码以后用 zlib 解压，即可得到原始的代码模板。
+
+建议以得到的代码模板创建为新文件，便于阅读，并有助于调试中获得正确的代码行号（代码模板的运行位置是临时的 “<string>” 模块）。
+
+{{{
+# 如何从 base64 得到原始的代码模板
+import zlib, base64
+print zlib.decompress(base64.decodestring('''\
+eNrtWG1v2zYQ/u5fwaEILCGOEPfTaswB1sTDigV20TjrB88QZJluuKikQdHWsl8/HknJpN7sGM4y
+    ...
+6Ku67qUGv4Y1gzNpMz/zlGfZ4kr6jwc8OwDwrBXw7DUAz14P8H8ApS6xVQ=='''))
+}}}
+
+== 提交 BUG 及建议 ==
+
+可以通过 [https://groups.google.com/group/eurasia-users eurasia 用户组] 联系我们。
