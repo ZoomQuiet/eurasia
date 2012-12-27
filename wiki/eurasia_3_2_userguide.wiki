@@ -17,8 +17,7 @@ $ wget http://eurasia.googlecode.com/svn/branches/3.2/eurasia.py
 
  * 需要 unix/linux 系统
  * 需要 libev、libeio 库和 greenlet 模块的支持
- * 在 python2.7 下测试通过（不支持 python3）
- * 在高并发情况下 pypy 会崩溃，且性能不如 cpython
+ * 在 python2.7 下测试通过（不支持 python3、pypy 不稳定）
 
 == 安装依赖 ==
 
@@ -184,7 +183,7 @@ def handler(http):
 
  * 需要注意的是，通过 {{{apply_}}} 提交的任务没有超时，也不能撤销
  * {{{apply_}}} 返回所提交任务的返回值，或抛出其异常
- * 通过 {{{apply_}}} 提交的任务中，不能存在非阻塞调用（eurasia 提供的接口全是非阻塞的）
+ * 通过 {{{apply_}}} 提交的任务，必须是能够阻塞线程的（eurasia 提供的接口都不能在 apply{{{_}}} 中使用）
 
 == 管道 ==
 
@@ -272,8 +271,8 @@ server.serve_forever()
  * send() 不会操作写缓存，不能和 write() 混用
  * 同一时间只能执行一个读函数（“recv()”、“read()” 或 “readline()”），对同一 socket 对象不能并发读
  * 同一时间只能执行一个写函数（“send()” 或 “write()”）}，对同一 socket 对象不能并发写
- * 当连接断开时 read() / readline() 可能会返回小于 size 的数据，但不会抛出异常（如同收到 EOF）
- * 当连接断开时 write() 会抛出异常 “socket.error(EPIPE, 'Broken pipe')”
+ * 在读取过程中连接发生断开 read() / readline() 可能会返回小于 size 的数据，但不会抛出异常（如同收到 EOF）
+ * 在发送过程中连接发生断开 write() 会抛出异常 “socket.error(EPIPE, 'Broken pipe')”
 
 || || || ||
 || || ||
@@ -338,6 +337,8 @@ def handler(sock):
  * 对 tcp socket 而言 connect()、recv()、send()、read()、readline() 等方法的超时是可以直接重试的
  * tcp socket 的 write() 发生超时时需要读取 Timeout.num_sent 以获得已发送字符数
 
+|| || || ||
+
 == 协程调度 ==
 
  * 阅读本节需要有关于 greenlet 模块的完整知识
@@ -349,7 +350,7 @@ eurasia 使用 greenlet 模块提供的栈切换功能，并在此基础上实�
 
 eurasia 中并不存在复杂的协程调度器，使用 eurasia 的底层调度接口，切出当前栈时一般只要切换到上一级的父栈即可。
 
- * 如果不能确信，应*总是*切换到父栈，否则极易发生栈泄漏
+ * 如果不能确信，应 *总是* 切换到父栈，否则极易发生栈泄漏
  * 如不能理解本段内容，请阅读下面的具体说明和范例
 
 === eurasia.idle_switch() ===
@@ -357,11 +358,12 @@ eurasia 中并不存在复杂的协程调度器，使用 eurasia 的底层调度
 || eurasia.idle_switch(_*back{{{_}}}*_, _*goto{{{_}}}*_), _*args*=()_ ||
 
 idle_switch() 用来临时切出当前栈（即 “greenlet.getcurrent()”）到 goto{{{_}}}
-（这一步可以直译为 {{{ goto_.switch(*args) }}}）。当系统空闲时，再切回 back{{{_}}}。
+（这一步可以直译为 {{{ goto_.switch(*args) }}}）。
+
+当系统空闲时，再切回 back{{{_}}}。
 
 {{{
-# 使用 idle_switch() 实现 eurasia.idle()
-# （当然 eurasia.idle() 确实是这样实现的）
+# 使用 idle_switch() 实现 eurasia.idle() —— 当然 eurasia.idle() 确实是这样实现的
 
 from eurasia import idle_switch
 from greenlet import getcurrent
@@ -379,8 +381,7 @@ def idle():
 切出当前栈到 goto{{{_}}}，在指定时间（seconds）后再切回 back{{{_}}}。
 
 {{{
-# 使用 timer_switch() 实现 eurasia.sleep()
-# （当然 eurasia.sleep() 确实是这样实现的）
+# 使用 timer_switch() 实现 eurasia.sleep() —— 当然 eurasia.sleep() 确实是这样实现的
 
 from eurasia import idle_switch
 from greenlet import getcurrent
@@ -405,7 +406,7 @@ def sleep(seconds):
     back_ = getcurrent()  # 返回到当前栈
     goto_ = back_.parent  # 通常都是切换到上一级的父栈
     try:
-        timer_switch(back_, goto_, seconds) # seconds 后切回 back_
+        timer_raise(back_, goto_, seconds) # seconds 后切回 back_
     except Timeout:
         return
 }}}
@@ -479,19 +480,20 @@ run() # 进入主循环
 
 eurasia 是一种基于协程的服务器框架，协程服务器能让开发者以多线程逻辑来开发单线程的异步程序。
 
-以下是几种典型的服务器框架，便于开发者了解协程服务器的特点（其中 gevent 是 python 下另一款受欢迎的协程框架）。
+以下是几种典型的服务器框架，便于开发者了解协程服务器的特点：
 
 || 服务器框架：|| 异步（核心调度模式）：|| 多线程（核心调度模式）：|| 多线程（应用层运行模式）：|| 应用层 IO 工作模式：|| 理论性能：|| 并发：||
 || paste || × || ○ || ○ || 多线程 || 中 || 低 ||
 || twisted || ○ || × || × || 异步回调 || 高 || 高 ||
-|| nodejs || ○ || × || × || 异步回调 || 高 || 高 ||
-|| tornado || ○ || × || ○ || 多线程 || 高 || 高（Non-IO） ||
-|| fapws3 || ○ || × || ○ || 多线程 || 高 || 中 ||
+|| nodejs || ○ || × || × || 异步回调（匿名函数） || 高 || 高 ||
+|| tornado || ○ || × || ○ || 多线程 || 较高 || 高（Non-IO） ||
+|| fapws3 || ○ || × || ○ || 多线程 || 较高 || 中 ||
 || gevent || ○ || × || × || 多线程 || 高 || 高 ||
 
  * “多线程逻辑” 和 “回调逻辑” 在开发效率上的差别，开发者可以自己体会
  * 实际性能取决于框架的实际设计，有时设计糟糕的框架在性能上会远低于其理论上应能达到的性能
  * 由于 IO 操作在应用层会阻塞整个服务器，故在无法使用协程交出当前运行栈的情况下，tornado 的应用层实际上是多线程模型
+ * 其中 gevent 是 python 下另一款受欢迎的协程框架
 
 == 源码阅读及调试向导 ==
 
