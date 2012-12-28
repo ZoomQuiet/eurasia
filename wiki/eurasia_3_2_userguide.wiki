@@ -430,7 +430,7 @@ def handler(...):
 
 == eurasia.idle_switch() ==
 
-|| eurasia.idle_switch(_*back{{{_}}}*_, _*goto{{{_}}}*_), _*args*=()_ ||
+|| eurasia.idle_switch(_*back{{{_}}}*_, _*goto{{{_}}}*_, _*args*=()_) ||
 
 idle_switch() 用来临时切出当前栈（即 “greenlet.getcurrent()”）到 goto{{{_}}}
 （这一步可以直译为 {{{ goto_.switch(*args) }}}）。
