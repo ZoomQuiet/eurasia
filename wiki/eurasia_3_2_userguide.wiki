@@ -1,7 +1,7 @@
 #summary EURASIA 用户手册（3.2 版）
 #labels Featured
 
-<wiki:toc max_depth="2" />
+<wiki:toc max_depth="1" />
 
 || || || ||
 || || ||
