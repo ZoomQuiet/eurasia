@@ -102,7 +102,7 @@ server = httpserver((socket.AF_AF_INET6, ('::', 8080)), handler)  # IPv6 8080 �
 || http.read(_*size*_, _*timeout*=-1_) || 读取 http 请求内容 ||
 || http.readline(_*size*_, _*timeout*=-1_) || 读取 http 请求内容 ||
 || http.write(_*data*_, _*timeout*=-1_) || 发送 http 响应内容 ||
-|| http.flush() || 将写缓冲区中的数据发生 ||
+|| http.flush() || 将写缓冲区中的数据立即发送 ||
 || http.close(_*keep_alive*_=300, _*timeout*=-1_) || 完成 http 响应 ||
 
  * http.write() 必须在 http.start_response() 后使用
