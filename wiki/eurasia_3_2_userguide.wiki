@@ -12,7 +12,7 @@
 [http://eurasia.googlecode.com/svn/branches/3.2/eurasia.py 下载] [http://eurasia.googlecode.com/svn/branches/3.2/eurasia.py eurasia.py] 即可，无需安装。
 
 {{{
-$ wget http://eurasia.googlecode.com/svn/branches/3.2/eurasia.py
+$ svn co https://eurasia.googlecode.com/svn/branches/3.2/
 }}}
 
  * 需要 unix/linux 系统
@@ -289,7 +289,55 @@ def handler(sock, addr):
 }}}
 
  * 使用 socket.sendfile() 之前请先阅读 linux/unix sendfile 接口的文档及注意事项
- * 高并发场合下使用 socket.sendfile() 发送大文件并不一定是个好主意
+ * in_fd 需是以非阻方式打开的文件句柄（或 “fcntl(in_fd, F_SETFL, O_NONBLOCK)”）
+
+|| || || ||
+|| || ||
+|| ||
+
+= 直接发送 HTTP 报文 =
+
+|| http.socket 对象 ||
+
+有时我们需要直接通过底层 tcp 连接来发送 http 报文，这时就需要用到 http 对象的 socket 属性了。
+
+|| http.socket.send(_*data*_, _*timeout*_=-1) ||
+|| http.socket.write(_*data*_, _*timeout*=-1_) ||
+
+ * 需要注意的是读报文仍然需要使用 http 对象的读取接口
+
+{{{
+# 直接发送 HTTP 报文
+from eurasia import httpserver
+
+def handler(http):
+    http.socket.write('HTTP/1.1 304 Not Modified\r\n\r\n')
+    http.close()
+
+server = httpserver('0.0.0.0:8080', handler)
+server.serve_forever()
+}}}
+
+ * 需要注意的是完成 http 请求仍然需要使用 http.close()
+
+一旦使用 http.socket 发送报文，就不应再使用 http.start_response()、http.write() 。
+
+合理使用 http.socket.write() 能有效提高服务器性能。
+
+=== 一览表 ===
+
+|| 模式：|| 读取报文头：|| 读取报文：|| 发送报文头：|| 发送报文：|| 完成响应：||
+|| 自动模式 || http.environ || http.read()等 || http.start_response() || http.write() || http.close() ||
+|| 手动模式 || http.environ || http.read()等 || sock.write() || sock.write() || http.close() ||
+
+|| 模式：|| start_response() || http.read() || http.write() || http.flush() || http.close() || sock.read() || sock.write() ||
+|| 自动模式 || ○ || ○ || ○ || ○ || ○ || × || × ||
+|| 手动模式 || × || ○ || × || ○ || ○ || × || ○ ||
+
+ * sock 指 http.socket 对象
+ * http.read() 包括 http.read() {{{/}}} readline() 等接口
+ * sock.read() 包括 http.socket.read() {{{/}}} readline() {{{/}}} recv() 等接口
+ * sock.write() 包括 http.socket.write() {{{/}}} send() 等接口
 
 || || || ||
 || || ||
@@ -505,20 +553,32 @@ run() # 进入主循环
 
 == 协程服务器 ==
 
-eurasia 是一种基于协程的服务器框架，协程服务器能让开发者以多线程逻辑来开发单线程的异步程序。
+eurasia 是一种基于协程的服务器框架，协程服务器能让开发者以（较为人性的）同步逻辑来开发单线程的异步程序。
 
 以下是几种典型的服务器框架，便于开发者了解协程服务器的特点：
 
-|| 服务器框架：|| 异步解析请求：|| 多线程解析请求：|| 多线程应用层：|| 应用层开发模式：|| 理论性能：|| 并发：||
-|| paste || × || ○ || ○ || 多线程 || 中 || 低 ||
-|| twisted || ○ || × || × || 异步回调 || 高 || 高 ||
-|| nodejs || ○ || × || × || 异步回调（匿名函数） || 高 || 高 ||
-|| fapws3 || ○ || × || ○ || 多线程 || 高 || 中 ||
-|| *gevent* || ○ || × || × || 多线程 || 高 || 高 ||
+|| 服务器框架：|| 协程：|| 异步：|| 多线程（核心）：|| 多线程（应用层）：|| 开发模式：|| 理论性能：|| 并发：||
+|| paste || × || × || ○ || ○ || 同步 || 中 || 低 ||
+|| twisted || × || ○ || × || × || 异步 || 高 || 高 ||
+|| nodejs || × || ○ || × || × || 异步 || 高 || 高 ||
+|| ①tornado || × || ○ || × || ○ || 同步 || 高 || 中 ||
+|| ②tornado || × || ○ || × || × || 异步 || 高 || 高 ||
+|| fapws3 || × || ○ || × || ○ || 同步 || 高 || 中 ||
+|| gevent || ○ || ○ || × || × || 同步 || 高 || 高 ||
 
- * “多线程逻辑” 和 “回调逻辑” 在开发效率上有较大差别
- * 实际性能取决于框架的实际设计，有时设计糟糕的框架在性能上会远低于其理论上应能达到的性能
+ * “同步逻辑” 和 “异步逻辑” 在开发效率和维护成本上区别较大
  * eurasia 和 gevent 是好基友！
+
+== 性能参考 ==
+
+框架性能主要和框架的是否完全异步，及具体实现有关，与是否是协程服务器无关。
+诸如 eurasia、gevent 这样的协程服务器与纯异步实现的 twisted、nodejs
+他们在性能上（理论上）并没有太大的差别，在并发能力上差别则更小。
+
+最近的一项测试（官网 “Hello, world” 程序）表明，在同等条件下 eurasia 3.2 每秒能够处理的请求数相当于
+tornado 4.2 的 140% ，以 tornado 为基准可以得到 eurasia 在各项测试中的参考值。
+
+ * 性能评测仅作参考，应以实际使用情况为准
 
 == 源码阅读及调试向导 ==
 
