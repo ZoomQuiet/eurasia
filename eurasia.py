@@ -32,9 +32,12 @@
 #
 ############################################################################
 
-revision = '$Revision$'
-revision = revision[revision.find (':')+1:revision.rfind('$')].strip()
-__version__ = '3.2:%s' % revision
+__version__, revision = '3.2', '$Revision$'
+if revision.find(':') >= 0:
+    revision = revision[revision.find(':')+1:revision.rfind('$')].strip()
+    __version__ = '%s:%s' % (__version__, revision)
+else:
+    revision = ''
 
 def find_library(name):
     import ctypes.util
@@ -593,6 +596,7 @@ import _socket
 from errno import *
 from weakref import ref
 from cStringIO import StringIO
+from traceback import print_exc
 from greenlet import greenlet, getcurrent
 from _socket import error, socket as realsocket, timeout as realtimeout
 
@@ -700,7 +704,10 @@ def server_r_io_cb(l, w, e):
     _sock.setblocking(0)
     socket1 = socket_wrapper(_sock)
     goto_ = greenlet(server1.handler)
-    goto_.switch(socket1, addr)
+    try:
+        goto_.switch(socket1, addr)
+    except:
+        print_exc(file=sys.stderr)
 
 def get_cserver0():
     cserver0 = ev_io()
@@ -732,12 +739,18 @@ for type_, desc in [('r', 'read'), ('w', 'write'), ('x', 'connect')]:
     exec('''def socket_%(type)s_io_cb(l, w, e):
     id_ = w.contents.data
     socket1 = objects[id_]()
-    socket1.%(type)s_co.switch()
+    try:
+        socket1.%(type)s_co.switch()
+    except:
+        print_exc(file=sys.stderr)
 def socket_%(type)s_timer_cb(l, w, e):
     id_ = w.contents.data
     socket1 = objects[id_]()
-    socket1.%(type)s_co.throw(Timeout, Timeout(ETIMEDOUT, '%(desc)s timed o\
-ut'))
+    try:
+        socket1.%(type)s_co.throw(Timeout, Timeout(ETIMEDOUT, '%(desc)s tim\
+ed out'))
+    except:
+        print_exc(file=sys.stderr)
 c_socket_%(type)s_io_cb = find_cb(ev_io)(socket_%(type)s_io_cb)
 c_socket_%(type)s_timer_cb = find_cb(ev_timer)(socket_%(type)s_timer_cb)   \
 ''' % {'type': type_, 'desc': desc})
@@ -951,7 +964,10 @@ def apply_(func, args=(), kwargs={}, timeout=-1):
 
 def apply_cb(req):
     id_ = req.contents.data
-    objects[id_]().back_.switch()
+    try:
+        objects[id_]().back_.switch()
+    except:
+        print_exc(file=sys.stderr)
     return 0
 
 def execute(req):
@@ -969,10 +985,6 @@ def execute(req):
     else:
         frame1.result = result
     return 0
-
-def apply_timer_cb(l, w, e):
-    id_ = w.contents.data
-    objects[id_]()
 
 c_apply_cb = eio_cb(apply_cb)
 c_execute = eio_custom.argtypes[0](execute)
@@ -1017,12 +1029,18 @@ def sleep(seconds):
 def scheduler_cb(l, w, e):
     id_ = w.contents.data
     back_ = objects[id_]()
-    back_.switch()
+    try:
+        back_.switch()
+    except:
+        print_exc(file=sys.stderr)
 
 def scheduler_throw_cb(l, w, e):
     id_ = w.contents.data
     back_ = objects[id_]()
-    back_.throw(Timeout, Timeout(ETIMEOUT, 'operation timed out'))
+    try:
+        back_.throw(Timeout, Timeout(ETIMEOUT, 'operation timed out'))
+    except:
+        print_exc(file=sys.stderr)
 
 def get_timer0(c_timer_cb):
     timer1 = ev_timer()
@@ -1201,22 +1219,31 @@ class httpfile:
 
 def httpreuse(s, reuse, bgenv, keep_alive):
     s.r_wait(keep_alive)
-    http = httpfile(s, reuse, **bgenv)
+    try:
+        http = httpfile(s, reuse, **bgenv)
+    except:
+        return
     reuse(http)
 
 def httphandler(handler, **environ):
     def wrapper(s, addr):
         s._sock.setsockopt(SOL_TCP, TCP_CORK, 1)
-        http = httpfile(s, handler,
-            REMOTE_ADDR=addr[0],
-            REMOTE_PORT=addr[1], **environ)
+        try:
+            http = httpfile(s, handler,
+                REMOTE_ADDR=addr[0],
+                REMOTE_PORT=addr[1], **environ)
+        except:
+            return
         handler(http)
     return wrapper
 
 def httphandler_unix(handler, **environ):
     def wrapper(s, addr):
         s._sock.setsockopt(SOL_TCP, TCP_CORK, 1)
-        http = httpfile(s, handler, **environ)
+        try:
+            http = httpfile(s, handler, **environ)
+        except:
+            return
         handler(http)
     return wrapper
 
