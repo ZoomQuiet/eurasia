@@ -1038,7 +1038,7 @@ def scheduler_throw_cb(l, w, e):
     id_ = w.contents.data
     back_ = objects[id_]()
     try:
-        back_.throw(Timeout, Timeout(ETIMEOUT, 'operation timed out'))
+        back_.throw(Timeout, Timeout(ETIMEDOUT, 'operation timed out'))
     except:
         print_exc(file=sys.stderr)
 
