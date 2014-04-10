@@ -24,8 +24,9 @@ $ svn co https://eurasia.googlecode.com/svn/branches/3.2/
 安装 libev 库（将 libev.so 与 eurasia.py 放在同一目录即可）：
 
 {{{
-$ cvs -z3 -d :pserver:anonymous@cvs.schmorp.de/schmorpforge co libev
-$ cd libev
+$ wget https://eurasia-dl.googlecode.com/files/libev-1.125.tar.bz2
+$ tar xjf libev-1.125.tar.bz2
+$ cd libev-1.125
 $ chmod +x autogen.sh
 $ ./autogen.sh
 $ ./configure
@@ -36,8 +37,9 @@ $ cp .libs/libev.so /PATH/TO/EURASIA_PY
 安装 libeio 库（将 libeio.so 与 eurasia.py 放在同一目录即可）：
 
 {{{
-$ cvs -z3 -d :pserver:anonymous@cvs.schmorp.de/schmorpforge co libeio
-$ cd libeio
+$ wget https://eurasia-dl.googlecode.com/files/libeio-1.424.tar.bz2
+$ tar xjf libeio-1.424.tar.bz2
+$ cd libeio-1.424
 $ chmod +x autogen.sh
 $ ./autogen.sh
 $ ./configure
